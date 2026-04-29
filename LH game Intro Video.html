@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legendary Horizon - Quest for the Horizon</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@400;600&display=swap');
+
+        :root {
+            --bg-deep: #0a0c10;
+            --amber: #f59e0b;
+            --amber-dim: rgba(245, 158, 11, 0.1);
+            --amber-light: #fef3c7;
+            --text-bright: #f1f5f9;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--bg-deep);
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            color: var(--text-bright);
+        }
+
+        #video-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .bg-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            opacity: 0;
+            transition: opacity 2s ease-in-out, transform 15s ease-out;
+            transform: scale(1.05);
+            z-index: 1;
+        }
+
+        .bg-layer.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Vignette effect */
+        .vignette {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, transparent 20%, rgba(10, 12, 16, 0.9) 100%);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .ui-layer {
+            position: absolute;
+            bottom: 5vh;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            width: 90%;
+            max-width: 850px;
+        }
+
+        .scene-title {
+            font-family: 'Cinzel', serif;
+            font-size: 2.2rem;
+            color: transparent;
+            background-clip: text;
+            -webkit-background-clip: text;
+            background-image: linear-gradient(to bottom, #fde68a, #d97706);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            font-weight: 900;
+            text-align: center;
+            margin-bottom: 1rem;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 1s ease 1s, transform 1s ease 1s;
+        }
+
+        .scene-title.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .dialogue-box {
+            background-color: rgba(15, 23, 42, 0.7);
+            border: 2px solid var(--amber);
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.2), inset 0 0 10px rgba(245, 158, 11, 0.1);
+            min-height: 100px;
+            position: relative;
+        }
+
+        .speaker-name {
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background-color: var(--amber);
+            color: #000;
+            font-family: 'Cinzel', serif;
+            font-weight: 900;
+            padding: 0.1rem 0.8rem;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5);
+        }
+
+        .dialogue-text {
+            font-family: 'Inter', sans-serif;
+            font-size: 1.15rem;
+            line-height: 1.5;
+            color: var(--amber-light);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 1.4rem;
+            background-color: var(--amber);
+            vertical-align: middle;
+            animation: blink 1s step-end infinite;
+            margin-left: 5px;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* Controls just for debugging */
+        #start-btn {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+            background-color: var(--amber);
+            color: #000;
+            font-family: 'Cinzel', serif;
+            font-size: 1.5rem;
+            padding: 1rem 3rem;
+            border: none;
+            cursor: pointer;
+            border-radius: 8px;
+            font-weight: 900;
+        }
+    </style>
+</head>
+<body>
+
+    <button id="start-btn">Start Video</button>
+
+    <div id="video-container" style="display:none;">
+        <div id="bg0" class="bg-layer active"></div>
+        <div id="bg1" class="bg-layer"></div>
+        <div class="vignette"></div>
+
+        <div class="ui-layer">
+            <div class="scene-title" id="scene-title"></div>
+            <div class="dialogue-box">
+                <div class="speaker-name">The Mentor</div>
+                <div class="dialogue-text" id="dialogue-text"><span class="cursor"></span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const scenes = [
+            {
+                image: "assets/scene_1_awakening_1775784281028.png",
+                title: "PHASE 1: THE AWAKENING",
+                text: "Every legendary hero begins their journey with a single realization: you cannot conquer the world until you know the stats of your own character. Welcome, Traveler, to the Awakening. In Phase One, we aren't looking at jobs—we're looking at your Base Stats. Your Interest Profiler is your compass. Are you a high-Intelligence mage who loves academic puzzles? Or a high-Strength warrior who prefers working with 'Things' and 'Data' in the physical realm? Your hobbies aren't just games; they are the early levels of your future Skills."
+            },
+            {
+                image: "assets/scene_2_base_stats_1775784306257.png",
+                title: "THE INNER CRYSTAL",
+                text: "But knowing what you like isn't enough. You must understand how you function. This is your 'Learning Style'—the hidden passive abilities that determine how you gain XP in the real world. Do you have a Growth Mindset? Can you turn a low-level ability into a Master Skill through persistence? Before we leave the tavern, we must identify which areas of your character sheet need strengthening."
+            },
+            {
+                image: "assets/scene_3_library_1775784320844.png",
+                title: "THE MAP OF REALMS",
+                text: "Now, look to the Horizon. The world is divided into 16 Great Clusters—huge territories where different types of magic and industry thrive. From the technical sorcery of STEM to the strategic leadership of the Business Realm, your mission is to see where your stats align."
+            },
+            {
+                image: "assets/scene_4_dagger_sword_1775784333493.png",
+                title: "JOBS VS. CAREERS",
+                text: "Don't be fooled by 'Side Quests.' A Job is a temporary task—a way to earn gold for today. But a Career? That is your Main Quest. It is a long-term path of progression, mastery, and legacy. To understand the difference, you must consult the Elders. Interview those who have already traversed these lands. Ask them: 'What shaped your path?'"
+            },
+            {
+                image: "assets/scene_5_comparison_1775784346724.png",
+                title: "THE COMPARISON TRIALS",
+                text: "Your final trial before the Great Research Project is the Comparison Trial. You will select three paths from the Maia Career List. Weigh their requirements. Does this path require a 4-year Wizarding Academy (College), or a specialized Apprenticeship (Trade School)? Is the gold reward in the NYS Territory enough to support your lifestyle? Choose wisely."
+            },
+            {
+                image: "assets/scene_6_call_1775784401440.png",
+                title: "THE CALL TO ADVENTURE",
+                text: "The map is laid out. The stats are recorded. The 'Legendary Horizon' is no longer a dream—it is a destination. Ready your tools, Researcher. Your quest begins now."
+            }
+        ];
+
+        let currentSceneIndex = 0;
+        const bg0 = document.getElementById('bg0');
+        const bg1 = document.getElementById('bg1');
+        const titleEl = document.getElementById('scene-title');
+        const textEl = document.getElementById('dialogue-text');
+        
+        let typingTimeout;
+        let sceneTimeout;
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('start-btn').style.display = 'none';
+            document.getElementById('video-container').style.display = 'flex';
+            
+            // Allow browser subagent to know it started
+            window.videoStarted = true;
+            playScene(0);
+        });
+
+        // Initialize first bg
+        bg0.style.backgroundImage = `url('${scenes[0].image}')`;
+
+        function playScene(index) {
+            if (index >= scenes.length) {
+                // Done
+                window.videoFinished = true;
+                textEl.innerHTML = "Quest Complete.<br>Your future awaits.";
+                titleEl.textContent = "THE END";
+                return;
+            }
+
+            const scene = scenes[index];
+            const nextBg = index % 2 === 0 ? bg0 : bg1;
+            const currentBg = index % 2 === 0 ? bg1 : bg0;
+
+            // Set images and crossfade
+            nextBg.style.backgroundImage = `url('${scene.image}')`;
+            nextBg.classList.add('active');
+            currentBg.classList.remove('active');
+
+            // Set title
+            titleEl.classList.remove('active');
+            setTimeout(() => {
+                titleEl.textContent = scene.title || "";
+                if(scene.title) titleEl.classList.add('active');
+            }, 1000);
+
+            // Typewriter effect
+            textEl.innerHTML = '<span class="cursor"></span>';
+            const textToType = scene.text;
+            let charIndex = 0;
+            
+            // Adjust typing speed to aim for ~12 seconds total for a slower comfortable read
+            const typingSpeed = Math.floor(12000 / textToType.length);
+
+            function typeWriter() {
+                if (charIndex < textToType.length) {
+                    textEl.innerHTML = textToType.substring(0, charIndex + 1) + '<span class="cursor"></span>';
+                    charIndex++;
+                    typingTimeout = setTimeout(typeWriter, typingSpeed);
+                }
+            }
+
+            clearTimeout(typingTimeout);
+            setTimeout(typeWriter, 1500); // Wait 1.5s before typing
+
+            // Wait 25 seconds per scene (12s typing + 13s reading/viewing/voiceover)
+            sceneTimeout = setTimeout(() => {
+                currentSceneIndex++;
+                playScene(currentSceneIndex);
+            }, 25000);
+        }
+    </script>
+</body>
+</html>

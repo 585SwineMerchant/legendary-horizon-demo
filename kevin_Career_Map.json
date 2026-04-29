@@ -1,0 +1,60 @@
+{
+  "studentName": "kevin",
+  "currentModule": "self-knowledge",
+  "personalInterests": [
+    "Photography",
+    "Writing",
+    "Bible Study"
+  ],
+  "academicInterests": [
+    "Music",
+    "Social Studies",
+    "Band"
+  ],
+  "abilities": [
+    "Logical Reasoning",
+    "Collaboration"
+  ],
+  "workPreference": "people",
+  "growth": [
+    {
+      "area": "Collaboration",
+      "action": "join a team"
+    },
+    {
+      "area": "Communication",
+      "action": "responding to others"
+    }
+  ],
+  "schoolExperiences": [],
+  "workExperiences": [],
+  "skills": {
+    "basic": {
+      "rating": 0,
+      "proof": ""
+    },
+    "thinking": {
+      "rating": 0,
+      "proof": ""
+    },
+    "personal": {
+      "rating": 0,
+      "proof": ""
+    },
+    "interpersonal": {
+      "rating": 0,
+      "proof": ""
+    },
+    "technology": {
+      "rating": 0,
+      "proof": ""
+    },
+    "resources": {
+      "rating": 0,
+      "proof": ""
+    }
+  },
+  "careerGoal": "",
+  "needToLearn": "",
+  "firstStep": ""
+}
