@@ -34,16 +34,16 @@ def main():
         "Vulcanis Forge": "vulcanis_forge_*.png"
     }
     
-    # Target size is 256x256 (8x8 tiles of 32px)
-    cell_size = 256
-    padding = 16 
+    # Target size is 640x640 (20x20 tiles of 32px)
+    cell_size = 640
+    padding = 32 
     
     output_dir = os.path.join('Tilesets', 'New_Guild_HQs')
     os.makedirs(output_dir, exist_ok=True)
     
     tsx_template = """<?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.10" tiledversion="1.12.1" name="{name}" tilewidth="32" tileheight="32" tilecount="64" columns="8">
- <image source="Tilesets/New_Guild_HQs/{filename}" width="256" height="256"/>
+<tileset version="1.10" tiledversion="1.12.1" name="{name}" tilewidth="32" tileheight="32" tilecount="400" columns="20">
+ <image source="Tilesets/New_Guild_HQs/{filename}" width="640" height="640"/>
 </tileset>
 """
     
