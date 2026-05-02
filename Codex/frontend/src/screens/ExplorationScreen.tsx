@@ -1,7 +1,11 @@
 import type { CSSProperties } from 'react';
 
+import { DialogueBox } from '../components/DialogueBox';
+import { EncounterOverlay, type EncounterLaunchPayload } from '../components/EncounterOverlay';
 import { MapDebugPanel } from '../components/MapDebugPanel';
 import { QuestDebugPanel } from '../components/QuestDebugPanel';
+import type { LhNpcDialogueOverlayModel } from '../dialogue/npcDialogueOverlayModel';
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { summarizeInventoryBrief } from '../lib/formatInventoryBrief';
 import type { ParsedLhMap } from '../maps/parseLhTiledMap';
 
@@ -38,6 +42,7 @@ type Props = {
   onDismissSaveFeedback?: () => void;
   onPause: () => void;
   onOpenQuestLog: () => void;
+  onOpenInventory?: () => void;
   /** Milestone 7 — Act III exploration loop summary + world map entry. */
   act3?: Act3Strip | null;
   /** Milestone 4 — when set, shows collapsible parsed Tiled structures (dev / `VITE_LH_MAP_DEBUG`). */
@@ -46,6 +51,13 @@ type Props = {
   activeQuestDefinition?: QuestDefinition | null;
   /** Milestone 10 — raw quest JSON (dev / `VITE_LH_QUEST_DEBUG`). */
   questDebug?: { quests: QuestDefinition[] } | null;
+  /** Milestone 16 — in-world NPC line resolved from dialogue catalog + quest state. */
+  npcDialogue?: LhNpcDialogueOverlayModel | null;
+  onDismissNpcDialogue?: () => void;
+  /** Milestone 17 — combat + vocab micro-encounters from Tiled triggers. */
+  activeEncounter?: EncounterLaunchPayload | null;
+  onEncounterWin?: (summary: { requestedXp: number }) => void;
+  onEncounterRetreat?: () => void;
 };
 
 export function ExplorationScreen({
@@ -57,11 +69,19 @@ export function ExplorationScreen({
   onDismissSaveFeedback,
   onPause,
   onOpenQuestLog,
+  onOpenInventory,
   act3,
   mapDebug,
   activeQuestDefinition,
   questDebug,
+  npcDialogue,
+  onDismissNpcDialogue,
+  activeEncounter,
+  onEncounterWin,
+  onEncounterRetreat,
 }: Props) {
+  useEscapeToClose(Boolean(npcDialogue), onDismissNpcDialogue ?? (() => undefined));
+  useEscapeToClose(Boolean(activeEncounter), onEncounterRetreat ?? (() => undefined));
   const showTiledHotspots = Boolean(realm.map_tiled_export);
 
   return (
@@ -71,15 +91,20 @@ export function ExplorationScreen({
           <p className="lh-exploration__eyebrow">{realm.display_name}</p>
           <h2 className="lh-heading-lg">Exploration • Tiled trigger slice</h2>
         </div>
-        <div className="lh-stack lh-stack--horizontal">
+        <div className="lh-stack lh-stack--horizontal lh-exploration__actions">
           {act3 ? (
             <button type="button" className="lh-button lh-button--secondary" onClick={act3.onOpenWorldMap}>
               World map
             </button>
           ) : null}
           <button type="button" className="lh-button lh-button--secondary" onClick={onOpenQuestLog}>
-            Quest Log
+            Quest log
           </button>
+          {onOpenInventory ? (
+            <button type="button" className="lh-button lh-button--secondary" onClick={onOpenInventory}>
+              Inventory
+            </button>
+          ) : null}
           <button type="button" className="lh-button lh-button--primary" onClick={onPause}>
             Pause
           </button>
@@ -130,9 +155,18 @@ export function ExplorationScreen({
         </aside>
 
         <div className="lh-map-board" aria-label="Tiled waypoint board (percent-positioned hotspots)">
+          <div className="lh-map-board__chrome lh-density-hide" aria-label="Map legend">
+            <div className="lh-map-board__chrome-row">
+              <span className="lh-map-board__badge">Map layer</span>
+              <span className="lh-map-board__legend">Bright buttons = active · dim = finished</span>
+            </div>
+            <p className="lh-map-board__file">
+              Export: <code className="lh-code-inline">{realm.map_tiled_export ?? '—'}</code>
+            </p>
+          </div>
           <div className="lh-map-caption">{realm.lore_digest}</div>
-          <div className="lh-map-footprint" aria-hidden>
-            <span>{realm.map_tiled_export ?? '— no map file bound'}</span>
+          <div className="lh-map-footprint lh-density-hide" aria-hidden>
+            <span>Hotspots use the same bounds as object rectangles in Tiled.</span>
           </div>
 
           {act3 ? (
@@ -189,7 +223,7 @@ export function ExplorationScreen({
               ))
             : null}
 
-          <div className="lh-map-caption lh-map-caption--hint">
+          <div className="lh-map-caption lh-map-caption--hint lh-density-hide">
             Boxes mirror Tiled object bounds scaled to percent width/height. Later pass: sprite layers + occlusion.
           </div>
 
@@ -201,10 +235,8 @@ export function ExplorationScreen({
 
           {saveFeedback ? (
             <div
-              className={
-                saveFeedback.tone === 'success' ? 'lh-toast lh-toast--success' : 'lh-toast lh-toast--error'
-              }
-              role="status"
+              className={`lh-toast lh-toast--${saveFeedback.tone === 'success' ? 'success' : 'error'}`}
+              role={saveFeedback.tone === 'error' ? 'alert' : 'status'}
             >
               <pre className="lh-toast__preformatted">{saveFeedback.text}</pre>
               {onDismissSaveFeedback ? (
@@ -216,6 +248,26 @@ export function ExplorationScreen({
           ) : null}
         </div>
       </div>
+
+      {npcDialogue && onDismissNpcDialogue ? (
+        <div className="lh-overlay lh-overlay--dim lh-npc-dialogue-overlay" role="presentation">
+          <div className="lh-panel lh-panel--npc-dialogue">
+            <DialogueBox
+              variant="default"
+              title={npcDialogue.title}
+              speakerLabel={npcDialogue.speakerLabel}
+              portraitUrl={npcDialogue.portraitUrl}
+              body={npcDialogue.body}
+              primaryLabel="Continue"
+              onPrimary={onDismissNpcDialogue}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {activeEncounter && onEncounterWin && onEncounterRetreat ? (
+        <EncounterOverlay payload={activeEncounter} onWin={onEncounterWin} onRetreat={onEncounterRetreat} />
+      ) : null}
     </section>
   );
 }

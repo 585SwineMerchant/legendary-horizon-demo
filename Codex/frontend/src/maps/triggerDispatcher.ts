@@ -11,19 +11,23 @@ export type TriggerDispatchContext = {
 };
 
 export type TriggerDispatchResult =
-  | { handled: true; nextPlayer: PlayerSave; nextQuests: QuestDefinition[]; markVisited: true }
+  | {
+      handled: true;
+      nextPlayer: PlayerSave;
+      nextQuests: QuestDefinition[];
+      markVisited: boolean;
+      /** When set, UI should surface NPC dialogue (Milestone 16). */
+      openNpcDialogue?: { npcId: string };
+      /** Milestone 17 — opens encounter overlay; do not mark visited until win. */
+      openEncounter?: {
+        kind: 'combat_encounter' | 'vocab_battle';
+        interactableId: string;
+        target_quest_id?: string;
+      };
+    }
   | { handled: false; reason: string };
 
-const STUB_KINDS = new Set<string>([
-  'quest_start',
-  'quest_complete',
-  'npc_dialogue',
-  'fog_clear',
-  'external_link',
-  'vocab_battle',
-  'combat_encounter',
-  'guild_hq_research',
-]);
+const STUB_KINDS = new Set<string>(['quest_start', 'quest_complete', 'fog_clear', 'external_link', 'guild_hq_research']);
 
 /**
  * Central entry for Tiled object triggers → gameplay state updates.
@@ -47,6 +51,31 @@ export function dispatchLhTrigger(trigger: ParsedLhTrigger, ctx: TriggerDispatch
       ctx.player.active_main_quest_id,
     );
     return { handled: true, nextPlayer, nextQuests, markVisited: true };
+  }
+
+  if (kind === 'npc_dialogue') {
+    const npcId = String(trigger.npc_id ?? '').trim() || 'mentor_kael';
+    return {
+      handled: true,
+      nextPlayer: ctx.player,
+      nextQuests: ctx.quests,
+      markVisited: true,
+      openNpcDialogue: { npcId },
+    };
+  }
+
+  if (kind === 'combat_encounter' || kind === 'vocab_battle') {
+    return {
+      handled: true,
+      nextPlayer: ctx.player,
+      nextQuests: ctx.quests,
+      markVisited: false,
+      openEncounter: {
+        kind,
+        interactableId: ctx.interactableId,
+        target_quest_id: trigger.target_quest_id,
+      },
+    };
   }
 
   if (STUB_KINDS.has(kind)) {

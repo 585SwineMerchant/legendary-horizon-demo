@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react';
 
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
+import { LhCatalogImage } from './LhCatalogImage';
+import { isImageLikeMediaKind } from '../lib/mediaKinds';
 import type { MediaAssetRecord, QuestDefinition, RealmDefinition } from '../types';
 import {
   countQuestHooksForRealm,
@@ -37,6 +40,7 @@ export function RealmAtlasOverlay({
     () => ordered.find((r) => r.realm_id === (selectedId ?? currentRealmId)) ?? ordered[0],
     [ordered, selectedId, currentRealmId],
   );
+  useEscapeToClose(open, onClose);
 
   if (!open) return null;
 
@@ -107,6 +111,24 @@ export function RealmAtlasOverlay({
                 ) : (
                   <p className="lh-atlas__meta">Exploration progress: not yet visited this session.</p>
                 )}
+                {mediaHits.some((m) => isImageLikeMediaKind(m.kind)) ? (
+                  <ul className="lh-atlas__media-thumbs" aria-label="Image previews from catalog">
+                    {mediaHits
+                      .filter((m) => isImageLikeMediaKind(m.kind))
+                      .map((m) => (
+                        <li key={m.asset_id} className="lh-atlas__media-thumb">
+                          <LhCatalogImage
+                            assetId={m.asset_id}
+                            alt={m.description || m.asset_id}
+                            catalog={mediaCatalog}
+                            loading="lazy"
+                            className="lh-atlas__media-thumb-img"
+                          />
+                          <span className="lh-atlas__media-thumb-id">{m.asset_id}</span>
+                        </li>
+                      ))}
+                  </ul>
+                ) : null}
               </section>
             </aside>
           ) : null}

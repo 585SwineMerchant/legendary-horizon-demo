@@ -5,6 +5,8 @@ type Props = {
   body: string;
   primaryLabel?: string;
   onPrimary: () => void;
+  /** Milestone 12 — resume mentor beat uses elevated card styling. */
+  variant?: 'default' | 'resume';
 };
 
 export function DialogueBox({
@@ -14,9 +16,11 @@ export function DialogueBox({
   body,
   primaryLabel = 'Continue',
   onPrimary,
+  variant = 'default',
 }: Props) {
+  const rootClass = variant === 'resume' ? 'lh-dialogue lh-dialogue--resume' : 'lh-dialogue';
   return (
-    <div className="lh-dialogue" role="dialog" aria-labelledby="dialogue-title">
+    <div className={rootClass} role="dialog" aria-labelledby="dialogue-title">
       <div className="lh-dialogue__header">
         {portraitUrl ? (
           <img className="lh-dialogue__portrait" src={portraitUrl} alt="" />

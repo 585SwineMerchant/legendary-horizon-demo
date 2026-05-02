@@ -1,3 +1,6 @@
+import academicTasksJson from '@samples/academic_worksheet_tasks.json';
+import dialogueCatalogJson from '@samples/dialogue_catalog.json';
+import npcRegistryJson from '@samples/npc_registry.json';
 import playerJson from '@samples/player_save.json';
 import questsJson from '@samples/quests.json';
 import realmRegistryJson from '@samples/realm_registry.json';
@@ -12,7 +15,9 @@ import type {
   PlayerSave,
   MediaAssetRecord,
 } from '../domain/lh-contract';
+import type { LhDialogueCatalogV1, LhNpcRegistryV1 } from '../domain/lh-dialogue';
 
+import { loadAcademicWorksheetCatalog } from '../academic/academicCatalog';
 import { loadQuestDefinitionsFromJson, reconcileQuestPrerequisites } from '../quests/questEngine';
 import { resolveActiveRealm } from '../realm/realmRegistry';
 
@@ -37,6 +42,9 @@ export function loadLhRuntimeFixture(): LhRuntimeFixture {
     realms,
     roster_student: lhCloneFixture(rosterJson as RosterStudentRecord),
     media_assets: lhCloneFixture(assetsJson as MediaAssetRecord[]),
+    npc_registry: lhCloneFixture(npcRegistryJson as LhNpcRegistryV1),
+    dialogue_catalog: lhCloneFixture(dialogueCatalogJson as LhDialogueCatalogV1),
+    academic_worksheet_tasks: loadAcademicWorksheetCatalog(lhCloneFixture(academicTasksJson)),
     tiled_demo_map_relative_path: mapFile,
     tiled_map_payload: lhCloneFixture(tiledMapJson as unknown),
   };

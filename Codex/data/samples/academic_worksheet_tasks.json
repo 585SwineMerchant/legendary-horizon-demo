@@ -1,0 +1,79 @@
+[
+  {
+    "task_id": "ws_quest_of_fate",
+    "kind": "quest_of_fate",
+    "title": "Quest of Fate — branch hypotheses",
+    "intro": "Sketch two plausible story branches, then reflect on which evidence you would need to choose between them.",
+    "fields": [
+      { "key": "branch_a", "label": "Branch A hypothesis", "placeholder": "If the Ley Root fails to resonate…", "multiline": true },
+      { "key": "branch_b", "label": "Branch B hypothesis", "placeholder": "If the grove answers too strongly…", "multiline": true },
+      { "key": "fate_reflection", "label": "What would falsify each branch?", "multiline": true }
+    ]
+  },
+  {
+    "task_id": "ws_quest_of_choice",
+    "kind": "quest_of_choice",
+    "title": "Quest of Choice — stance + rationale",
+    "intro": "Pick the intervention you would recommend to Mentor Kael and defend it with one concrete classroom action.",
+    "unlock_after_task_ids": ["ws_quest_of_fate"],
+    "fields": [
+      {
+        "key": "stance",
+        "label": "Recommended stance",
+        "input": "choice",
+        "options": [
+          { "value": "cautious", "label": "Cautious — gather more primary sources first" },
+          { "value": "bold", "label": "Bold — act now with monitored risk" }
+        ]
+      },
+      { "key": "rationale", "label": "Rationale (3–5 sentences)", "multiline": true }
+    ]
+  },
+  {
+    "task_id": "ws_comparison_ledger",
+    "kind": "comparison_ledger",
+    "title": "Comparison ledger — career contrast",
+    "intro": "Submit a comparison row from the World map ledger (same fields as the in-world form). This task auto-completes when at least one ledger row exists.",
+    "unlock_after_task_ids": ["ws_quest_of_choice"],
+    "fields": []
+  },
+  {
+    "task_id": "ws_manifest",
+    "kind": "manifest",
+    "title": "Manifest — inventory of sources",
+    "intro": "List each source you touched this session (one per line). Include author/title or URL stub.",
+    "unlock_after_task_ids": ["ws_comparison_ledger"],
+    "fields": [{ "key": "manifest_lines", "label": "Sources (one per line)", "placeholder": "Author, Title — note\nhttps://…", "multiline": true }]
+  },
+  {
+    "task_id": "ws_great_transcription",
+    "kind": "great_transcription",
+    "title": "Great Transcription — pull quote + gloss",
+    "intro": "Transcribe one short passage (≤120 words) you might cite, then gloss it in your own words.",
+    "unlock_after_task_ids": ["ws_manifest"],
+    "fields": [
+      { "key": "transcript_quote", "label": "Quoted passage", "multiline": true },
+      { "key": "transcript_gloss", "label": "Your gloss / paraphrase", "multiline": true }
+    ]
+  },
+  {
+    "task_id": "ws_chronicle",
+    "kind": "chronicle",
+    "title": "Chronicle — session log + status",
+    "intro": "Capture what changed in your understanding today and set a chronicle status for your facilitator.",
+    "unlock_after_task_ids": ["ws_great_transcription"],
+    "fields": [
+      { "key": "chronicle_body", "label": "Chronicle entry", "multiline": true },
+      {
+        "key": "chronicle_status",
+        "label": "Chronicle status",
+        "input": "choice",
+        "options": [
+          { "value": "draft", "label": "Draft — still revising" },
+          { "value": "ready", "label": "Ready — share with facilitator" },
+          { "value": "sealed", "label": "Sealed — submitted for gradebook" }
+        ]
+      }
+    ]
+  }
+]

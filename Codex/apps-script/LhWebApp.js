@@ -108,6 +108,84 @@ function doPost(e) {
       return lhWebJsonOutput_(out);
     }
 
+    if (action === 'teacher_unlock_quest' || action === 'teacherunlockquest') {
+      var uqPid = body.player_id;
+      var uqQid = body.quest_id != null ? String(body.quest_id) : '';
+      if (!uqPid || !uqQid) {
+        out.error = 'player_id_and_quest_id_required';
+        return lhWebJsonOutput_(out);
+      }
+      var uq = LhTeacher_unlockQuest(spreadsheetId, tabPlayer, uqPid, uqQid);
+      if (uq.ok) {
+        out.ok = true;
+        out.message = 'Quest row unlocked in snapshot.';
+      } else {
+        out.ok = false;
+        out.message = 'teacher_unlock_quest failed.';
+        out.errors = [uq.error || 'teacher_unlock_quest_failed'];
+      }
+      return lhWebJsonOutput_(out);
+    }
+
+    if (action === 'teacher_restore_backup' || action === 'teacherrestorebackup') {
+      var rbPid = body.player_id;
+      if (!rbPid) {
+        out.error = 'player_id_required';
+        return lhWebJsonOutput_(out);
+      }
+      var rb = LhTeacher_rollbackCheckpoint(spreadsheetId, tabPlayer, rbPid);
+      if (rb.ok) {
+        out.ok = true;
+        out.message = 'Restored from backup_checkpoint_json.';
+        out.restored_from = rb.restored_from;
+      } else {
+        out.ok = false;
+        out.message = 'teacher_restore_backup failed.';
+        out.errors = [rb.error || 'teacher_restore_backup_failed'];
+      }
+      return lhWebJsonOutput_(out);
+    }
+
+    if (action === 'teacher_restore_item' || action === 'teacherrestoreitem') {
+      var riPid = body.player_id;
+      var riItem = body.item_id != null ? String(body.item_id) : '';
+      var riQty = body.qty != null ? Number(body.qty) : 1;
+      var riLabel = body.label != null ? String(body.label) : '';
+      if (!riPid || !riItem) {
+        out.error = 'player_id_and_item_id_required';
+        return lhWebJsonOutput_(out);
+      }
+      var ri = LhTeacher_restoreItem(spreadsheetId, tabPlayer, riPid, riItem, riQty, riLabel);
+      if (ri.ok) {
+        out.ok = true;
+        out.message = 'Inventory item restored.';
+      } else {
+        out.ok = false;
+        out.message = 'teacher_restore_item failed.';
+        out.errors = [ri.error || 'teacher_restore_item_failed'];
+      }
+      return lhWebJsonOutput_(out);
+    }
+
+    if (action === 'teacher_reset_act' || action === 'teacherresetact') {
+      var raPid = body.player_id;
+      var raAct = body.target_act != null ? Number(body.target_act) : 0;
+      if (!raPid || !raAct) {
+        out.error = 'player_id_and_target_act_required';
+        return lhWebJsonOutput_(out);
+      }
+      var ra = LhTeacher_resetActState(spreadsheetId, tabPlayer, raPid, raAct);
+      if (ra.ok) {
+        out.ok = true;
+        out.message = 'Act marker reset.';
+      } else {
+        out.ok = false;
+        out.message = 'teacher_reset_act failed.';
+        out.errors = [ra.error || 'teacher_reset_act_failed'];
+      }
+      return lhWebJsonOutput_(out);
+    }
+
     out.error = 'unknown_action';
     return lhWebJsonOutput_(out);
   } catch (err) {

@@ -12,3 +12,10 @@ export function listMediaAssetsForRealm(catalog: readonly MediaAssetRecord[], re
     return ids.includes(realmId);
   });
 }
+
+/** NPC-scoped media rows — mirrors `LhAsset_getNpcAssets` (Sheets `npc_id` column). */
+export function listMediaAssetsForNpc(catalog: readonly MediaAssetRecord[], npcId: string): MediaAssetRecord[] {
+  const id = npcId.trim();
+  if (!id) return [];
+  return catalog.filter((row) => String(row.npc_id ?? '').trim() === id);
+}

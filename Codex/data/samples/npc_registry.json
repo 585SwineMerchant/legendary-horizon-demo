@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "npcs": [
+    {
+      "npc_id": "mentor_kael",
+      "display_name": "Mentor Kael",
+      "role_label": "Guild Archivist",
+      "default_dialogue_bank": "mentor_default",
+      "portrait_asset_id": "portrait_mentor_kael_placeholder",
+      "card_title": "Guild counsel"
+    },
+    {
+      "npc_id": "master_scribe",
+      "display_name": "Master Scribe Aldwin",
+      "role_label": "Keeper of the Manifest",
+      "default_dialogue_bank": "master_scribe_default",
+      "card_title": "The Scribe speaks"
+    },
+    {
+      "npc_id": "oracle_veiled",
+      "display_name": "The Veiled Oracle",
+      "role_label": "Mirror of Maia · Interpreter",
+      "default_dialogue_bank": "oracle_default",
+      "card_title": "Visions at the threshold"
+    },
+    {
+      "npc_id": "guild_manager_elara",
+      "display_name": "Guild Manager Elara",
+      "role_label": "Assignments & charters",
+      "default_dialogue_bank": "guild_manager_default",
+      "card_title": "Guild business"
+    }
+  ]
+}

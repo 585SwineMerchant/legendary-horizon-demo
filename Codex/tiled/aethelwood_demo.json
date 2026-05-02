@@ -73,12 +73,85 @@
             { "name": "lh_kind", "type": "string", "value": "fog_region" },
             { "name": "lh_fog_key", "type": "string", "value": "west_veil_demo" }
           ]
+        },
+        {
+          "id": 4,
+          "name": "oracle_circle_aethelwood",
+          "type": "lh_trigger_zone",
+          "x": 160,
+          "y": 416,
+          "width": 112,
+          "height": 72,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "lh_kind", "type": "string", "value": "npc_dialogue" },
+            { "name": "lh_npc_id", "type": "string", "value": "oracle_veiled" },
+            {
+              "name": "lh_interaction_copy_active",
+              "type": "string",
+              "value": "Consult the Oracle"
+            },
+            {
+              "name": "lh_interaction_copy_complete",
+              "type": "string",
+              "value": "Visions recorded"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "name": "warden_sparring_circle",
+          "type": "lh_trigger_zone",
+          "x": 480,
+          "y": 384,
+          "width": 104,
+          "height": 80,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "lh_kind", "type": "string", "value": "combat_encounter" },
+            {
+              "name": "lh_interaction_copy_active",
+              "type": "string",
+              "value": "Spar the Ley Warden (combat trial)"
+            },
+            {
+              "name": "lh_interaction_copy_complete",
+              "type": "string",
+              "value": "Warden acknowledges your form"
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "name": "lexicon_standing_stone",
+          "type": "lh_trigger_zone",
+          "x": 288,
+          "y": 160,
+          "width": 88,
+          "height": 64,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "lh_kind", "type": "string", "value": "vocab_battle" },
+            {
+              "name": "lh_interaction_copy_active",
+              "type": "string",
+              "value": "Answer the Lexicon (vocab trial)"
+            },
+            {
+              "name": "lh_interaction_copy_complete",
+              "type": "string",
+              "value": "Lexicon sealed for today"
+            }
+          ]
         }
       ]
     }
   ],
   "nextlayerid": 2,
-  "nextobjectid": 4,
+  "nextobjectid": 7,
   "properties": [{ "name": "lh_realm_id", "type": "string", "value": "realm_aethelwood" }],
   "tilesets": [],
   "tiledversion": "1.12.2",

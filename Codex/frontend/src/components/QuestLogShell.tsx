@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { groupQuestsForQuestLog, type QuestLogGroupKey } from '../quests/questEngine';
 import type { QuestDefinition } from '../types';
 
@@ -32,7 +33,6 @@ function QuestCard({
 
   return (
     <li
-      key={q.quest_id}
       className={`lh-quest-list__item ${terminal ? 'lh-quest-list__item--terminal' : ''} ${q.status === 'turned_in' ? 'lh-quest-list__item--turned-in' : ''}`}
     >
       <div className="lh-quest-list__title-row">
@@ -53,6 +53,7 @@ function QuestCard({
 
 export function QuestLogShell({ open, onClose, quests, onMarkQuestTurnedIn }: Props) {
   const groups = useMemo(() => groupQuestsForQuestLog(quests), [quests]);
+  useEscapeToClose(open, onClose);
 
   if (!open) return null;
 
@@ -60,29 +61,42 @@ export function QuestLogShell({ open, onClose, quests, onMarkQuestTurnedIn }: Pr
 
   return (
     <div className="lh-overlay" role="presentation">
-      <div className="lh-panel lh-panel--wide" role="dialog" aria-label="Quest log">
+      <div className="lh-panel lh-panel--wide lh-panel--quest-log" role="dialog" aria-label="Quest log">
         <header className="lh-panel__header">
-          <h2 className="lh-heading-md">Quest Log</h2>
+          <h2 className="lh-heading-md">Quest log</h2>
           <button type="button" className="lh-button lh-button--ghost" onClick={onClose}>
             Close
           </button>
         </header>
+        <p className="lh-quest-log__intro">
+          Objectives are grouped the same way your facilitator sees them in data — main path first, then side and guild
+          work, then finished rows.
+        </p>
         <div className="lh-quest-log-sections">
           {sectionOrder.map((key) => {
             const list = groups[key];
-            if (!list.length) return null;
             return (
               <section key={key} className="lh-quest-log-section" aria-label={GROUP_LABEL[key]}>
                 <h3 className="lh-heading-sm lh-quest-log-section__title">{GROUP_LABEL[key]}</h3>
-                <ul className="lh-quest-list">
-                  {list.map((q) => (
-                    <QuestCard key={q.quest_id} q={q} onMarkQuestTurnedIn={onMarkQuestTurnedIn} />
-                  ))}
-                </ul>
+                {list.length ? (
+                  <ul className="lh-quest-list">
+                    {list.map((q) => (
+                      <QuestCard key={q.quest_id} q={q} onMarkQuestTurnedIn={onMarkQuestTurnedIn} />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="lh-quest-log__empty">No quests in this category yet.</p>
+                )}
               </section>
             );
           })}
         </div>
+        <footer className="lh-quest-log__footer">
+          <p>
+            Stuck? Use <strong>Pause → World map</strong> for realms and fog, and <strong>Research worksheets</strong> for
+            written tasks. Your directive on the exploration HUD is always the next in-world step.
+          </p>
+        </footer>
       </div>
     </div>
   );

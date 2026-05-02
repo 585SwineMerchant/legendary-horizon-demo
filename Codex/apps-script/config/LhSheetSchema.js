@@ -94,6 +94,8 @@ var LH_MEDIA_HEADERS = {
   delivery_url_placeholder: 'delivery_url_placeholder',
   realm_tags_csv: 'realm_tags_csv',
   npc_id: 'npc_id',
+  /** Optional SPA / catalog chain when a Drive URL is blank or asset is retired (Milestone 14). */
+  fallback_asset_id: 'fallback_asset_id',
 };
 
 var LH_SESSION_HISTORY_HEADERS = {

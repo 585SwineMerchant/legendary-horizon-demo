@@ -1,4 +1,6 @@
 import type {
+  AcademicTaskKind,
+  AcademicTaskStatus,
   ExplorationLoopState,
   ManualSaveEnvelopeV1,
   PlayerSave,
@@ -11,6 +13,17 @@ import { loadQuestDefinitionsFromJson, reconcileQuestPrerequisites } from '../qu
 
 import { cacheFullStateAfterSave } from './localFullStateCache';
 import { postLhWebAppJson } from './lhWebAppClient';
+
+const ACADEMIC_KINDS = new Set<string>([
+  'quest_of_fate',
+  'comparison_ledger',
+  'quest_of_choice',
+  'manifest',
+  'great_transcription',
+  'chronicle',
+]);
+
+const ACADEMIC_STATUSES = new Set<string>(['locked', 'available', 'in_progress', 'submitted', 'reviewed']);
 
 export type PersistManualSaveOutcome = {
   ok: boolean;
@@ -86,7 +99,32 @@ export function coerceExplorationLoop(raw: unknown): ExplorationLoopState | null
   const fog = Array.isArray(o.fog_keys_cleared) ? o.fog_keys_cleared.map(String) : [];
   const wps = Array.isArray(o.waypoint_keys_visited) ? o.waypoint_keys_visited.map(String) : [];
   const led = Array.isArray(o.ledger_entries) ? (o.ledger_entries as ExplorationLoopState['ledger_entries']) : [];
-  return {
+  const academicRaw = o.academic_tasks;
+  let academic_tasks: ExplorationLoopState['academic_tasks'];
+  if (academicRaw && typeof academicRaw === 'object' && !Array.isArray(academicRaw)) {
+    const acc: NonNullable<ExplorationLoopState['academic_tasks']> = {};
+    for (const [k, v] of Object.entries(academicRaw as Record<string, unknown>)) {
+      if (!v || typeof v !== 'object') continue;
+      const row = v as Record<string, unknown>;
+      const kind = typeof row.kind === 'string' ? row.kind : '';
+      const status = typeof row.status === 'string' ? row.status : 'locked';
+      const payload = row.payload && typeof row.payload === 'object' && !Array.isArray(row.payload)
+        ? Object.fromEntries(
+            Object.entries(row.payload as Record<string, unknown>).map(([pk, pv]) => [pk, String(pv ?? '')]),
+          )
+        : {};
+      acc[k] = {
+        task_id: typeof row.task_id === 'string' ? row.task_id : k,
+        kind: (ACADEMIC_KINDS.has(kind) ? kind : 'quest_of_fate') as AcademicTaskKind,
+        status: (ACADEMIC_STATUSES.has(status) ? status : 'locked') as AcademicTaskStatus,
+        payload,
+        updated_iso: typeof row.updated_iso === 'string' ? row.updated_iso : new Date().toISOString(),
+      };
+    }
+    academic_tasks = Object.keys(acc).length ? acc : {};
+  }
+
+  const base: ExplorationLoopState = {
     fog_keys_cleared: fog,
     waypoint_keys_visited: wps,
     ledger_entries: led.filter(
@@ -97,6 +135,37 @@ export function coerceExplorationLoop(raw: unknown): ExplorationLoopState | null
         typeof (e as { realm_id?: unknown }).realm_id === 'string',
     ),
   };
+  if (academic_tasks && Object.keys(academic_tasks).length) {
+    base.academic_tasks = academic_tasks;
+  }
+  const sx = o.session_encounter_xp_awarded;
+  if (sx !== undefined && sx !== null && Number.isFinite(Number(sx)) && Number(sx) >= 0) {
+    base.session_encounter_xp_awarded = Number(sx);
+  }
+  const encLog = o.encounter_log;
+  if (Array.isArray(encLog)) {
+    const rows: NonNullable<ExplorationLoopState['encounter_log']> = [];
+    for (const row of encLog) {
+      if (!row || typeof row !== 'object') continue;
+      const r = row as Record<string, unknown>;
+      const kind = r.kind === 'combat_encounter' || r.kind === 'vocab_battle' ? r.kind : null;
+      const outcome = r.outcome === 'win' || r.outcome === 'retreat' ? r.outcome : null;
+      if (!kind || !outcome) continue;
+      const interactable_id = typeof r.interactable_id === 'string' ? r.interactable_id : '';
+      if (!interactable_id) continue;
+      rows.push({
+        id: typeof r.id === 'string' ? r.id : `enc_${rows.length}`,
+        kind,
+        outcome,
+        xp_awarded: Number(r.xp_awarded) || 0,
+        at_iso: typeof r.at_iso === 'string' ? r.at_iso : new Date().toISOString(),
+        interactable_id,
+        target_quest_id: typeof r.target_quest_id === 'string' ? r.target_quest_id : undefined,
+      });
+    }
+    if (rows.length) base.encounter_log = rows;
+  }
+  return base;
 }
 
 export function buildManualSaveEnvelope(args: {
@@ -255,6 +324,9 @@ function coercePlayerSave(raw: unknown): PlayerSave | null {
     ),
     revision_token: typeof o.revision_token === 'string' ? o.revision_token : undefined,
     last_manual_save_iso: typeof o.last_manual_save_iso === 'string' ? o.last_manual_save_iso : undefined,
+    backup_checkpoint_json:
+      typeof o.backup_checkpoint_json === 'string' ? o.backup_checkpoint_json : undefined,
+    exit_ticket_state: typeof o.exit_ticket_state === 'string' ? o.exit_ticket_state : undefined,
   };
 }
 

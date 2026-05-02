@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import type { ComparisonLedgerEntry, ExplorationLoopState } from '../exploration/explorationTypes';
+import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { isRealmUnlocked } from '../exploration/realmUnlock';
 import type { ParsedLhMap } from '../maps/parseLhTiledMap';
 import { sortRealmsCanon } from '../realm/realmRegistry';
@@ -46,6 +47,7 @@ export function WorldMapOverlay({
 
   const selected = ordered.find((r) => r.realm_id === selectedId) ?? ordered[0];
   const fogSet = useMemo(() => new Set(exploration.fog_keys_cleared), [exploration.fog_keys_cleared]);
+  useEscapeToClose(open, onClose);
 
   if (!open) return null;
 
@@ -71,6 +73,10 @@ export function WorldMapOverlay({
             <p className="lh-eyebrow">Act III slice — Milestone 7</p>
             <h2 className="lh-heading-md">World map</h2>
             <p className="lh-world-map__sub">Traveler: {player.display_name}</p>
+            <p className="lh-world-map__legend">
+              Locked tiles light up when a quest references that realm. Fog and ledger tools mirror your saved exploration
+              state.
+            </p>
           </div>
           <button type="button" className="lh-button lh-button--ghost" onClick={onClose}>
             Close

@@ -1,7 +1,11 @@
 import { PauseMenu } from './components/PauseMenu';
+import { TeacherToolsPanel } from './components/TeacherToolsPanel';
 import { RealmAtlasOverlay } from './components/RealmAtlasOverlay';
 import { WorldMapOverlay } from './components/WorldMapOverlay';
+import { AcademicWorksheetsOverlay } from './components/AcademicWorksheetsOverlay';
+import { InventoryOverlay } from './components/InventoryOverlay';
 import { QuestLogShell } from './components/QuestLogShell';
+import { useLhAccessibilityPrefs } from './hooks/useLhAccessibilityPrefs';
 import { useNightOneFlow } from './hooks/useNightOneFlow';
 import { ExplorationScreen } from './screens/ExplorationScreen';
 import { InstructionsScreen } from './screens/InstructionsScreen';
@@ -13,6 +17,7 @@ import { TitleScreen } from './screens/TitleScreen';
  * screens stay isolated under `screens/`.
  */
 export function App() {
+  const a11y = useLhAccessibilityPrefs();
   const {
     screen,
     realm,
@@ -21,6 +26,14 @@ export function App() {
     activeQuestDefinition,
     showQuestDebug,
     mentorPortrait,
+    resumeMentorSpeakerLabel,
+    npcDialogue,
+    dismissNpcDialogue,
+    activeEncounter,
+    onEncounterWin,
+    onEncounterRetreat,
+    titleBackdropUrl,
+    classroomTools,
     resumeDialogBody,
     pauseOpen,
     questLogOpen,
@@ -47,21 +60,45 @@ export function App() {
     submitLedgerEntry,
     markActiveWaypointVisited,
     markQuestTurnedIn,
+    academicWorksheetsOpen,
+    applyAcademicTasks,
+    startAcademicTask,
+    academicWorksheetDefs,
+    inventoryOpen,
+    bootstrapPhase,
+    bootstrapError,
+    facilitatorToolsProps,
   } = useNightOneFlow();
 
   const showMapDebug = import.meta.env.DEV || import.meta.env.VITE_LH_MAP_DEBUG === 'true';
 
   return (
     <div className="lh-shell">
-      {screen === 'title' ? <TitleScreen onContinue={navigate.beginDemo} /> : null}
+      <a href="#lh-main" className="lh-skip-link">
+        Skip to main content
+      </a>
+      <main id="lh-main" className="lh-main-root" tabIndex={-1}>
+      {screen === 'title' ? (
+        <TitleScreen
+          onContinue={navigate.beginDemo}
+          bootstrapPhase={bootstrapPhase}
+          bootstrapError={bootstrapError}
+          backdropImageUrl={titleBackdropUrl}
+        />
+      ) : null}
 
       {screen === 'instructions' ? (
-        <InstructionsScreen onBack={navigate.quitToTitle} onStartSession={navigate.proceedInstructions} />
+        <InstructionsScreen
+          onBack={navigate.quitToTitle}
+          onStartSession={navigate.proceedInstructions}
+          classroomTools={classroomTools}
+        />
       ) : null}
 
       {screen === 'resume' && player ? (
         <ResumeDialogScreen
           portraitUrl={mentorPortrait}
+          speakerLabel={resumeMentorSpeakerLabel}
           dialogueBody={resumeDialogBody}
           onContinue={navigate.resumeToExplore}
         />
@@ -77,6 +114,7 @@ export function App() {
           onDismissSaveFeedback={saveFeedback ? navigate.dismissSaveFeedback : undefined}
           onPause={navigate.openPause}
           onOpenQuestLog={navigate.openQuestLog}
+          onOpenInventory={navigate.openInventory}
           act3={{
             activeWaypointLabel: act3.activeWaypointLabel,
             fogCleared: act3.fogCleared,
@@ -89,6 +127,11 @@ export function App() {
           mapDebug={showMapDebug ? tiledMapDebug : null}
           activeQuestDefinition={activeQuestDefinition}
           questDebug={showQuestDebug ? { quests } : null}
+          npcDialogue={npcDialogue}
+          onDismissNpcDialogue={dismissNpcDialogue}
+          activeEncounter={activeEncounter}
+          onEncounterWin={onEncounterWin}
+          onEncounterRetreat={onEncounterRetreat}
         />
       ) : null}
 
@@ -101,10 +144,42 @@ export function App() {
         }}
         onOpenRealmAtlas={navigate.openRealmAtlas}
         onOpenWorldMap={navigate.openWorldMap}
+        onOpenInventory={() => {
+          navigate.closePause();
+          navigate.openInventory();
+        }}
         onSave={handleManualSave}
         onEndSession={handleEndSessionRitual}
+        onResearchWorksheets={navigate.openResearchWorksheets}
         onQuitToTitle={navigate.quitToTitle}
+        displayPreferences={{
+          textScale: a11y.textScale,
+          onTextScaleChange: a11y.setTextScale,
+          motion: a11y.motion,
+          onMotionChange: a11y.setMotion,
+          lowClutter: a11y.lowClutter,
+          onLowClutterChange: a11y.setLowClutter,
+          audioMuted: a11y.audioMuted,
+          onAudioMutedChange: a11y.setAudioMuted,
+        }}
+        classroomTools={classroomTools}
+        facilitatorTools={facilitatorToolsProps ? <TeacherToolsPanel {...facilitatorToolsProps} /> : null}
       />
+
+      {inventoryOpen && player ? (
+        <InventoryOverlay open={inventoryOpen} onClose={navigate.closeInventory} player={player} />
+      ) : null}
+
+      {academicWorksheetsOpen && player ? (
+        <AcademicWorksheetsOverlay
+          open={academicWorksheetsOpen}
+          onClose={navigate.closeResearchWorksheets}
+          defs={academicWorksheetDefs}
+          exploration={exploration}
+          onApplyTasks={applyAcademicTasks}
+          onStartTask={startAcademicTask}
+        />
+      ) : null}
 
       {realmAtlasOpen && player ? (
         <RealmAtlasOverlay
@@ -143,6 +218,7 @@ export function App() {
         onClose={navigate.closeQuestLog}
         onMarkQuestTurnedIn={markQuestTurnedIn}
       />
+      </main>
     </div>
   );
 }

@@ -43,6 +43,9 @@ function LhSave_validateSavePayload(envelope) {
       if (!Array.isArray(ex.fog_keys_cleared)) errors.push('exploration_fog_keys_must_be_array');
       if (!Array.isArray(ex.waypoint_keys_visited)) errors.push('exploration_waypoints_must_be_array');
       if (!Array.isArray(ex.ledger_entries)) errors.push('exploration_ledger_must_be_array');
+      if (ex.academic_tasks !== undefined && ex.academic_tasks !== null && typeof ex.academic_tasks !== 'object') {
+        errors.push('academic_tasks_must_be_object');
+      }
     }
   }
   if (envelope.realm_progress !== undefined && envelope.realm_progress !== null) {

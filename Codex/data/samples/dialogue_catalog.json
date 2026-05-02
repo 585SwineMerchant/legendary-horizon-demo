@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "banks": {
+    "resume_mentor": [
+      {
+        "line_id": "resume_act_three",
+        "text": "Brave Traveler {display_name}, your last oath-mark was {last_completed_summary}\n\nYou now stand nearing {realm_display_name} within Act {current_act}. The land asks you to heed this thread: \"{required_next_action}\"\n\nReturn when the Ledger hums anew.",
+        "conditions": [{ "kind": "act_gte", "act": 3 }]
+      },
+      {
+        "line_id": "resume_quest_blocked",
+        "text": "Brave Traveler {display_name}, the path tightens — your scroll shows a prerequisite still unwoven. Tend to the quests your facilitator grouped as prerequisites, then return to {realm_display_name}.\n\nThe directive reads: \"{required_next_action}\"",
+        "conditions": [{ "kind": "quest_status", "quest_id": "mq_act2_path_of_roots", "any_of": ["locked"] }]
+      },
+      {
+        "line_id": "resume_default",
+        "text": "Brave Traveler {display_name}, your last oath-mark was {last_completed_summary}\n\nYou now stand nearing {realm_display_name} within Act {current_act}. The land asks you to heed this thread: \"{required_next_action}\"\n\nReturn when the Ledger hums anew.",
+        "conditions": [{ "kind": "always" }]
+      }
+    ],
+    "mentor_default": [
+      {
+        "line_id": "mentor_encourage",
+        "text": "The Codex remembers your steps, {display_name}. Let the directive — \"{required_next_action}\" — be the only compass you need in {realm_display_name}.",
+        "conditions": [{ "kind": "always" }]
+      }
+    ],
+    "master_scribe_default": [
+      {
+        "line_id": "scribe_when_main_active",
+        "text": "The main path reads \"{active_main_quest_title}\". When you finish a worksheet row, the Scribe's tally updates on save — no separate ritual required.",
+        "conditions": [
+          {
+            "kind": "quest_status",
+            "quest_id": "mq_act2_path_of_roots",
+            "any_of": ["active", "available", "completed"]
+          }
+        ]
+      },
+      {
+        "line_id": "scribe_manifest_hint",
+        "text": "Ink dries fast on the Manifest, Traveler. Cross-check your quest log against what your facilitator expects in Forms — the Scribe's margin notes follow the same columns as your save row.",
+        "conditions": [{ "kind": "always" }]
+      }
+    ],
+    "oracle_default": [
+      {
+        "line_id": "oracle_maiamirror",
+        "text": "Smoke lifts from the Mirror of Maia, {display_name}. What you rehearse here in {realm_display_name} should echo in your Maia Learning reflections — the Oracle only repeats what data already whispers.",
+        "conditions": [{ "kind": "always" }]
+      }
+    ],
+    "guild_manager_default": [
+      {
+        "line_id": "manager_sidequests",
+        "text": "Side contracts stay green in the quest log until turned in — guild policy, Traveler. Clear side tiers before you petition for guild hall research credit.",
+        "conditions": [{ "kind": "quest_status", "quest_id": "mq_act2_path_of_roots", "any_of": ["completed", "turned_in"] }]
+      },
+      {
+        "line_id": "manager_charter",
+        "text": "Charters are stamped when saves land in Sheets, not when you merely pause. If your facilitator assigned a comparison ledger, finish the fields before you chase the next waypoint.",
+        "conditions": [{ "kind": "always" }]
+      }
+    ]
+  },
+  "realm_lore": [
+    {
+      "line_id": "aethelwood_oracle_whisper",
+      "realm_id": "realm_aethelwood",
+      "npc_id": "oracle_veiled",
+      "text": "Aethelwood's roots drink slow rain, {display_name}. Here the Oracle counsels patience: fog lifts only where your quest sheet says you have already walked.",
+      "conditions": [{ "kind": "always" }]
+    }
+  ]
+}

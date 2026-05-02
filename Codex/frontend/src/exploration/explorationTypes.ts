@@ -7,5 +7,8 @@ export function createEmptyExplorationLoopState(): ExplorationLoopState {
     fog_keys_cleared: [],
     waypoint_keys_visited: [],
     ledger_entries: [],
+    academic_tasks: {},
+    session_encounter_xp_awarded: 0,
+    encounter_log: [],
   };
 }

@@ -1,32 +1,70 @@
+import { ClassroomToolsButtonRow } from '../components/ClassroomToolsButtonRow';
+import type { ClassroomToolHandlers } from '../services/classroomToolLaunches';
+
 type Props = {
   onBack: () => void;
   onStartSession: () => void;
+  classroomTools?: ClassroomToolHandlers | null;
 };
 
-export function InstructionsScreen({ onBack, onStartSession }: Props) {
+const STEPS = [
+  {
+    title: 'Load your traveler',
+    body: 'Continue pulls your roster match and the latest save (Google Sheets Web App when configured, otherwise the local demo save and browser cache).',
+  },
+  {
+    title: 'Hear the recap',
+    body: 'Mentor Kael summarizes where you left off — that text comes from your save row, not hard-coded prose.',
+  },
+  {
+    title: 'Explore & progress',
+    body: 'Use the schematic map for quest triggers, Pause for the world map and worksheets, and Quest Log for objectives. Saves and exit tickets use the same flow your class will ship.',
+  },
+  {
+    title: 'Save before you go',
+    body: 'Pause → Save Game (or End session) persists exploration, quests, and worksheets. If pop-ups are blocked, your facilitator can still read the same fields from Sheets.',
+  },
+] as const;
+
+export function InstructionsScreen({ onBack, onStartSession, classroomTools }: Props) {
   return (
-    <section className="lh-screen">
-      <div className="lh-panel lh-panel--sheet">
-        <h2 className="lh-heading-lg">Instructions</h2>
-        <ul className="lh-bullet-list">
-          <li>You will load a demonstration save using local sample JSON—not live Sheets yet.</li>
-          <li>
-            Mentor voice lines hydrate portrait URLs via the{' '}
-            <code className="lh-code-inline">services/assetCatalog</code> façade (fixture rows today → Drive-aware later).
-          </li>
-          <li>
-            Exploration is schematic: clicking the shrine updates quest state locally to prove wiring.
-          </li>
-          <li>
-            Pause → Save simulates persistence and reminds you where the Gmail exit ticket will attach.
-          </li>
-        </ul>
-        <div className="lh-stack lh-stack--horizontal lh-panel__footer">
+    <section className="lh-screen lh-screen--instructions">
+      <div className="lh-panel lh-panel--sheet lh-panel--instructions">
+        <header className="lh-instructions__header">
+          <p className="lh-eyebrow">Before you play</p>
+          <h2 className="lh-heading-lg">How this session works</h2>
+          <p className="lh-instructions__lede">
+            Everything below is real UI wired to data — you should not need a narrator standing next to you.
+          </p>
+        </header>
+        <ol className="lh-instructions__steps">
+          {STEPS.map((step, i) => (
+            <li key={step.title} className="lh-instructions__step">
+              <span className="lh-instructions__step-index" aria-hidden>
+                {i + 1}
+              </span>
+              <div>
+                <h3 className="lh-heading-sm lh-instructions__step-title">{step.title}</h3>
+                <p className="lh-instructions__step-body">{step.body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+        {classroomTools ? (
+          <section className="lh-instructions__classroom-tools" aria-label="Classroom tool shortcuts">
+            <h3 className="lh-heading-sm lh-instructions__tools-title">Classroom shortcuts</h3>
+            <p className="lh-instructions__tools-hint">
+              Same links as Pause → Classroom tools. Use when your facilitator assigns work in these apps.
+            </p>
+            <ClassroomToolsButtonRow handlers={classroomTools} layout="instructions" />
+          </section>
+        ) : null}
+        <div className="lh-stack lh-stack--horizontal lh-panel__footer lh-instructions__footer">
           <button type="button" className="lh-button lh-button--ghost" onClick={onBack}>
-            Back
+            Back to title
           </button>
           <button type="button" className="lh-button lh-button--primary" onClick={onStartSession}>
-            Start Session
+            I’m ready — open recap
           </button>
         </div>
       </div>

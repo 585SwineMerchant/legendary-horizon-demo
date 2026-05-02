@@ -5,7 +5,20 @@ export type ExitTicketHandshake = {
   summary: string;
   /** Opens the platform mail composer as a surrogate for GmailApp flows. */
   mailtoHref: string;
+  /** Milestone 15 — Gmail web compose (`mail.google.com`) when the student is signed into Google. */
+  gmailWebComposeUrl: string;
 };
+
+function buildGmailWebComposeUrl(to: string, subjectPlain: string, bodyPlain: string): string {
+  const u = new URL('https://mail.google.com/mail/');
+  u.searchParams.set('view', 'cm');
+  u.searchParams.set('fs', '1');
+  const t = to.trim();
+  if (t) u.searchParams.set('to', t);
+  u.searchParams.set('su', subjectPlain);
+  u.searchParams.set('body', bodyPlain);
+  return u.toString();
+}
 
 /**
  * Produces Day 2-compliant exit ticket scaffolding without invoking Gmail APIs yet.
@@ -18,7 +31,8 @@ export function composeMockExitTicketDraft(args: {
 }): ExitTicketHandshake {
   const roster = args.roster_student;
   const to = roster?.teacher_email ?? '';
-  const subject = encodeURIComponent(`LH Exit Ticket • ${args.player.display_name}`);
+  const subjectPlain = `LH Exit Ticket • ${args.player.display_name}`;
+  const subject = encodeURIComponent(subjectPlain);
   const ex = args.envelope.exploration_loop;
   const sess = args.envelope.session_summary;
   const bodyLines = [
@@ -49,15 +63,18 @@ export function composeMockExitTicketDraft(args: {
     'Replace this template with scripted Gmail templating when ExitTicketService activates.',
   ];
 
-  const body = encodeURIComponent(bodyLines.filter(Boolean).join('\n'));
+  const bodyPlain = bodyLines.filter(Boolean).join('\n');
+  const body = encodeURIComponent(bodyPlain);
   const mailtoHref = to
     ? `mailto:${to}?subject=${subject}&body=${body}`
     : `mailto:?subject=${subject}&body=${body}`;
+  const gmailWebComposeUrl = buildGmailWebComposeUrl(to, subjectPlain, bodyPlain);
 
   return {
     summary:
       'Manual save queued locally. Classroom exit reflection can begin — we opened your mail composer with a scaffolded prompt for your facilitator.',
     mailtoHref,
+    gmailWebComposeUrl,
   };
 }
 
@@ -69,6 +86,16 @@ export function proposeExitTicketComposer(handshake: ExitTicketHandshake): Windo
 export function proposeExitTicketComposerSafe(handshake: ExitTicketHandshake): { opened: boolean } {
   try {
     const w = window.open(handshake.mailtoHref, '_blank', 'noopener,noreferrer');
+    return { opened: Boolean(w) };
+  } catch {
+    return { opened: false };
+  }
+}
+
+/** Gmail in-browser compose (Milestone 15) — same payload as `mailto`, different handoff surface. */
+export function proposeExitTicketGmailWebSafe(handshake: ExitTicketHandshake): { opened: boolean } {
+  try {
+    const w = window.open(handshake.gmailWebComposeUrl, '_blank', 'noopener,noreferrer');
     return { opened: Boolean(w) };
   } catch {
     return { opened: false };

@@ -1,8 +1,15 @@
 export type Screen = 'title' | 'instructions' | 'resume' | 'explore';
 
 export type {
+  AcademicTaskKind,
+  AcademicTaskProgress,
+  AcademicTaskStatus,
+  AcademicWorksheetFieldDef,
+  AcademicWorksheetTaskDef,
+  EncounterLogEntryV1,
   InventoryLineItem,
   InventorySummary,
+  LhBackupCheckpointV1,
   LhRuntimeFixture,
   ManualSaveEnvelopeV1,
   MediaAssetRecord,
@@ -15,6 +22,16 @@ export type {
   SessionSummaryV1,
 } from './domain/lh-contract';
 
+export type {
+  LhDialogueCatalogV1,
+  LhDialogueCondition,
+  LhDialogueLine,
+  LhNpcRegistryEntry,
+  LhNpcRegistryV1,
+  LhRealmLoreDialogueLine,
+} from './domain/lh-dialogue';
+export type { EncounterLaunchPayload } from './components/EncounterOverlay';
+export type { LhNpcDialogueOverlayModel } from './dialogue/npcDialogueOverlayModel';
 export type { ComparisonLedgerEntry, ExplorationLoopState } from './exploration/explorationTypes';
 export type { RealmProgressMap } from './realm/realmProgress';
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { resolveRosterToPlayerSave } from '../runtime/rosterIdentity';
 import { loadLhRuntimeFixture } from '../runtime/loadLhRuntimeFixture';
@@ -7,6 +7,7 @@ import { getEmptyParsedLhMap, loadLhTiledMapPayload } from '../maps/mapLoader';
 import type { ParsedLhMap, ParsedLhTrigger } from '../maps/parseLhTiledMap';
 import { makeTriggerInteractableId } from '../maps/parseLhTiledMap';
 import { dispatchLhTrigger } from '../maps/triggerDispatcher';
+import type { LoadPlayerOutcome } from '../services/manualSaveGateway';
 import {
   appendSessionHistoryRemote,
   buildManualSaveEnvelope,
@@ -18,14 +19,57 @@ import {
   persistManualSaveEnvelope,
   validatePlayerForManualSave,
 } from '../services/manualSaveGateway';
-import { composeMockExitTicketDraft, proposeExitTicketComposerSafe } from '../services/exitTicketHandoff';
+import {
+  localApplyResetAct,
+  localApplyRestoreItem,
+  localApplyUnlockQuest,
+  tryLocalRestoreFromPlayerBackup,
+} from '../services/teacherToolsLocal';
+import {
+  teacherRestoreBackupRemote,
+  teacherRestoreItemRemote,
+  teacherResetActRemote,
+  teacherUnlockQuestRemote,
+} from '../services/teacherToolsGateway';
+import {
+  buildChronicleSlidesLaunchUrl,
+  buildEnrollmentFormLaunchUrl,
+  buildGoogleClassroomLaunchUrl,
+  buildMaiaLaunchUrl,
+  buildOnetLaunchUrl,
+  buildQuizletLaunchUrl,
+  openUrlInNewTabSafe,
+  type ClassroomToolHandlers,
+} from '../services/classroomToolLaunches';
+import {
+  composeMockExitTicketDraft,
+  proposeExitTicketComposerSafe,
+  proposeExitTicketGmailWebSafe,
+} from '../services/exitTicketHandoff';
 import { tryLoadCachedFullState } from '../services/localFullStateCache';
-import { resolveAssetDeliveryUrl } from '../services/assetCatalog';
+import { tryPlayCatalogAudioAsset } from '../lib/lhCatalogAudio';
+import {
+  LH_MEDIA_ASSET_ID_MENTOR_PORTRAIT,
+  LH_MEDIA_ASSET_ID_SAVE_CHIME,
+  LH_MEDIA_ASSET_ID_TITLE_BACKDROP,
+  LH_NPC_ID_MENTOR_KAEL,
+} from '../lib/mediaConstants';
+import { resolveAssetDeliveryUrl, resolveNpcPortraitDeliveryUrl } from '../services/assetCatalog';
 
+import {
+  ensureAcademicTasksSeeded,
+  markAcademicTaskInProgress,
+  syncComparisonLedgerAcademicTask,
+} from '../academic/academicProgress';
 import { createEmptyExplorationLoopState, type ExplorationLoopState } from '../exploration/explorationTypes';
 import { applyLedgerEntryToQuests } from '../exploration/ledgerQuestBridge';
 import { selectActiveWaypoint, waypointKey } from '../exploration/waypoints';
-import { buildResumeDialogBody } from '../lib/buildResumeDialogBody';
+import type { EncounterLaunchPayload } from '../components/EncounterOverlay';
+import { appendEncounterLog, awardEncounterXp } from '../encounter/encounterXp';
+import { tryQuestLinkedEncounterWin } from '../encounter/encounterQuestBridge';
+import { buildResumeDialogBody, resolveNpcDialogueBody } from '../dialogue/dialogueEngine';
+import { findNpcEntry, formatNpcSpeakerLabel } from '../dialogue/npcRegistry';
+import type { LhNpcDialogueOverlayModel } from '../dialogue/npcDialogueOverlayModel';
 import { deepClone } from '../lib/clone';
 import {
   markResearchComplete,
@@ -39,6 +83,7 @@ import {
 } from '../quests/questEngine';
 import { resolveActiveRealm } from '../realm/realmRegistry';
 import type { ComparisonLedgerEntry, PlayerSave, QuestDefinition, Screen } from '../types';
+import type { TeacherToolsPanelProps } from '../components/TeacherToolsPanel';
 
 const emptyLedgerDraft = () => ({ career_a: '', career_b: '', note: '' });
 
@@ -59,10 +104,18 @@ if (!TILED_LOAD.ok && typeof console !== 'undefined') {
 }
 
 export function useNightOneFlow() {
-  const mentorPortrait = useMemo(
-    () => resolveAssetDeliveryUrl('portrait_mentor_kael_placeholder'),
+  const titleBackdropUrl = useMemo(
+    () => resolveAssetDeliveryUrl(LH_MEDIA_ASSET_ID_TITLE_BACKDROP, BLUEPRINT.media_assets),
     [],
   );
+
+  const mentorPortrait = useMemo(() => {
+    const cat = BLUEPRINT.media_assets;
+    return (
+      resolveNpcPortraitDeliveryUrl(LH_NPC_ID_MENTOR_KAEL, cat) ||
+      resolveAssetDeliveryUrl(LH_MEDIA_ASSET_ID_MENTOR_PORTRAIT, cat)
+    );
+  }, []);
 
   const rosterResolution = useMemo(
     () => resolveRosterToPlayerSave(BLUEPRINT.roster_student, seededPlayerSeed),
@@ -77,6 +130,7 @@ export function useNightOneFlow() {
 
   const [visitedInteractableIds, setVisitedInteractableIds] = useState<string[]>([]);
   const [pauseOpen, setPauseOpen] = useState(false);
+  const [facilitatorBusy, setFacilitatorBusy] = useState(false);
   const [questLogOpen, setQuestLogOpen] = useState(false);
   const [saveFeedback, setSaveFeedback] = useState<
     | {
@@ -87,9 +141,17 @@ export function useNightOneFlow() {
   >(null);
   const [realmAtlasOpen, setRealmAtlasOpen] = useState(false);
   const [worldMapOpen, setWorldMapOpen] = useState(false);
+  const [academicWorksheetsOpen, setAcademicWorksheetsOpen] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [bootstrapPhase, setBootstrapPhase] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [realmProgress, setRealmProgress] = useState<RealmProgressMap>({});
   const [exploration, setExploration] = useState<ExplorationLoopState>(() => createEmptyExplorationLoopState());
   const [ledgerDraft, setLedgerDraft] = useState(emptyLedgerDraft);
+  const [npcDialogue, setNpcDialogue] = useState<LhNpcDialogueOverlayModel | null>(null);
+  const [activeEncounter, setActiveEncounter] = useState<EncounterLaunchPayload | null>(null);
+  const activeEncounterRef = useRef<EncounterLaunchPayload | null>(null);
+  activeEncounterRef.current = activeEncounter;
 
   const realm = useMemo(() => {
     if (!player) return BLUEPRINT.realm;
@@ -111,8 +173,12 @@ export function useNightOneFlow() {
 
   const resumeDialogBody = useMemo(() => {
     if (!player) return '';
-    return buildResumeDialogBody(player, realm);
-  }, [player, realm]);
+    return buildResumeDialogBody(player, realm, quests, BLUEPRINT.dialogue_catalog);
+  }, [player, realm, quests]);
+
+  const resumeMentorSpeakerLabel = useMemo(() => {
+    return formatNpcSpeakerLabel(findNpcEntry(BLUEPRINT.npc_registry, 'mentor_kael'));
+  }, []);
 
   const act3WaypointLabel = useMemo(() => {
     const wp = selectActiveWaypoint(PARSED_PRIMARY_MAP.waypoints, exploration.waypoint_keys_visited);
@@ -121,16 +187,19 @@ export function useNightOneFlow() {
   }, [exploration.waypoint_keys_visited]);
 
   const beginDemo = useCallback(async () => {
-    if (!rosterResolution.matched && typeof console !== 'undefined') {
-      console.warn(
-        '[LhRoster]',
-        rosterResolution.reason ?? 'Roster heuristic did not match fixture save — QA only.',
-      );
-    } else if (typeof console !== 'undefined') {
-      console.info('[LhRoster]', 'Matched roster fixture ↔ demo save row:', rosterResolution);
-    }
+    setBootstrapPhase('loading');
+    setBootstrapError(null);
+    try {
+      if (!rosterResolution.matched && typeof console !== 'undefined') {
+        console.warn(
+          '[LhRoster]',
+          rosterResolution.reason ?? 'Roster heuristic did not match fixture save — QA only.',
+        );
+      } else if (typeof console !== 'undefined') {
+        console.info('[LhRoster]', 'Matched roster fixture ↔ demo save row:', rosterResolution);
+      }
 
-    let nextPlayer = deepClone(seededPlayerSeed);
+      let nextPlayer = deepClone(seededPlayerSeed);
     let nextQuests = seededQuestSeed.map(deepClone);
     let explorationInit = createEmptyExplorationLoopState();
     let realmProgressInit: RealmProgressMap = {};
@@ -187,18 +256,31 @@ export function useNightOneFlow() {
       }
     }
 
+    explorationInit = ensureAcademicTasksSeeded(BLUEPRINT.academic_worksheet_tasks, explorationInit);
+
     setPlayer(nextPlayer);
     setQuests(reconcileQuestPrerequisites(loadQuestDefinitionsFromJson(nextQuests)));
     setVisitedInteractableIds(visitedInit);
     setRealmProgress(realmProgressInit);
     setRealmAtlasOpen(false);
     setWorldMapOpen(false);
+    setAcademicWorksheetsOpen(false);
+    setInventoryOpen(false);
     setExploration(explorationInit);
     setLedgerDraft(emptyLedgerDraft());
     setScreen('instructions');
     setPauseOpen(false);
     setQuestLogOpen(false);
     setSaveFeedback(null);
+    setBootstrapPhase('idle');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setBootstrapError(msg);
+      setBootstrapPhase('error');
+      if (typeof console !== 'undefined') {
+        console.error('[LhSessionBootstrap]', err);
+      }
+    }
   }, [rosterResolution]);
 
   const quitToTitle = () => {
@@ -207,12 +289,70 @@ export function useNightOneFlow() {
     setQuestLogOpen(false);
     setRealmAtlasOpen(false);
     setWorldMapOpen(false);
+    setAcademicWorksheetsOpen(false);
+    setInventoryOpen(false);
+    setBootstrapPhase('idle');
+    setBootstrapError(null);
     setRealmProgress({});
     setExploration(createEmptyExplorationLoopState());
     setLedgerDraft(emptyLedgerDraft());
     setPlayer(null);
     setSaveFeedback(null);
+    setNpcDialogue(null);
+    setActiveEncounter(null);
   };
+
+  const dismissNpcDialogue = useCallback(() => setNpcDialogue(null), []);
+
+  const handleEncounterRetreat = useCallback(() => {
+    const cur = activeEncounterRef.current;
+    if (cur) {
+      setExploration((e) =>
+        appendEncounterLog(e, {
+          kind: cur.kind,
+          outcome: 'retreat',
+          xp_awarded: 0,
+          at_iso: new Date().toISOString(),
+          interactable_id: cur.interactableId,
+          target_quest_id: cur.target_quest_id,
+        }),
+      );
+    }
+    setActiveEncounter(null);
+  }, []);
+
+  const handleEncounterWin = useCallback(
+    (summary: { requestedXp: number }) => {
+      const cur = activeEncounterRef.current;
+      if (!cur || !player) return;
+      const capAward = awardEncounterXp({
+        player,
+        exploration,
+        requestedXp: summary.requestedXp,
+      });
+      const qLink = tryQuestLinkedEncounterWin(capAward.nextPlayer, quests, cur.target_quest_id);
+      const nextE = appendEncounterLog(capAward.nextExploration, {
+        kind: cur.kind,
+        outcome: 'win',
+        xp_awarded: capAward.xpGranted,
+        at_iso: new Date().toISOString(),
+        interactable_id: cur.interactableId,
+        target_quest_id: cur.target_quest_id,
+      });
+      setPlayer(qLink.nextPlayer);
+      setQuests(qLink.nextQuests);
+      setExploration(nextE);
+      setVisitedInteractableIds((ids) => (ids.includes(cur.interactableId) ? ids : [...ids, cur.interactableId]));
+      setActiveEncounter(null);
+      if (capAward.capped) {
+        setSaveFeedback({
+          tone: 'success',
+          text: `Encounter cleared — granted ${capAward.xpGranted} XP (session encounter cap reached).`,
+        });
+      }
+    },
+    [player, quests, exploration],
+  );
 
   const handleTriggerActivation = useCallback(
     (interactableId: string, triggerMeta: ParsedLhTrigger) => {
@@ -232,11 +372,41 @@ export function useNightOneFlow() {
 
       setPlayer(result.nextPlayer);
       setQuests(result.nextQuests);
-      setVisitedInteractableIds((curr) =>
-        curr.includes(interactableId) ? curr : [...curr, interactableId],
-      );
+
+      if (result.openEncounter) {
+        setActiveEncounter({
+          kind: result.openEncounter.kind,
+          interactableId: result.openEncounter.interactableId,
+          target_quest_id: result.openEncounter.target_quest_id,
+          title: triggerMeta.interaction_label_active,
+        });
+        return;
+      }
+
+      if (result.openNpcDialogue) {
+        const ctx = { player: result.nextPlayer, realm, quests: result.nextQuests };
+        const { body, npc } = resolveNpcDialogueBody(
+          result.openNpcDialogue.npcId,
+          BLUEPRINT.dialogue_catalog,
+          BLUEPRINT.npc_registry,
+          ctx,
+        );
+        const aid = npc?.portrait_asset_id;
+        const portraitUrl = aid ? resolveAssetDeliveryUrl(aid, BLUEPRINT.media_assets) : '';
+        setNpcDialogue({
+          npcId: result.openNpcDialogue.npcId,
+          title: npc?.card_title ?? 'A moment together',
+          speakerLabel: formatNpcSpeakerLabel(npc),
+          body,
+          portraitUrl: portraitUrl || undefined,
+        });
+      }
+
+      if (result.markVisited) {
+        setVisitedInteractableIds((curr) => (curr.includes(interactableId) ? curr : [...curr, interactableId]));
+      }
     },
-    [player, quests, visitedInteractableIds],
+    [player, quests, visitedInteractableIds, realm],
   );
 
   const explorationHotspots: ExplorationHotspot[] = useMemo(() => {
@@ -249,7 +419,13 @@ export function useNightOneFlow() {
     const widthDen = footprint.width_px || 1;
     const heightDen = footprint.height_px || 1;
 
-    const relevant = triggers.filter((hit) => hit.kind === 'quest_advance');
+    const relevant = triggers.filter(
+      (hit) =>
+        hit.kind === 'quest_advance' ||
+        hit.kind === 'npc_dialogue' ||
+        hit.kind === 'combat_encounter' ||
+        hit.kind === 'vocab_battle',
+    );
 
     return relevant.map((trigger) => {
       const interactableId = makeTriggerInteractableId(realm.realm_id, trigger.tiled_object_id);
@@ -384,6 +560,8 @@ export function useNightOneFlow() {
           : '',
       ].join('\n'),
     });
+
+    tryPlayCatalogAudioAsset(LH_MEDIA_ASSET_ID_SAVE_CHIME, BLUEPRINT.media_assets);
   }, [player, quests, realm.realm_id, visitedInteractableIds, exploration, realmProgress, ledgerDraft]);
 
   const handleEndSessionRitual = useCallback(async () => {
@@ -461,6 +639,70 @@ export function useNightOneFlow() {
 
   const dismissSaveFeedback = () => setSaveFeedback(null);
 
+  const openExitTicketGmailDraft = useCallback(() => {
+    if (!player) return;
+    const validation = validatePlayerForManualSave(player);
+    if (validation.length) {
+      setSaveFeedback({ tone: 'error', text: validation.join('\n') });
+      return;
+    }
+    const envelope = buildManualSaveEnvelope({
+      player,
+      questsSnapshot: quests,
+      realmId: realm.realm_id,
+      visitedTriggerInteractableIds: visitedInteractableIds,
+      exploration_loop: exploration,
+      realm_progress: realmProgress,
+      ritual_drafts: {
+        ledger_career_a: ledgerDraft.career_a || undefined,
+        ledger_career_b: ledgerDraft.career_b || undefined,
+        ledger_note: ledgerDraft.note || undefined,
+      },
+      save_kind: 'manual',
+    });
+    const exitDraft = composeMockExitTicketDraft({
+      player,
+      roster_student: BLUEPRINT.roster_student,
+      envelope,
+    });
+    const mail = proposeExitTicketGmailWebSafe(exitDraft);
+    if (!mail.opened) {
+      setSaveFeedback({
+        tone: 'error',
+        text: 'Could not open Gmail in a new tab (often a pop-up blocker). Allow pop-ups for this site or ask your facilitator for the mailto link after Save.',
+      });
+    }
+  }, [player, quests, realm.realm_id, visitedInteractableIds, exploration, realmProgress, ledgerDraft]);
+
+  const classroomTools = useMemo((): ClassroomToolHandlers | null => {
+    if (!player) return null;
+    const searchHint =
+      player.active_main_quest_title || player.required_next_action || player.display_name || 'careers';
+    return {
+      onOpenOnet: () => {
+        void openUrlInNewTabSafe(buildOnetLaunchUrl(searchHint));
+      },
+      onOpenMaia: () => {
+        void openUrlInNewTabSafe(buildMaiaLaunchUrl());
+      },
+      onOpenGmailExitTicket: () => {
+        openExitTicketGmailDraft();
+      },
+      onOpenChronicleSlides: () => {
+        void openUrlInNewTabSafe(buildChronicleSlidesLaunchUrl());
+      },
+      onOpenEnrollmentForm: () => {
+        void openUrlInNewTabSafe(buildEnrollmentFormLaunchUrl());
+      },
+      onOpenQuizlet: () => {
+        void openUrlInNewTabSafe(buildQuizletLaunchUrl(searchHint));
+      },
+      onOpenGoogleClassroom: () => {
+        void openUrlInNewTabSafe(buildGoogleClassroomLaunchUrl());
+      },
+    };
+  }, [player, openExitTicketGmailDraft]);
+
   const enterRealmFromWorldMap = useCallback((realmId: string) => {
     setPlayer((p) => (p ? { ...p, current_realm_id: realmId } : p));
     setWorldMapOpen(false);
@@ -484,9 +726,27 @@ export function useNightOneFlow() {
       id,
       created_iso: new Date().toISOString(),
     };
-    setExploration((e) => ({ ...e, ledger_entries: [...e.ledger_entries, entry] }));
+    setExploration((e) => {
+      const withEntry = { ...e, ledger_entries: [...e.ledger_entries, entry] };
+      return syncComparisonLedgerAcademicTask(BLUEPRINT.academic_worksheet_tasks, withEntry);
+    });
     setQuests((q) => applyLedgerEntryToQuests(q));
     setLedgerDraft(emptyLedgerDraft());
+  }, []);
+
+  const applyAcademicTasks = useCallback((nextTasks: NonNullable<ExplorationLoopState['academic_tasks']>) => {
+    setExploration((e) => ({ ...e, academic_tasks: nextTasks }));
+  }, []);
+
+  const startAcademicTask = useCallback((taskId: string) => {
+    setExploration((e) => ({
+      ...e,
+      academic_tasks: markAcademicTaskInProgress(
+        BLUEPRINT.academic_worksheet_tasks,
+        e.academic_tasks ?? {},
+        taskId,
+      ),
+    }));
   }, []);
 
   const markActiveWaypointVisited = useCallback(() => {
@@ -503,6 +763,191 @@ export function useNightOneFlow() {
     setQuests((q) => reconcileQuestPrerequisites(markQuestTurnedInOnList(q, questId)));
   }, []);
 
+  const mergeRemoteLoad = useCallback((remote: Extract<LoadPlayerOutcome, { ok: true }>) => {
+    let explorationInit = createEmptyExplorationLoopState();
+    if (remote.exploration_loop) {
+      const coerced = coerceExplorationLoop(remote.exploration_loop);
+      if (coerced) explorationInit = coerced;
+    }
+    setPlayer(remote.player);
+    setQuests((q) =>
+      reconcileQuestPrerequisites(loadQuestDefinitionsFromJson(remote.quests.length ? remote.quests : q)),
+    );
+    setVisitedInteractableIds(remote.progression_flags.visited_trigger_object_ids);
+    setRealmProgress(remote.realm_progress ? mergeRealmProgressMaps({}, remote.realm_progress) : {});
+    setExploration(ensureAcademicTasksSeeded(BLUEPRINT.academic_worksheet_tasks, explorationInit));
+  }, []);
+
+  const handleTeacherUnlockQuest = useCallback(
+    async (questId: string) => {
+      if (!player) return;
+      setFacilitatorBusy(true);
+      try {
+        const r = await teacherUnlockQuestRemote(player.player_id, questId);
+        if (r.ok && !r.simulated) {
+          const load = await loadPlayerStateFromRemote(player.player_id);
+          if (load.ok) {
+            mergeRemoteLoad(load);
+            setSaveFeedback({ tone: 'success', text: r.message });
+            return;
+          }
+          setSaveFeedback({ tone: 'error', text: load.message });
+          return;
+        }
+        if (r.ok && r.simulated) {
+          setQuests((q) => localApplyUnlockQuest(q, questId));
+          setSaveFeedback({ tone: 'success', text: r.message });
+          return;
+        }
+        setSaveFeedback({ tone: 'error', text: r.message });
+      } finally {
+        setFacilitatorBusy(false);
+      }
+    },
+    [player, mergeRemoteLoad],
+  );
+
+  const handleTeacherRestoreBackup = useCallback(async () => {
+    if (!player) return;
+    setFacilitatorBusy(true);
+    try {
+      const r = await teacherRestoreBackupRemote(player.player_id);
+      if (r.ok && !r.simulated) {
+        const load = await loadPlayerStateFromRemote(player.player_id);
+        if (load.ok) {
+          mergeRemoteLoad(load);
+          setSaveFeedback({ tone: 'success', text: r.message });
+          return;
+        }
+        setSaveFeedback({ tone: 'error', text: load.message });
+        return;
+      }
+      if (r.ok && r.simulated) {
+        const local = tryLocalRestoreFromPlayerBackup(player);
+        if (!local) {
+          setSaveFeedback({
+            tone: 'error',
+            text: 'No backup_checkpoint_json on this save (add one on the row or save once in Sheets).',
+          });
+          return;
+        }
+        setPlayer(local.player);
+        setQuests(local.quests);
+        setVisitedInteractableIds(local.visited);
+        setRealmProgress(local.realmProgress);
+        setExploration(ensureAcademicTasksSeeded(BLUEPRINT.academic_worksheet_tasks, local.exploration));
+        setSaveFeedback({ tone: 'success', text: 'Restored from local backup snapshot.' });
+        return;
+      }
+      setSaveFeedback({ tone: 'error', text: r.message });
+    } finally {
+      setFacilitatorBusy(false);
+    }
+  }, [player, mergeRemoteLoad]);
+
+  const handleTeacherRestoreItem = useCallback(
+    async (itemId: string, qty: number, label?: string) => {
+      if (!player) return;
+      setFacilitatorBusy(true);
+      try {
+        const r = await teacherRestoreItemRemote(player.player_id, itemId, qty, label);
+        if (r.ok && !r.simulated) {
+          const load = await loadPlayerStateFromRemote(player.player_id);
+          if (load.ok) {
+            mergeRemoteLoad(load);
+            setSaveFeedback({ tone: 'success', text: r.message });
+            return;
+          }
+          setSaveFeedback({ tone: 'error', text: load.message });
+          return;
+        }
+        if (r.ok && r.simulated) {
+          setPlayer((p) => (p ? localApplyRestoreItem(p, itemId, qty, label) : p));
+          setSaveFeedback({ tone: 'success', text: r.message });
+          return;
+        }
+        setSaveFeedback({ tone: 'error', text: r.message });
+      } finally {
+        setFacilitatorBusy(false);
+      }
+    },
+    [player, mergeRemoteLoad],
+  );
+
+  const handleTeacherResetAct = useCallback(
+    async (act: number) => {
+      if (!player) return;
+      setFacilitatorBusy(true);
+      try {
+        const r = await teacherResetActRemote(player.player_id, act);
+        if (r.ok && !r.simulated) {
+          const load = await loadPlayerStateFromRemote(player.player_id);
+          if (load.ok) {
+            mergeRemoteLoad(load);
+            setSaveFeedback({ tone: 'success', text: r.message });
+            return;
+          }
+          setSaveFeedback({ tone: 'error', text: load.message });
+          return;
+        }
+        if (r.ok && r.simulated) {
+          setPlayer((p) => (p ? localApplyResetAct(p, act) : p));
+          setSaveFeedback({ tone: 'success', text: r.message });
+          return;
+        }
+        setSaveFeedback({ tone: 'error', text: r.message });
+      } finally {
+        setFacilitatorBusy(false);
+      }
+    },
+    [player, mergeRemoteLoad],
+  );
+
+  const handleFacilitatorMarkExitTicket = useCallback(async () => {
+    if (!player) return;
+    setFacilitatorBusy(true);
+    try {
+      const r = await markExitTicketRemote(player.player_id, 'sent');
+      if (!r.ok) {
+        setSaveFeedback({ tone: 'error', text: r.message ?? 'mark_exit_ticket failed.' });
+        return;
+      }
+      const web =
+        Boolean(import.meta.env.VITE_LH_APPS_SCRIPT_WEBAPP_URL?.trim()) &&
+        import.meta.env.VITE_LH_FORCE_SIMULATED_SAVE !== 'true';
+      if (web) {
+        const load = await loadPlayerStateFromRemote(player.player_id);
+        if (load.ok) mergeRemoteLoad(load);
+      } else {
+        setPlayer((p) => (p ? { ...p, exit_ticket_state: 'sent' } : p));
+      }
+      setSaveFeedback({ tone: 'success', text: 'Exit ticket state set to sent.' });
+    } finally {
+      setFacilitatorBusy(false);
+    }
+  }, [player, mergeRemoteLoad]);
+
+  const showFacilitatorTools =
+    import.meta.env.DEV || import.meta.env.VITE_LH_TEACHER_PANEL === 'true';
+
+  const facilitatorToolsProps: TeacherToolsPanelProps | null =
+    showFacilitatorTools && player
+      ? {
+          rosterSectionLabel: BLUEPRINT.roster_student.section_code,
+          player,
+          quests,
+          exploration,
+          visitedTriggerIds: visitedInteractableIds,
+          busy: facilitatorBusy,
+          onUnlockQuest: handleTeacherUnlockQuest,
+          onRestoreBackup: handleTeacherRestoreBackup,
+          onRestoreMentorVial: () =>
+            handleTeacherRestoreItem('mentor_echo_vial', 1, 'Echo vial — mentor guidance'),
+          onMarkExitTicketSent: handleFacilitatorMarkExitTicket,
+          onResetAct: handleTeacherResetAct,
+        }
+      : null;
+
   return {
     screen,
     realm,
@@ -511,7 +956,15 @@ export function useNightOneFlow() {
     activeQuestDefinition,
     showQuestDebug,
     mentorPortrait,
+    resumeMentorSpeakerLabel,
+    titleBackdropUrl,
+    classroomTools,
     resumeDialogBody,
+    npcDialogue,
+    dismissNpcDialogue,
+    activeEncounter,
+    onEncounterWin: handleEncounterWin,
+    onEncounterRetreat: handleEncounterRetreat,
     rosterResolution,
     visitedInteractableIds,
     pauseOpen,
@@ -539,10 +992,24 @@ export function useNightOneFlow() {
         setWorldMapOpen(true);
       },
       closeWorldMap: () => setWorldMapOpen(false),
+      openResearchWorksheets: () => {
+        setPauseOpen(false);
+        setAcademicWorksheetsOpen(true);
+      },
+      closeResearchWorksheets: () => setAcademicWorksheetsOpen(false),
+      openInventory: () => {
+        setPauseOpen(false);
+        setInventoryOpen(true);
+      },
+      closeInventory: () => setInventoryOpen(false),
     },
 
     realmAtlasOpen,
     worldMapOpen,
+    academicWorksheetsOpen,
+    inventoryOpen,
+    bootstrapPhase,
+    bootstrapError,
     allRealms,
     realmProgress,
     exploration,
@@ -574,10 +1041,15 @@ export function useNightOneFlow() {
     ledgerDraft,
     setLedgerDraft,
     markQuestTurnedIn,
+    applyAcademicTasks,
+    startAcademicTask,
+    academicWorksheetDefs: BLUEPRINT.academic_worksheet_tasks,
 
     tiledMapDebug: {
       parsed: PARSED_PRIMARY_MAP,
       loadErrors: TILED_LOAD.ok ? [] : TILED_LOAD.errors,
     },
+
+    facilitatorToolsProps,
   };
 }

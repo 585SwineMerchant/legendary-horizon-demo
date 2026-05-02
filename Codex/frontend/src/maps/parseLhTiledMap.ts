@@ -5,6 +5,8 @@ export type ParsedLhTrigger = {
   tiled_name?: string;
   layer_name?: string;
   kind: string;
+  /** Present when `lh_kind` is `npc_dialogue` (Milestone 16). */
+  npc_id?: string;
   target_quest_id?: string;
   bounds: {
     x: number;
@@ -99,7 +101,7 @@ function normaliseTriggers(objects: TiledObject[], layerName: string): ParsedLhT
       return;
     }
     const kind = lhKindRaw ?? 'unknown';
-    if (kind === 'waypoint' || kind === 'fog_region' || kind === 'npc_dialogue') {
+    if (kind === 'waypoint' || kind === 'fog_region') {
       return;
     }
     out.push({
@@ -107,6 +109,7 @@ function normaliseTriggers(objects: TiledObject[], layerName: string): ParsedLhT
       tiled_name: obj.name,
       layer_name: layerName,
       kind,
+      npc_id: tileProperty(props, 'lh_npc_id'),
       target_quest_id: tileProperty(props, 'lh_target_quest_id'),
       bounds: objectBounds(obj),
       interaction_label_active:
@@ -159,7 +162,10 @@ function normaliseNpcs(objects: TiledObject[], layerName: string): ParsedLhNpcMa
   objects.forEach((obj) => {
     const props = obj.properties ?? [];
     const kind = tileProperty(props, 'lh_kind');
-    const isNpc = kind === 'npc_dialogue' || obj.type === 'lh_npc_marker';
+    if (kind === 'npc_dialogue') {
+      return;
+    }
+    const isNpc = obj.type === 'lh_npc_marker';
     if (!isNpc) return;
     out.push({
       tiled_object_id: obj.id,
