@@ -13,9 +13,20 @@
     "title": "Loose Leaves of the Ledger",
     "tier": "side",
     "act": 2,
-    "status": "available",
+    "status": "locked",
     "objective_short": "Recover three misplaced comparison notes for Mentor Kael.",
-    "realm_ids": ["realm_aethelwood"]
+    "realm_ids": ["realm_aethelwood"],
+    "prerequisite_quest_ids": ["mq_act2_path_of_roots"]
+  },
+  {
+    "quest_id": "gq_guild_atlas_pulse",
+    "title": "Guild Atlas — Pulse Reading",
+    "tier": "guild",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Log one realm entry in the atlas after the main path trial.",
+    "realm_ids": ["realm_aethelwood"],
+    "prerequisite_quest_ids": ["mq_act2_path_of_roots"]
   },
   {
     "quest_id": "sq_listen_crossroads_echo",
@@ -24,6 +35,7 @@
     "act": 3,
     "status": "locked",
     "objective_short": "Hear three traveler stories linked to career clusters.",
-    "realm_ids": ["realm_crossroads_haven_placeholder"]
+    "realm_ids": ["realm_crossroads_haven"],
+    "prerequisite_quest_ids": []
   }
 ]

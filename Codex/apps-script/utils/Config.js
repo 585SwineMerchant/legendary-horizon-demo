@@ -4,5 +4,5 @@
  */
 
 function lhSpreadsheetId_() {
-  return ''; // Spreadsheet ID from Apps Script Properties
+  return PropertiesService.getScriptProperties().getProperty('LH_SPREADSHEET_ID') || '';
 }

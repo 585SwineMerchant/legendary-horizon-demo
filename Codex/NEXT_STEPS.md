@@ -29,3 +29,13 @@
 ## Recommended next implementation steps
 
 See **`docs/DAY_3_HANDOFF.md`** for the curated short list; in brief: bind a real spreadsheet + web app, replace the save simulator with server calls, and graduate Tiled from overlay buttons to a real map renderer.
+
+**Update:** the SPA now calls **`persistManualSaveEnvelope`** (`services/manualSaveGateway.ts`), which POSTs to **`VITE_LH_APPS_SCRIPT_WEBAPP_URL`** when set (otherwise keeps simulation). Apps Script **`LhWebApp.js`** exposes `doPost` actions `manual_save` and `load_player`.
+
+**Milestone 4 (Tiled import foundation):** `maps/mapLoader.ts`, extended **`parseLhTiledMap`** (tile/object layer summaries, waypoints, fog, NPC markers, warnings), **`MapDebugPanel`** on exploration (dev / `VITE_LH_MAP_DEBUG`), and **`tiled/README.md`** + sample objects in `aethelwood_demo.json`.
+
+**Milestone 5 (start):** **`maps/triggerDispatcher.ts`** + **`lhTriggerTypes.ts`** — `quest_advance` via `completeDemoShrineVisit`, stub kinds log-only; **`loadPlayerStateFromRemote`** + **`lhWebAppClient`** — Continue hydrates from Web App when URL set (fixture fallback).
+
+**Milestone 6 (realm framework):** **`data/samples/realm_registry.json`** (17 GDD canon realms); **`realm/realmRegistry.ts`**, **`realmAssets.ts`**, **`realmProgress.ts`**; fixture loader exposes **`realms`** + active **`realm`**; **Realm atlas** overlay from pause; session **exploration progress**; **`listAssetsForRealm`** on `assetCatalog`; optional **`realm_ids`** on media fixtures.
+
+**Milestone 7 (exploration loop):** **`WorldMapOverlay`** (locked/unlocked realms, fog clear, ledger form, research, travel); **`exploration/`** types + **`realmUnlock`**, **`waypoints`**, **`ledgerQuestBridge`**; session **`ExplorationLoopState`**; **dynamic `realm`** from `player.current_realm_id`; exploration HUD strip + world map from pause/explore.

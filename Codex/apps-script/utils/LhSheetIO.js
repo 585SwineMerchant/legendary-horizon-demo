@@ -11,6 +11,19 @@ function lhSheetGetOrThrow_(spreadsheetId, tabName) {
   return sheet;
 }
 
+/**
+ * @returns {GoogleAppsScript.Spreadsheet.Sheet | null}
+ */
+function lhSheetTryGet_(spreadsheetId, tabName) {
+  try {
+    var ss = SpreadsheetApp.openById(spreadsheetId);
+    return ss.getSheetByName(tabName) || null;
+  } catch (err) {
+    Logger.log('lhSheetTryGet_ ' + tabName + ': ' + err);
+    return null;
+  }
+}
+
 function lhSheetReadHeaderMap_(sheet) {
   var lastCol = sheet.getLastColumn();
   if (lastCol < 1) {

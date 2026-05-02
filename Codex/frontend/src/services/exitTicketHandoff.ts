@@ -19,6 +19,8 @@ export function composeMockExitTicketDraft(args: {
   const roster = args.roster_student;
   const to = roster?.teacher_email ?? '';
   const subject = encodeURIComponent(`LH Exit Ticket • ${args.player.display_name}`);
+  const ex = args.envelope.exploration_loop;
+  const sess = args.envelope.session_summary;
   const bodyLines = [
     `Student / Traveler name: ${args.player.display_name}`,
     roster?.student_email ? `Student email (fixture): ${roster.student_email}` : null,
@@ -33,6 +35,15 @@ export function composeMockExitTicketDraft(args: {
     `- XP total: ${args.player.xp_total}`,
     `- Level cached: ${args.player.level_cached}`,
     `- Completed triggers tracked: ${args.envelope.progression_flags.visited_trigger_object_ids.join(', ') || 'none logged'}`,
+    ex
+      ? `- Exploration: fog cleared ${ex.fog_keys_cleared.length}, waypoints ${ex.waypoint_keys_visited.length}, ledger rows ${ex.ledger_entries.length}`
+      : null,
+    sess
+      ? `- Session capture @ ${sess.captured_at_iso}: open quests ${sess.quest_open_count}, ledger count ${sess.ledger_entry_count}`
+      : null,
+    args.envelope.ritual_drafts?.ledger_career_a || args.envelope.ritual_drafts?.ledger_career_b
+      ? `- Ledger draft (unsaved lines): A=${args.envelope.ritual_drafts?.ledger_career_a ?? ''} / B=${args.envelope.ritual_drafts?.ledger_career_b ?? ''}`
+      : null,
     '',
     `[Fixture revision @ ${args.envelope.saved_at_iso}]`,
     'Replace this template with scripted Gmail templating when ExitTicketService activates.',
@@ -52,4 +63,14 @@ export function composeMockExitTicketDraft(args: {
 
 export function proposeExitTicketComposer(handshake: ExitTicketHandshake): Window | null {
   return window.open(handshake.mailtoHref, '_blank', 'noopener,noreferrer');
+}
+
+/** Same as `proposeExitTicketComposer` but reports pop-up / mailto failures (Milestone 9). */
+export function proposeExitTicketComposerSafe(handshake: ExitTicketHandshake): { opened: boolean } {
+  try {
+    const w = window.open(handshake.mailtoHref, '_blank', 'noopener,noreferrer');
+    return { opened: Boolean(w) };
+  } catch {
+    return { opened: false };
+  }
 }

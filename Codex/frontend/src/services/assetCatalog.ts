@@ -1,6 +1,7 @@
 import catalogJson from '@samples/media_assets.json';
 
 import type { MediaAssetRecord } from '../domain/lh-contract';
+import { listMediaAssetsForRealm } from '../realm/realmAssets';
 
 let cache: MediaAssetRecord[] | null = null;
 
@@ -25,4 +26,9 @@ export function listAssetRecords(): readonly MediaAssetRecord[] {
  */
 export function resolveAssetDeliveryUrl(assetId: string): string {
   return getAssetRecord(assetId)?.delivery_url_placeholder ?? '';
+}
+
+/** Realm-scoped catalog slice (Milestone 6) — rows with no `realm_ids` count as global. */
+export function listAssetsForRealm(realmId: string): MediaAssetRecord[] {
+  return listMediaAssetsForRealm(ensureCache(), realmId);
 }

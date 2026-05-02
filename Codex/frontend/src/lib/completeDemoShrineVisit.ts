@@ -1,4 +1,5 @@
 import type { PlayerSave, QuestDefinition } from '../domain/lh-contract';
+import { reconcileQuestPrerequisites } from '../quests/questEngine';
 
 /** Directive shown after the placeholder shrine interaction resolves. */
 export const directiveAfterDemoShrine =
@@ -20,14 +21,16 @@ export function completeDemoShrineVisit(
       ...player,
       required_next_action: directiveAfterDemoShrine,
     },
-    nextQuests: quests.map((q) =>
-      q.quest_id === mainQuestId
-        ? {
-            ...q,
-            status: 'completed' as const,
-            objective_short: 'Seek Mentor Kael to debrief.',
-          }
-        : q,
+    nextQuests: reconcileQuestPrerequisites(
+      quests.map((q) =>
+        q.quest_id === mainQuestId
+          ? {
+              ...q,
+              status: 'completed' as const,
+              objective_short: 'Seek Mentor Kael to debrief.',
+            }
+          : q,
+      ),
     ),
   };
 }

@@ -2,11 +2,24 @@ type Props = {
   open: boolean;
   onResume: () => void;
   onOpenQuestLog: () => void;
+  onOpenRealmAtlas?: () => void;
+  onOpenWorldMap?: () => void;
   onSave: () => void;
+  /** Milestone 9 — save + session history + exit ticket + Sheets exit_ticket_state. */
+  onEndSession?: () => void;
   onQuitToTitle: () => void;
 };
 
-export function PauseMenu({ open, onResume, onOpenQuestLog, onSave, onQuitToTitle }: Props) {
+export function PauseMenu({
+  open,
+  onResume,
+  onOpenQuestLog,
+  onOpenRealmAtlas,
+  onOpenWorldMap,
+  onSave,
+  onEndSession,
+  onQuitToTitle,
+}: Props) {
   if (!open) return null;
 
   return (
@@ -20,9 +33,24 @@ export function PauseMenu({ open, onResume, onOpenQuestLog, onSave, onQuitToTitl
           <button type="button" className="lh-button lh-button--secondary" onClick={onOpenQuestLog}>
             Quest Log
           </button>
+          {onOpenRealmAtlas ? (
+            <button type="button" className="lh-button lh-button--secondary" onClick={onOpenRealmAtlas}>
+              Realm atlas
+            </button>
+          ) : null}
+          {onOpenWorldMap ? (
+            <button type="button" className="lh-button lh-button--secondary" onClick={onOpenWorldMap}>
+              World map
+            </button>
+          ) : null}
           <button type="button" className="lh-button lh-button--secondary" onClick={onSave}>
             Save Game
           </button>
+          {onEndSession ? (
+            <button type="button" className="lh-button lh-button--secondary" onClick={onEndSession}>
+              End session (save + exit ticket)
+            </button>
+          ) : null}
           <button type="button" className="lh-button lh-button--ghost" onClick={onQuitToTitle}>
             Quit to Title
           </button>

@@ -1,17 +1,22 @@
 /**
- * Canonical tab + header names for the Day 2 plumbing pass.
+ * Canonical tab + header names for the Day 2 plumbing pass + Milestone 3 service layer.
  * Copy these values from your live spreadsheet — never hardcode mystery columns in multiple files.
  *
  * @see ../../../contracts/README.md
  */
 
 var LH_SCHEMA = {
-  /** Default tab housing `PlayerSave` rows. */
   PLAYER_SAVE_TAB: 'LhPlayerSave',
-  /** Educator roster tab for identity resolution. */
   ROSTER_TAB: 'LhRoster',
-  /** Media asset lookup tab (mirrors Media Asset Lookup workbook). */
   MEDIA_ASSET_TAB: 'LhMediaAssets',
+  /** Optional — quest definitions mirrored from Quest List workbook. */
+  QUEST_DEFINITION_TAB: 'LhQuestDefinitions',
+  /** Optional — realm registry rows. */
+  REALM_DEFINITION_TAB: 'LhRealmDefinitions',
+  /** Optional — item catalog for LookupService + teacher restore. */
+  ITEM_DEFINITION_TAB: 'LhItemDefinitions',
+  /** Session-end / class block history (append-only). */
+  SESSION_HISTORY_TAB: 'LhSessionHistory',
 };
 
 /**
@@ -35,11 +40,19 @@ var LH_PLAYER_SAVE_HEADERS = {
   inventory_summary_json: 'inventory_summary_json',
   revision_token: 'revision_token',
   last_manual_save_iso: 'last_manual_save_iso',
+  quests_snapshot_json: 'quests_snapshot_json',
+  backup_checkpoint_json: 'backup_checkpoint_json',
+  auto_save_last_iso: 'auto_save_last_iso',
+  exit_ticket_state: 'exit_ticket_state',
+  /** M8 — JSON blobs mirroring `ManualSaveEnvelopeV1` optional slices. */
+  exploration_loop_json: 'exploration_loop_json',
+  realm_progress_json: 'realm_progress_json',
+  session_summary_json: 'session_summary_json',
+  ritual_drafts_json: 'ritual_drafts_json',
+  /** M8 — `{ visited_trigger_object_ids: string[] }` from manual-save envelope. */
+  progression_flags_json: 'progression_flags_json',
 };
 
-/**
- * Roster headers for `ROSTER_TAB`.
- */
 var LH_ROSTER_HEADERS = {
   student_email: 'student_email',
   student_id: 'student_id',
@@ -49,4 +62,45 @@ var LH_ROSTER_HEADERS = {
   class_section: 'class_section',
   section_code: 'section_code',
   player_id: 'player_id',
+};
+
+/** Quest definition export columns (optional tab). */
+var LH_QUEST_DEF_HEADERS = {
+  quest_id: 'quest_id',
+  title: 'title',
+  tier: 'tier',
+  act: 'act',
+  status: 'status',
+  objective_short: 'objective_short',
+  realm_ids_json: 'realm_ids_json',
+};
+
+var LH_REALM_DEF_HEADERS = {
+  realm_id: 'realm_id',
+  display_name: 'display_name',
+};
+
+var LH_ITEM_DEF_HEADERS = {
+  item_id: 'item_id',
+  label: 'label',
+};
+
+/** Media tab — core columns plus optional filters for AssetService.getRealmAssets / getNpcAssets. */
+var LH_MEDIA_HEADERS = {
+  asset_id: 'asset_id',
+  kind: 'kind',
+  description: 'description',
+  drive_file_id: 'drive_file_id',
+  delivery_url_placeholder: 'delivery_url_placeholder',
+  realm_tags_csv: 'realm_tags_csv',
+  npc_id: 'npc_id',
+};
+
+var LH_SESSION_HISTORY_HEADERS = {
+  session_id: 'session_id',
+  player_id: 'player_id',
+  began_iso: 'began_iso',
+  ended_iso: 'ended_iso',
+  summary_json: 'summary_json',
+  device_hint: 'device_hint',
 };

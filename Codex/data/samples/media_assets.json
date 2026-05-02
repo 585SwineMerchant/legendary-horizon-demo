@@ -25,13 +25,15 @@
     "kind": "portrait",
     "description": "Mentor Kael expressive neutral.",
     "drive_file_id": "",
-    "delivery_url_placeholder": "/assets/portrait-mentor-neutral.svg"
+    "delivery_url_placeholder": "/assets/portrait-mentor-neutral.svg",
+    "realm_ids": ["realm_aethelwood", "realm_archives_ascension"]
   },
   {
     "asset_id": "map_thumbnail_aethelwood_placeholder",
     "kind": "map_thumb",
     "description": "Low-detail map vignette pending Tiled pipeline.",
     "drive_file_id": "",
-    "delivery_url_placeholder": "/assets/map-aethelwood-thumb.svg"
+    "delivery_url_placeholder": "/assets/map-aethelwood-thumb.svg",
+    "realm_ids": ["realm_aethelwood"]
   }
 ]

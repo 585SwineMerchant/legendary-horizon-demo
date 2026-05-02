@@ -43,12 +43,42 @@
               "value": "Shrine sings — Ledger thread updated"
             }
           ]
+        },
+        {
+          "id": 2,
+          "name": "east_trail_marker",
+          "type": "lh_waypoint",
+          "x": 640,
+          "y": 128,
+          "width": 48,
+          "height": 48,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "lh_kind", "type": "string", "value": "waypoint" },
+            { "name": "lh_waypoint_key", "type": "string", "value": "east_trail" }
+          ]
+        },
+        {
+          "id": 3,
+          "name": "mist_veil_west",
+          "type": "lh_fog_region",
+          "x": 64,
+          "y": 96,
+          "width": 256,
+          "height": 320,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "lh_kind", "type": "string", "value": "fog_region" },
+            { "name": "lh_fog_key", "type": "string", "value": "west_veil_demo" }
+          ]
         }
       ]
     }
   ],
   "nextlayerid": 2,
-  "nextobjectid": 3,
+  "nextobjectid": 4,
   "properties": [{ "name": "lh_realm_id", "type": "string", "value": "realm_aethelwood" }],
   "tilesets": [],
   "tiledversion": "1.12.2",

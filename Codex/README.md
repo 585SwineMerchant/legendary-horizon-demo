@@ -1,6 +1,8 @@
 # Legendary Horizon — Monorepo (Codex)
 
-Single repository skeleton for **Legendary Horizon**, a classroom-facing **browser educational RPG**. Work here is organized for incremental delivery alongside frozen reference collateral in **`../Project Documents/`** (Master GDD v2, Technical Architecture Spec, Save System Workbook, Quest List, Media Asset specs/sheets).
+Single repository skeleton for **Legendary Horizon**, a classroom-facing **browser educational RPG**. Work here is organized for incremental delivery alongside frozen reference collateral in **`../Project Documents/`**.
+
+**Canonical design (read first):** [`Project Documents/Legendary_Horizon_Master_GDD_v1.docx.md`](../Project%20Documents/Legendary_Horizon_Master_GDD_v1.docx.md) (full blueprint), [`Legendary_Horizon_Master_GDD_v2.docx`](../Project%20Documents/Legendary_Horizon_Master_GDD_v2.docx) (realm registry delta), and [`Legendary_Horizon_Codex_Implementation_Roadmap.md`](../Project%20Documents/Legendary_Horizon_Codex_Implementation_Roadmap.md) (engineering milestones). Supporting specs: Technical Architecture, Save System Workbook, Quest List, Media Asset specs/sheets. Details: `docs/README.md`.
 
 ## Project concept
 
@@ -14,7 +16,7 @@ The **Night One checklist** prioritized proving an end-to-end *local* slice: aut
 |-------|------------------|
 | `frontend/` | Vite + React + TypeScript SPA. Screen flow, HUD, dialogs, modular data-loading seam (fixtures now, HTTP to Apps Script later). |
 | `apps-script/` | Google Apps Script modules for validation/persistence/query surfaces (currently stub implementations + logging placeholders). Sheets remain the eventual source of truth. |
-| `data/samples/` | JSON fixtures documenting expected column/field parity with spreadsheet-backed tables (`player_save`, roster, realms, quests, media assets). |
+| `data/samples/` | JSON fixtures (`player_save`, roster, **`realm_registry.json`** — 17 canon realms, quests, media). |
 | `tiled/` | Reserved export target for authoritative map collisions & trigger metadata consumed by future rendering layers. |
 | `assets/` | Repo-hosted media not yet vaulted in Drive—optional thumbnails, sfx prototypes, branded UI trims. |
 
@@ -26,7 +28,7 @@ The **Night One checklist** prioritized proving an end-to-end *local* slice: aut
 | `frontend/` | Web client: `src/screens`, `hooks`, `components`, `lib`, `styles`; ship placeholder SVG/audio via `public/assets/`. |
 | `apps-script/` | Deployable stubs for Save, Quest, Session, Asset, ExitTicket (Gmail successor), Lookup services plus shared config helpers. |
 | `data/samples/` | Local golden records for deterministic UI prototyping. |
-| `tiled/` | Map JSON payloads once Tiled integration begins. |
+| `tiled/` | JSON map exports. Client import is **`frontend/src/maps/mapLoader.ts`** + **`parseLhTiledMap.ts`** (Milestone 4: layers, triggers, waypoints, fog, NPC markers, exploration debug panel). |
 | `assets/` | Binary-friendly drops that should not live inside `frontend/dist`. |
 | `scripts/` | Build automation, exporters, QA helpers that touch spreadsheets or repositories. |
 
@@ -41,6 +43,16 @@ Prove the UX loop enumerated in **`Legendary_Horizon_Night_One_Codex_Checklist.d
 5. Parity-maintaining Apps Script stubs and JSON samples anticipating Sheets binding.
 
 Consult `NEXT_STEPS.md` for pragmatic follow-on engineering tasks.
+
+## Remote save (Apps Script Web App)
+
+Optional `.env` / `.env.local` in `Codex/frontend`:
+
+- `VITE_LH_APPS_SCRIPT_WEBAPP_URL` — deployed Web App URL (`…/macros/s/…/exec`). When unset, manual save stays **simulated**.
+- `VITE_LH_SPREADSHEET_ID` — spreadsheet id sent in the POST body (or set Script Property `LH_SPREADSHEET_ID` on the script instead).
+- `VITE_LH_FORCE_SIMULATED_SAVE=true` — keep simulation even if a Web App URL is set (useful while debugging).
+
+Deploy `apps-script/LhWebApp.js` **after** all other modules per `apps-script/README.md`. CORS from `localhost` to `script.google.com` can block `fetch`; test from the same Sites origin as production, or use a small proxy, if saves fail in dev.
 
 ## Build & run commands
 

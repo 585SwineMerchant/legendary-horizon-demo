@@ -1,8 +1,11 @@
 import type { CSSProperties } from 'react';
 
+import { MapDebugPanel } from '../components/MapDebugPanel';
+import { QuestDebugPanel } from '../components/QuestDebugPanel';
 import { summarizeInventoryBrief } from '../lib/formatInventoryBrief';
+import type { ParsedLhMap } from '../maps/parseLhTiledMap';
 
-import type { PlayerSave, RealmDefinition } from '../types';
+import type { PlayerSave, QuestDefinition, RealmDefinition } from '../types';
 
 export type ExplorationHotspot = {
   interactable_id: string;
@@ -16,6 +19,16 @@ type SaveFeedback =
   | { tone: 'success'; text: string }
   | { tone: 'error'; text: string };
 
+type Act3Strip = {
+  activeWaypointLabel: string | null;
+  fogCleared: number;
+  fogTotal: number;
+  waypointVisited: number;
+  waypointTotal: number;
+  onOpenWorldMap: () => void;
+  onMarkWaypoint: () => void;
+};
+
 type Props = {
   player: PlayerSave;
   realm: RealmDefinition;
@@ -25,6 +38,14 @@ type Props = {
   onDismissSaveFeedback?: () => void;
   onPause: () => void;
   onOpenQuestLog: () => void;
+  /** Milestone 7 — Act III exploration loop summary + world map entry. */
+  act3?: Act3Strip | null;
+  /** Milestone 4 — when set, shows collapsible parsed Tiled structures (dev / `VITE_LH_MAP_DEBUG`). */
+  mapDebug?: { parsed: ParsedLhMap; loadErrors: string[] } | null;
+  /** Milestone 10 — active main quest row for prerequisite display. */
+  activeQuestDefinition?: QuestDefinition | null;
+  /** Milestone 10 — raw quest JSON (dev / `VITE_LH_QUEST_DEBUG`). */
+  questDebug?: { quests: QuestDefinition[] } | null;
 };
 
 export function ExplorationScreen({
@@ -36,7 +57,13 @@ export function ExplorationScreen({
   onDismissSaveFeedback,
   onPause,
   onOpenQuestLog,
+  act3,
+  mapDebug,
+  activeQuestDefinition,
+  questDebug,
 }: Props) {
+  const showTiledHotspots = Boolean(realm.map_tiled_export);
+
   return (
     <section className="lh-exploration">
       <header className="lh-exploration__topbar">
@@ -45,6 +72,11 @@ export function ExplorationScreen({
           <h2 className="lh-heading-lg">Exploration • Tiled trigger slice</h2>
         </div>
         <div className="lh-stack lh-stack--horizontal">
+          {act3 ? (
+            <button type="button" className="lh-button lh-button--secondary" onClick={act3.onOpenWorldMap}>
+              World map
+            </button>
+          ) : null}
           <button type="button" className="lh-button lh-button--secondary" onClick={onOpenQuestLog}>
             Quest Log
           </button>
@@ -80,6 +112,12 @@ export function ExplorationScreen({
               <dt>Directive</dt>
               <dd>{player.required_next_action}</dd>
             </div>
+            {activeQuestDefinition?.prerequisite_quest_ids?.length ? (
+              <div>
+                <dt>Quest prerequisites</dt>
+                <dd className="lh-hud-multiline">{activeQuestDefinition.prerequisite_quest_ids.join(', ')}</dd>
+              </div>
+            ) : null}
             <div>
               <dt>Inventory gist</dt>
               <dd className="lh-hud-multiline">{player.inventory_summary.notes_for_teacher_preview ?? '—'}</dd>
@@ -94,31 +132,72 @@ export function ExplorationScreen({
         <div className="lh-map-board" aria-label="Tiled waypoint board (percent-positioned hotspots)">
           <div className="lh-map-caption">{realm.lore_digest}</div>
           <div className="lh-map-footprint" aria-hidden>
-            <span>{realm.map_tiled_export ?? 'aethelwood_demo.json'}</span>
+            <span>{realm.map_tiled_export ?? '— no map file bound'}</span>
           </div>
 
-          {hotspots.length === 0 ? (
+          {act3 ? (
+            <div className="lh-act3-strip" role="region" aria-label="Act III exploration status">
+              <div className="lh-act3-strip__row">
+                <span className="lh-act3-strip__label">Active waypoint</span>
+                <span className="lh-act3-strip__value">
+                  {act3.activeWaypointLabel ?? '—'}
+                  {act3.waypointTotal > 0 && act3.activeWaypointLabel ? (
+                    <button type="button" className="lh-button lh-button--ghost lh-button--small" onClick={act3.onMarkWaypoint}>
+                      Mark visited
+                    </button>
+                  ) : null}
+                </span>
+              </div>
+              <div className="lh-act3-strip__row">
+                <span className="lh-act3-strip__label">Fog cleared</span>
+                <span className="lh-act3-strip__value">
+                  {act3.fogTotal ? `${act3.fogCleared} / ${act3.fogTotal}` : '—'}
+                </span>
+              </div>
+              <div className="lh-act3-strip__row">
+                <span className="lh-act3-strip__label">Waypoints logged</span>
+                <span className="lh-act3-strip__value">
+                  {act3.waypointTotal ? `${act3.waypointVisited} / ${act3.waypointTotal}` : '—'}
+                </span>
+              </div>
+            </div>
+          ) : null}
+
+          {!showTiledHotspots ? (
+            <p className="lh-map-caption lh-map-caption--hint">
+              This realm has no Tiled export bound yet — use the World map to visit another zone or continue narrative
+              objectives from the quest log.
+            </p>
+          ) : hotspots.length === 0 ? (
             <p className="lh-map-caption lh-map-caption--hint">
               No lh_* triggers parsed yet. Export an object layer from Tiled to populate interactions.
             </p>
           ) : null}
 
-          {hotspots.map((hotspot) => (
-            <button
-              key={hotspot.interactable_id}
-              type="button"
-              style={hotspot.style}
-              className={`lh-trigger-hotspot ${hotspot.completed ? 'lh-trigger-hotspot--done' : ''}`}
-              disabled={hotspot.completed}
-              onClick={() => onActivateHotspot(hotspot.interactable_id)}
-            >
-              {hotspot.completed ? hotspot.label_complete : hotspot.label_active}
-            </button>
-          ))}
+          {showTiledHotspots
+            ? hotspots.map((hotspot) => (
+                <button
+                  key={hotspot.interactable_id}
+                  type="button"
+                  style={hotspot.style}
+                  className={`lh-trigger-hotspot ${hotspot.completed ? 'lh-trigger-hotspot--done' : ''}`}
+                  disabled={hotspot.completed}
+                  onClick={() => onActivateHotspot(hotspot.interactable_id)}
+                >
+                  {hotspot.completed ? hotspot.label_complete : hotspot.label_active}
+                </button>
+              ))
+            : null}
 
           <div className="lh-map-caption lh-map-caption--hint">
             Boxes mirror Tiled object bounds scaled to percent width/height. Later pass: sprite layers + occlusion.
           </div>
+
+          {mapDebug ? (
+            <MapDebugPanel parsedMap={mapDebug.parsed} loadErrors={mapDebug.loadErrors} />
+          ) : null}
+
+          {questDebug ? <QuestDebugPanel quests={questDebug.quests} /> : null}
 
           {saveFeedback ? (
             <div
