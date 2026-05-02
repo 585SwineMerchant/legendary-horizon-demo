@@ -1,0 +1,37 @@
+[
+  {
+    "asset_id": "bg_title_dusk_forge_placeholder",
+    "kind": "image",
+    "description": "Title screen dusk gradient (temporary art pass).",
+    "drive_file_id": "",
+    "delivery_url_placeholder": "/assets/bg-title-dusk.svg"
+  },
+  {
+    "asset_id": "ui_frame_amber_corner",
+    "kind": "ui",
+    "description": "Amber-accent panel corners for dialogs.",
+    "drive_file_id": "",
+    "delivery_url_placeholder": "/assets/ui-corner.svg"
+  },
+  {
+    "asset_id": "sfx_save_chime_placeholder",
+    "kind": "audio",
+    "description": "Tiny save affirmation chime stub.",
+    "drive_file_id": "",
+    "delivery_url_placeholder": "https://example.invalid/mock-audio/save-chime.mp3"
+  },
+  {
+    "asset_id": "portrait_mentor_kael_placeholder",
+    "kind": "portrait",
+    "description": "Mentor Kael expressive neutral.",
+    "drive_file_id": "",
+    "delivery_url_placeholder": "/assets/portrait-mentor-neutral.svg"
+  },
+  {
+    "asset_id": "map_thumbnail_aethelwood_placeholder",
+    "kind": "map_thumb",
+    "description": "Low-detail map vignette pending Tiled pipeline.",
+    "drive_file_id": "",
+    "delivery_url_placeholder": "/assets/map-aethelwood-thumb.svg"
+  }
+]

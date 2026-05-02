@@ -1,0 +1,29 @@
+[
+  {
+    "quest_id": "mq_act2_path_of_roots",
+    "title": "Path of Roots",
+    "tier": "main",
+    "act": 2,
+    "status": "active",
+    "objective_short": "Attune the grove shrine beneath the sentinel oak.",
+    "realm_ids": ["realm_aethelwood"]
+  },
+  {
+    "quest_id": "sq_gather_ledger_pages",
+    "title": "Loose Leaves of the Ledger",
+    "tier": "side",
+    "act": 2,
+    "status": "available",
+    "objective_short": "Recover three misplaced comparison notes for Mentor Kael.",
+    "realm_ids": ["realm_aethelwood"]
+  },
+  {
+    "quest_id": "sq_listen_crossroads_echo",
+    "title": "Echo at the Haven",
+    "tier": "side",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Hear three traveler stories linked to career clusters.",
+    "realm_ids": ["realm_crossroads_haven_placeholder"]
+  }
+]

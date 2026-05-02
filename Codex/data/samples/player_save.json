@@ -1,0 +1,33 @@
+{
+  "player_id": "stu_0417_kevin_demo",
+  "display_name": "Aria Thornwell",
+  "roster_email_hint": "aria.thornwell.students.demo@district.example.org",
+  "email_hash": "",
+  "current_act": 2,
+  "current_realm_id": "realm_aethelwood",
+  "required_next_action": "Visit the grove shrine and commune with the Ley Root.",
+  "active_main_quest_id": "mq_act2_path_of_roots",
+  "active_main_quest_title": "Path of Roots",
+  "last_completed_event_id": "evt_welcome_circles",
+  "last_completed_summary": "You completed the Welcome Circles briefing at the Archives antechamber.",
+  "xp_total": 1240,
+  "level_cached": 5,
+  "inventory_summary": {
+    "coins": 12,
+    "items": [
+      {
+        "item_id": "ledger_fragment_green",
+        "qty": 1,
+        "label": "Emerald Ledger fragment"
+      },
+      {
+        "item_id": "mentor_echo_vial",
+        "qty": 2,
+        "label": "Echo vial — mentor guidance"
+      }
+    ],
+    "notes_for_teacher_preview": "Collation started on Act II comparison journaling."
+  },
+  "revision_token": "",
+  "last_manual_save_iso": ""
+}
