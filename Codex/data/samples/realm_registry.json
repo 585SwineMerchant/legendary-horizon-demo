@@ -55,17 +55,6 @@
     "sort_order": 5
   },
   {
-    "realm_id": "realm_arcanum_reactor",
-    "career_cluster": "Energy",
-    "guild_headquarters": "The Arcanum Reactor",
-    "display_name": "The Arcanum Reactor",
-    "slug": "arcanum-reactor",
-    "lore_digest": "A massive, ancient machine that converts magical research into consumable power.",
-    "map_tiled_export": null,
-    "tags": ["canon"],
-    "sort_order": 6
-  },
-  {
     "realm_id": "realm_gilded_vault",
     "career_cluster": "Finance",
     "guild_headquarters": "The Gilded Vault",
@@ -74,7 +63,7 @@
     "lore_digest": "A secure, underground treasury where the Coinmasters balance the Realm's gold and resources.",
     "map_tiled_export": null,
     "tags": ["canon"],
-    "sort_order": 7
+    "sort_order": 6
   },
   {
     "realm_id": "realm_high_council_hall",
@@ -85,7 +74,7 @@
     "lore_digest": "A majestic assembly where the Regents draft the laws that keep the darkness at bay.",
     "map_tiled_export": null,
     "tags": ["canon"],
-    "sort_order": 8
+    "sort_order": 7
   },
   {
     "realm_id": "realm_aurora_apothecary",
@@ -96,7 +85,7 @@
     "lore_digest": "A tranquil glade filled with glowing herbs, where Healers mend the wounds of those returning from Trials.",
     "map_tiled_export": null,
     "tags": ["canon"],
-    "sort_order": 9
+    "sort_order": 8
   },
   {
     "realm_id": "realm_crossroads_haven",
@@ -107,7 +96,7 @@
     "lore_digest": "A welcoming outpost for weary Travelers, offering rest and information on the road to the Horizon.",
     "map_tiled_export": null,
     "tags": ["canon"],
-    "sort_order": 10
+    "sort_order": 9
   },
   {
     "realm_id": "realm_empaths_enclave",
@@ -118,7 +107,7 @@
     "lore_digest": "A sanctuary dedicated to supporting the citizens of the land and guiding lost souls.",
     "map_tiled_export": null,
     "tags": ["canon"],
-    "sort_order": 11
+    "sort_order": 10
   },
   {
     "realm_id": "realm_etheric_nexus",
@@ -129,7 +118,7 @@
     "lore_digest": "A glowing network of blue ley lines where Technomancers manage the flow of digital magic.",
     "map_tiled_export": null,
     "tags": ["canon"],
-    "sort_order": 12
+    "sort_order": 11
   },
   {
     "realm_id": "realm_valors_watchtower",
@@ -140,7 +129,7 @@
     "lore_digest": "A high-vantage garrison where the Iron Guard keeps watch against external threats.",
     "map_tiled_export": null,
     "tags": ["canon"],
-    "sort_order": 13
+    "sort_order": 12
   },
   {
     "realm_id": "realm_vulcanis_forge",
@@ -151,7 +140,7 @@
     "lore_digest": "A thundering workshop of heat and steel where Artificers mass-produce the gear for the Guilds.",
     "map_tiled_export": null,
     "tags": ["canon"],
-    "sort_order": 14
+    "sort_order": 13
   },
   {
     "realm_id": "realm_bards_beacon",
@@ -162,7 +151,7 @@
     "lore_digest": "A plaza filled with glowing signs and Heralds spreading word of the Guilds' triumphs.",
     "map_tiled_export": null,
     "tags": ["canon"],
-    "sort_order": 15
+    "sort_order": 14
   },
   {
     "realm_id": "realm_alchemical_observatory",
@@ -173,7 +162,7 @@
     "lore_digest": "A high-altitude lab where Alchemists and Astronomers decode the laws of the universe.",
     "map_tiled_export": null,
     "tags": ["canon"],
-    "sort_order": 16
+    "sort_order": 15
   },
   {
     "realm_id": "realm_odyssey_harbor",
@@ -184,6 +173,6 @@
     "lore_digest": "A bustling hub of airships and caravans ensuring resources reach every corner of the land.",
     "map_tiled_export": null,
     "tags": ["canon"],
-    "sort_order": 17
+    "sort_order": 16
   }
 ]

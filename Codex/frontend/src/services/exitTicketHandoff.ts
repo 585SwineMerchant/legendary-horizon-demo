@@ -1,103 +1,26 @@
-import type { ManualSaveEnvelopeV1, PlayerSave, RosterStudentRecord } from '../domain/lh-contract';
-
-export type ExitTicketHandshake = {
-  /** User-visible synopsis shown after save acknowledgement. */
-  summary: string;
-  /** Opens the platform mail composer as a surrogate for GmailApp flows. */
-  mailtoHref: string;
-  /** Milestone 15 — Gmail web compose (`mail.google.com`) when the student is signed into Google. */
-  gmailWebComposeUrl: string;
-};
-
-function buildGmailWebComposeUrl(to: string, subjectPlain: string, bodyPlain: string): string {
-  const u = new URL('https://mail.google.com/mail/');
-  u.searchParams.set('view', 'cm');
-  u.searchParams.set('fs', '1');
-  const t = to.trim();
-  if (t) u.searchParams.set('to', t);
-  u.searchParams.set('su', subjectPlain);
-  u.searchParams.set('body', bodyPlain);
-  return u.toString();
-}
+import type { PlayerSave, QuestDefinition } from '../domain/lh-contract';
 
 /**
- * Produces Day 2-compliant exit ticket scaffolding without invoking Gmail APIs yet.
- * Separated deliberately from validation so teacher policies can diverge cleanly later.
+ * v4 decision: Exit tickets are routed in-game + persisted server-side (no mailto / Gmail compose).
+ * This returns the reflection prompt we show to the student at end-of-session.
  */
-export function composeMockExitTicketDraft(args: {
-  player: PlayerSave;
-  roster_student: RosterStudentRecord | null;
-  envelope: ManualSaveEnvelopeV1;
-}): ExitTicketHandshake {
-  const roster = args.roster_student;
-  const to = roster?.teacher_email ?? '';
-  const subjectPlain = `LH Exit Ticket • ${args.player.display_name}`;
-  const subject = encodeURIComponent(subjectPlain);
-  const ex = args.envelope.exploration_loop;
-  const sess = args.envelope.session_summary;
-  const bodyLines = [
-    `Student / Traveler name: ${args.player.display_name}`,
-    roster?.student_email ? `Student email (fixture): ${roster.student_email}` : null,
-    roster?.student_id ? `Student ID: ${roster.student_id}` : null,
-    roster?.class_section ? `Section: ${roster.class_section}` : null,
-    roster?.section_code ? `Section code: ${roster.section_code}` : null,
-    '',
-    'Snapshot summary:',
-    `- Realm: ${args.envelope.realm_id}`,
-    `- Active quest: ${args.player.active_main_quest_title} (${args.player.active_main_quest_id})`,
-    `- Required next action: ${args.player.required_next_action}`,
-    `- XP total: ${args.player.xp_total}`,
-    `- Level cached: ${args.player.level_cached}`,
-    `- Completed triggers tracked: ${args.envelope.progression_flags.visited_trigger_object_ids.join(', ') || 'none logged'}`,
-    ex
-      ? `- Exploration: fog cleared ${ex.fog_keys_cleared.length}, waypoints ${ex.waypoint_keys_visited.length}, ledger rows ${ex.ledger_entries.length}`
-      : null,
-    sess
-      ? `- Session capture @ ${sess.captured_at_iso}: open quests ${sess.quest_open_count}, ledger count ${sess.ledger_entry_count}`
-      : null,
-    args.envelope.ritual_drafts?.ledger_career_a || args.envelope.ritual_drafts?.ledger_career_b
-      ? `- Ledger draft (unsaved lines): A=${args.envelope.ritual_drafts?.ledger_career_a ?? ''} / B=${args.envelope.ritual_drafts?.ledger_career_b ?? ''}`
-      : null,
-    '',
-    `[Fixture revision @ ${args.envelope.saved_at_iso}]`,
-    'Replace this template with scripted Gmail templating when ExitTicketService activates.',
-  ];
-
-  const bodyPlain = bodyLines.filter(Boolean).join('\n');
-  const body = encodeURIComponent(bodyPlain);
-  const mailtoHref = to
-    ? `mailto:${to}?subject=${subject}&body=${body}`
-    : `mailto:?subject=${subject}&body=${body}`;
-  const gmailWebComposeUrl = buildGmailWebComposeUrl(to, subjectPlain, bodyPlain);
-
-  return {
-    summary:
-      'Manual save queued locally. Classroom exit reflection can begin — we opened your mail composer with a scaffolded prompt for your facilitator.',
-    mailtoHref,
-    gmailWebComposeUrl,
-  };
-}
-
-export function proposeExitTicketComposer(handshake: ExitTicketHandshake): Window | null {
-  return window.open(handshake.mailtoHref, '_blank', 'noopener,noreferrer');
-}
-
-/** Same as `proposeExitTicketComposer` but reports pop-up / mailto failures (Milestone 9). */
-export function proposeExitTicketComposerSafe(handshake: ExitTicketHandshake): { opened: boolean } {
-  try {
-    const w = window.open(handshake.mailtoHref, '_blank', 'noopener,noreferrer');
-    return { opened: Boolean(w) };
-  } catch {
-    return { opened: false };
+export function buildExitTicketPrompt(args: { player: PlayerSave; quests: QuestDefinition[] }): string {
+  const player = args.player;
+  const quests = args.quests;
+  let objective = '';
+  if (player.active_main_quest_id) {
+    const hit = quests.find((q) => q.quest_id === player.active_main_quest_id);
+    objective = hit?.objective_short ?? hit?.title ?? '';
   }
-}
-
-/** Gmail in-browser compose (Milestone 15) — same payload as `mailto`, different handoff surface. */
-export function proposeExitTicketGmailWebSafe(handshake: ExitTicketHandshake): { opened: boolean } {
-  try {
-    const w = window.open(handshake.gmailWebComposeUrl, '_blank', 'noopener,noreferrer');
-    return { opened: Boolean(w) };
-  } catch {
-    return { opened: false };
-  }
+  const name = player.display_name || 'Traveler';
+  const act = player.current_act || 1;
+  const realm = player.current_realm_id || 'unknown realm';
+  const next = player.required_next_action || objective || 'Review your Quest Log for the next step.';
+  return [
+    `Campfire log — ${name}`,
+    `Act ${act} | Realm: ${realm}`,
+    `Active thread: ${next}`,
+    '',
+    'In one or two sentences, what felt most useful today, and what will you do first next time?',
+  ].join('\n');
 }

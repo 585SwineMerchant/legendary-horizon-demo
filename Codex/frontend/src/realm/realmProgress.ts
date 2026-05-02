@@ -26,3 +26,11 @@ export function markResearchComplete(progress: RealmProgressMap, realmId: string
     [realmId]: { ...prev, research_complete: true },
   };
 }
+
+export function setRealmLearnedNotes(progress: RealmProgressMap, realmId: string, notes: string): RealmProgressMap {
+  const prev = progress[realmId] ?? { entered: false };
+  return {
+    ...progress,
+    [realmId]: { ...prev, learned_notes: notes },
+  };
+}

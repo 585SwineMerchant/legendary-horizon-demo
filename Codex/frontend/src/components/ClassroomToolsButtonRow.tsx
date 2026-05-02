@@ -22,13 +22,6 @@ export function ClassroomToolsButtonRow({ handlers, layout = 'pause' }: Props) {
       <button
         type="button"
         className="lh-button lh-button--secondary lh-button--small"
-        onClick={handlers.onOpenGmailExitTicket}
-      >
-        Exit ticket (Gmail)
-      </button>
-      <button
-        type="button"
-        className="lh-button lh-button--secondary lh-button--small"
         onClick={handlers.onOpenChronicleSlides}
       >
         Chronicle (Slides)

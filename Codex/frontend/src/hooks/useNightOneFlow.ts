@@ -41,11 +41,7 @@ import {
   openUrlInNewTabSafe,
   type ClassroomToolHandlers,
 } from '../services/classroomToolLaunches';
-import {
-  composeMockExitTicketDraft,
-  proposeExitTicketComposerSafe,
-  proposeExitTicketGmailWebSafe,
-} from '../services/exitTicketHandoff';
+import { buildExitTicketPrompt } from '../services/exitTicketHandoff';
 import { tryLoadCachedFullState } from '../services/localFullStateCache';
 import { tryPlayCatalogAudioAsset } from '../lib/lhCatalogAudio';
 import {
@@ -73,16 +69,19 @@ import type { LhNpcDialogueOverlayModel } from '../dialogue/npcDialogueOverlayMo
 import { deepClone } from '../lib/clone';
 import {
   markResearchComplete,
+  setRealmLearnedNotes,
   touchRealmEntered,
   type RealmProgressMap,
 } from '../realm/realmProgress';
 import {
   loadQuestDefinitionsFromJson,
   markQuestTurnedIn as markQuestTurnedInOnList,
+  markQuestCompleted,
+  forceUnlockQuest,
   reconcileQuestPrerequisites,
 } from '../quests/questEngine';
 import { resolveActiveRealm } from '../realm/realmRegistry';
-import type { ComparisonLedgerEntry, PlayerSave, QuestDefinition, Screen } from '../types';
+import type { ComparisonLedgerEntry, NightOneNavigate, PlayerSave, QuestDefinition, Screen } from '../types';
 import type { TeacherToolsPanelProps } from '../components/TeacherToolsPanel';
 
 const emptyLedgerDraft = () => ({ career_a: '', career_b: '', note: '' });
@@ -143,6 +142,8 @@ export function useNightOneFlow() {
   const [worldMapOpen, setWorldMapOpen] = useState(false);
   const [academicWorksheetsOpen, setAcademicWorksheetsOpen] = useState(false);
   const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [moduleHostOpen, setModuleHostOpen] = useState(false);
+  const [activeModuleId, setActiveModuleId] = useState<string | null>(null);
   const [bootstrapPhase, setBootstrapPhase] = useState<'idle' | 'loading' | 'error'>('idle');
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [realmProgress, setRealmProgress] = useState<RealmProgressMap>({});
@@ -291,6 +292,8 @@ export function useNightOneFlow() {
     setWorldMapOpen(false);
     setAcademicWorksheetsOpen(false);
     setInventoryOpen(false);
+    setModuleHostOpen(false);
+    setActiveModuleId(null);
     setBootstrapPhase('idle');
     setBootstrapError(null);
     setRealmProgress({});
@@ -539,25 +542,18 @@ export function useNightOneFlow() {
 
     setPlayer(mergedPlayer);
 
-    const exitDraft = composeMockExitTicketDraft({
-      player: mergedPlayer,
-      roster_student: BLUEPRINT.roster_student,
-      envelope,
-    });
-
-    const mail = proposeExitTicketComposerSafe(exitDraft);
+    const prompt = buildExitTicketPrompt({ player: mergedPlayer, quests });
 
     setSaveFeedback({
       tone: 'success',
       text: [
         persist.message,
         '',
-        exitDraft.summary,
+        'Exit ticket recorded in-game (no email draft).',
+        '',
+        prompt,
         '',
         'Exploration loop, realm progress, and trigger visits are now persisted when the Web App and sheet columns are configured.',
-        !mail.opened
-          ? '\n\nNote: the mail composer could not open (pop-up blocked). Send your reflection to your facilitator manually if needed.'
-          : '',
       ].join('\n'),
     });
 
@@ -609,12 +605,7 @@ export function useNightOneFlow() {
     };
     setPlayer(mergedPlayer);
 
-    const exitDraft = composeMockExitTicketDraft({
-      player: mergedPlayer,
-      roster_student: BLUEPRINT.roster_student,
-      envelope,
-    });
-    const mail = proposeExitTicketComposerSafe(exitDraft);
+    const prompt = buildExitTicketPrompt({ player: mergedPlayer, quests });
 
     const hist = await appendSessionHistoryRemote(sessionSummary);
     const ticket = await markExitTicketRemote(mergedPlayer.player_id, 'sent');
@@ -622,11 +613,10 @@ export function useNightOneFlow() {
     const lines = [
       persist.message,
       '',
-      exitDraft.summary,
+      'Exit ticket recorded in-game (no email draft).',
       '',
-      !mail.opened
-        ? 'Note: the mail composer could not open (pop-up blocked or unsupported). Use your email client manually with the same recipient as your facilitator.'
-        : null,
+      prompt,
+      '',
       !hist.ok ? `Session log: ${hist.message ?? 'append failed'} (save still stored).` : null,
       !ticket.ok ? `Exit ticket state: ${ticket.message ?? 'update failed'}.` : null,
     ].filter(Boolean);
@@ -639,41 +629,6 @@ export function useNightOneFlow() {
 
   const dismissSaveFeedback = () => setSaveFeedback(null);
 
-  const openExitTicketGmailDraft = useCallback(() => {
-    if (!player) return;
-    const validation = validatePlayerForManualSave(player);
-    if (validation.length) {
-      setSaveFeedback({ tone: 'error', text: validation.join('\n') });
-      return;
-    }
-    const envelope = buildManualSaveEnvelope({
-      player,
-      questsSnapshot: quests,
-      realmId: realm.realm_id,
-      visitedTriggerInteractableIds: visitedInteractableIds,
-      exploration_loop: exploration,
-      realm_progress: realmProgress,
-      ritual_drafts: {
-        ledger_career_a: ledgerDraft.career_a || undefined,
-        ledger_career_b: ledgerDraft.career_b || undefined,
-        ledger_note: ledgerDraft.note || undefined,
-      },
-      save_kind: 'manual',
-    });
-    const exitDraft = composeMockExitTicketDraft({
-      player,
-      roster_student: BLUEPRINT.roster_student,
-      envelope,
-    });
-    const mail = proposeExitTicketGmailWebSafe(exitDraft);
-    if (!mail.opened) {
-      setSaveFeedback({
-        tone: 'error',
-        text: 'Could not open Gmail in a new tab (often a pop-up blocker). Allow pop-ups for this site or ask your facilitator for the mailto link after Save.',
-      });
-    }
-  }, [player, quests, realm.realm_id, visitedInteractableIds, exploration, realmProgress, ledgerDraft]);
-
   const classroomTools = useMemo((): ClassroomToolHandlers | null => {
     if (!player) return null;
     const searchHint =
@@ -684,9 +639,6 @@ export function useNightOneFlow() {
       },
       onOpenMaia: () => {
         void openUrlInNewTabSafe(buildMaiaLaunchUrl());
-      },
-      onOpenGmailExitTicket: () => {
-        openExitTicketGmailDraft();
       },
       onOpenChronicleSlides: () => {
         void openUrlInNewTabSafe(buildChronicleSlidesLaunchUrl());
@@ -701,7 +653,7 @@ export function useNightOneFlow() {
         void openUrlInNewTabSafe(buildGoogleClassroomLaunchUrl());
       },
     };
-  }, [player, openExitTicketGmailDraft]);
+  }, [player]);
 
   const enterRealmFromWorldMap = useCallback((realmId: string) => {
     setPlayer((p) => (p ? { ...p, current_realm_id: realmId } : p));
@@ -718,6 +670,68 @@ export function useNightOneFlow() {
   const researchRealm = useCallback((realmId: string) => {
     setRealmProgress((p) => markResearchComplete(p, realmId));
   }, []);
+
+  const updateRealmNotes = useCallback((realmId: string, notes: string) => {
+    setRealmProgress((p) => setRealmLearnedNotes(p, realmId, notes));
+  }, []);
+
+  const getModuleDraft = useCallback(
+    (moduleId: string): Record<string, string> => {
+      return exploration.module_drafts?.[moduleId] ?? {};
+    },
+    [exploration.module_drafts],
+  );
+
+  const patchModuleDraft = useCallback((moduleId: string, patch: Partial<Record<string, string>>) => {
+    setExploration((e) => {
+      const prev = e.module_drafts?.[moduleId] ?? {};
+      const nextDraft: Record<string, string> = {
+        ...prev,
+        ...Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, v ?? ''])),
+      };
+      return {
+        ...e,
+        module_drafts: {
+          ...(e.module_drafts ?? {}),
+          [moduleId]: nextDraft,
+        },
+      };
+    });
+  }, []);
+
+  const clearModuleDraft = useCallback((moduleId: string) => {
+    setExploration((e) => {
+      if (!e.module_drafts || !e.module_drafts[moduleId]) return e;
+      const next = { ...e.module_drafts };
+      delete next[moduleId];
+      return { ...e, module_drafts: next };
+    });
+  }, []);
+
+  const applyModuleResult = useCallback(
+    (payload: { module_id: string; quest_id: string; status: string; unlocks?: { kind: string; target_id: string }[] }) => {
+      if (!payload?.module_id) return;
+
+      // Mark the owning quest completed if the module finished in a terminal “success” state.
+      if (payload.quest_id && (payload.status === 'submitted' || payload.status === 'completed' || payload.status === 'passed')) {
+        setQuests((q) => markQuestCompleted(q, payload.quest_id));
+      }
+
+      // Handle unlock events for downstream quest/module flow.
+      if (payload.unlocks?.some((u) => u.kind === 'unlock_module' && u.target_id === 'mod_gt102_trial_of_tongues')) {
+        setQuests((q) => forceUnlockQuest(q, 'gq_gt102_trial_of_tongues'));
+        setPlayer((p) =>
+          p
+            ? {
+                ...p,
+                required_next_action: 'Begin GT‑102: Step into the Trial of Tongues.',
+              }
+            : p,
+        );
+      }
+    },
+    [],
+  );
 
   const submitLedgerEntry = useCallback((partial: Omit<ComparisonLedgerEntry, 'id' | 'created_iso'>) => {
     const id = `ledger_${Date.now().toString(36)}`;
@@ -930,6 +944,32 @@ export function useNightOneFlow() {
   const showFacilitatorTools =
     import.meta.env.DEV || import.meta.env.VITE_LH_TEACHER_PANEL === 'true';
 
+  const handleTeacherOverrideGt102 = useCallback(
+    (outcome: 'passed' | 'failed') => {
+      if (!player) return;
+      if (outcome === 'passed') {
+        applyModuleResult({
+          module_id: 'mod_gt102_trial_of_tongues',
+          quest_id: 'gq_gt102_trial_of_tongues',
+          status: 'passed',
+        });
+        setSaveFeedback({ tone: 'success', text: 'GT-102 override applied: passed.' });
+        return;
+      }
+      setQuests((q) => forceUnlockQuest(q, 'gq_gt102_trial_of_tongues'));
+      setPlayer((p) =>
+        p
+          ? {
+              ...p,
+              required_next_action: 'Retry GT‑102: return to the Trial of Tongues.',
+            }
+          : p,
+      );
+      setSaveFeedback({ tone: 'success', text: 'GT-102 override applied: failed (quest set to available).' });
+    },
+    [player, applyModuleResult],
+  );
+
   const facilitatorToolsProps: TeacherToolsPanelProps | null =
     showFacilitatorTools && player
       ? {
@@ -945,8 +985,51 @@ export function useNightOneFlow() {
             handleTeacherRestoreItem('mentor_echo_vial', 1, 'Echo vial — mentor guidance'),
           onMarkExitTicketSent: handleFacilitatorMarkExitTicket,
           onResetAct: handleTeacherResetAct,
+          onOverrideGt102: handleTeacherOverrideGt102,
+          onClearModuleDraft: clearModuleDraft,
         }
       : null;
+
+  const navigate: NightOneNavigate = {
+    beginDemo,
+    quitToTitle,
+    proceedInstructions: () => setScreen('resume'),
+    resumeToExplore: () => setScreen('explore'),
+    openPause: () => setPauseOpen(true),
+    closePause: () => setPauseOpen(false),
+    openQuestLog: () => setQuestLogOpen(true),
+    closeQuestLog: () => setQuestLogOpen(false),
+    dismissSaveFeedback,
+    openRealmAtlas: () => {
+      setPauseOpen(false);
+      setRealmAtlasOpen(true);
+    },
+    closeRealmAtlas: () => setRealmAtlasOpen(false),
+    openWorldMap: () => {
+      setPauseOpen(false);
+      setWorldMapOpen(true);
+    },
+    closeWorldMap: () => setWorldMapOpen(false),
+    openResearchWorksheets: () => {
+      setPauseOpen(false);
+      setAcademicWorksheetsOpen(true);
+    },
+    closeResearchWorksheets: () => setAcademicWorksheetsOpen(false),
+    openInventory: () => {
+      setPauseOpen(false);
+      setInventoryOpen(true);
+    },
+    closeInventory: () => setInventoryOpen(false),
+    openModule: (moduleId: string) => {
+      setPauseOpen(false);
+      setActiveModuleId(moduleId);
+      setModuleHostOpen(true);
+    },
+    closeModule: () => {
+      setModuleHostOpen(false);
+      setActiveModuleId(null);
+    },
+  };
 
   return {
     screen,
@@ -972,42 +1055,14 @@ export function useNightOneFlow() {
     saveFeedback,
     explorationHotspots,
 
-    navigate: {
-      beginDemo,
-      quitToTitle,
-      proceedInstructions: () => setScreen('resume'),
-      resumeToExplore: () => setScreen('explore'),
-      openPause: () => setPauseOpen(true),
-      closePause: () => setPauseOpen(false),
-      openQuestLog: () => setQuestLogOpen(true),
-      closeQuestLog: () => setQuestLogOpen(false),
-      dismissSaveFeedback,
-      openRealmAtlas: () => {
-        setPauseOpen(false);
-        setRealmAtlasOpen(true);
-      },
-      closeRealmAtlas: () => setRealmAtlasOpen(false),
-      openWorldMap: () => {
-        setPauseOpen(false);
-        setWorldMapOpen(true);
-      },
-      closeWorldMap: () => setWorldMapOpen(false),
-      openResearchWorksheets: () => {
-        setPauseOpen(false);
-        setAcademicWorksheetsOpen(true);
-      },
-      closeResearchWorksheets: () => setAcademicWorksheetsOpen(false),
-      openInventory: () => {
-        setPauseOpen(false);
-        setInventoryOpen(true);
-      },
-      closeInventory: () => setInventoryOpen(false),
-    },
+    navigate,
 
     realmAtlasOpen,
     worldMapOpen,
     academicWorksheetsOpen,
     inventoryOpen,
+    moduleHostOpen,
+    activeModuleId,
     bootstrapPhase,
     bootstrapError,
     allRealms,
@@ -1025,6 +1080,7 @@ export function useNightOneFlow() {
     enterRealmFromWorldMap,
     clearFogKey,
     researchRealm,
+    updateRealmNotes,
     submitLedgerEntry,
     markActiveWaypointVisited,
 
@@ -1044,6 +1100,10 @@ export function useNightOneFlow() {
     applyAcademicTasks,
     startAcademicTask,
     academicWorksheetDefs: BLUEPRINT.academic_worksheet_tasks,
+    getModuleDraft,
+    patchModuleDraft,
+    clearModuleDraft,
+    applyModuleResult,
 
     tiledMapDebug: {
       parsed: PARSED_PRIMARY_MAP,

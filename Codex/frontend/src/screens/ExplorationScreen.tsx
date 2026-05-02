@@ -8,6 +8,7 @@ import type { LhNpcDialogueOverlayModel } from '../dialogue/npcDialogueOverlayMo
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { summarizeInventoryBrief } from '../lib/formatInventoryBrief';
 import type { ParsedLhMap } from '../maps/parseLhTiledMap';
+import { PhaserExplorationView } from '../rendering/PhaserExplorationView';
 
 import type { PlayerSave, QuestDefinition, RealmDefinition } from '../types';
 
@@ -38,6 +39,8 @@ type Props = {
   realm: RealmDefinition;
   hotspots: ExplorationHotspot[];
   onActivateHotspot: (interactableId: string) => void;
+  parsedMap: ParsedLhMap;
+  renderer?: 'hotspots' | 'phaser';
   saveFeedback: SaveFeedback | null;
   onDismissSaveFeedback?: () => void;
   onPause: () => void;
@@ -65,6 +68,8 @@ export function ExplorationScreen({
   realm,
   hotspots,
   onActivateHotspot,
+  parsedMap,
+  renderer = 'hotspots',
   saveFeedback,
   onDismissSaveFeedback,
   onPause,
@@ -83,6 +88,7 @@ export function ExplorationScreen({
   useEscapeToClose(Boolean(npcDialogue), onDismissNpcDialogue ?? (() => undefined));
   useEscapeToClose(Boolean(activeEncounter), onEncounterRetreat ?? (() => undefined));
   const showTiledHotspots = Boolean(realm.map_tiled_export);
+  const usePhaser = renderer === 'phaser' && showTiledHotspots;
 
   return (
     <section className="lh-exploration">
@@ -208,7 +214,16 @@ export function ExplorationScreen({
             </p>
           ) : null}
 
-          {showTiledHotspots
+          {usePhaser ? (
+            <PhaserExplorationView
+              realmId={realm.realm_id}
+              parsedMap={parsedMap}
+              hotspots={hotspots}
+              onActivateHotspot={onActivateHotspot}
+            />
+          ) : null}
+
+          {showTiledHotspots && !usePhaser
             ? hotspots.map((hotspot) => (
                 <button
                   key={hotspot.interactable_id}

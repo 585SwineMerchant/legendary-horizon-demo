@@ -42,6 +42,14 @@ export type ParsedLhNpcMarker = {
   bounds: ParsedLhTrigger['bounds'];
 };
 
+export type ParsedLhRealmMarker = {
+  tiled_object_id: number;
+  name?: string;
+  layer_name?: string;
+  realm_id?: string;
+  bounds: ParsedLhTrigger['bounds'];
+};
+
 export type ParsedLhMapFootprint = {
   width_px: number;
   height_px: number;
@@ -73,6 +81,8 @@ export type ParsedLhMap = {
   waypoints: ParsedLhWaypoint[];
   fog_regions: ParsedLhFogRegion[];
   npc_markers: ParsedLhNpcMarker[];
+  /** Milestone 19 — realm anchors exported from Tiled for Act III map bridging. */
+  realm_markers: ParsedLhRealmMarker[];
   parse_warnings: string[];
 };
 
@@ -212,6 +222,24 @@ function summariseObjectLayers(raw: TiledRoot): ParsedLhObjectLayerSummary[] {
   return out;
 }
 
+function normaliseRealmMarkers(objects: TiledObject[], layerName: string): ParsedLhRealmMarker[] {
+  const out: ParsedLhRealmMarker[] = [];
+  objects.forEach((obj) => {
+    const props = obj.properties ?? [];
+    const kind = tileProperty(props, 'lh_kind');
+    const isMarker = kind === 'realm_marker' || obj.type === 'lh_realm_marker';
+    if (!isMarker) return;
+    out.push({
+      tiled_object_id: obj.id,
+      name: obj.name,
+      layer_name: layerName,
+      realm_id: tileProperty(props, 'lh_realm_id') ?? obj.name,
+      bounds: objectBounds(obj),
+    });
+  });
+  return out;
+}
+
 /**
  * Parses a Tiled JSON export into LH-native scene metadata (triggers, waypoints, fog, NPC markers, layer summaries).
  * Tolerates missing layers and unknown `lh_*` kinds — see `parse_warnings`.
@@ -229,6 +257,7 @@ export function parseLhTiledMap(payload: unknown): ParsedLhMap {
       waypoints: [],
       fog_regions: [],
       npc_markers: [],
+      realm_markers: [],
       parse_warnings: ['invalid_or_empty_root'],
     };
   }
@@ -253,6 +282,7 @@ export function parseLhTiledMap(payload: unknown): ParsedLhMap {
   const waypoints: ParsedLhWaypoint[] = [];
   const fog_regions: ParsedLhFogRegion[] = [];
   const npc_markers: ParsedLhNpcMarker[] = [];
+  const realm_markers: ParsedLhRealmMarker[] = [];
 
   (raw.layers ?? []).forEach((layer: TiledLayer) => {
     if ('type' in layer && layer.type === 'objectgroup' && layer.objects?.length) {
@@ -261,6 +291,7 @@ export function parseLhTiledMap(payload: unknown): ParsedLhMap {
       waypoints.push(...normaliseWaypoints(layer.objects, layerName));
       fog_regions.push(...normaliseFog(layer.objects, layerName));
       npc_markers.push(...normaliseNpcs(layer.objects, layerName));
+      realm_markers.push(...normaliseRealmMarkers(layer.objects, layerName));
     }
   });
 
@@ -273,6 +304,7 @@ export function parseLhTiledMap(payload: unknown): ParsedLhMap {
     waypoints,
     fog_regions,
     npc_markers,
+    realm_markers,
     parse_warnings: warnings,
   };
 }

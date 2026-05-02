@@ -984,6 +984,27 @@ code.lh-code-inline {
   opacity: 0.55;
 }
 
+.lh-world-realm-tile--fogged {
+  position: relative;
+  border-style: dashed;
+  border-color: rgba(148, 163, 184, 0.25);
+}
+
+.lh-world-realm-tile--fogged::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  pointer-events: none;
+  background: radial-gradient(circle at 35% 30%, rgba(99, 102, 241, 0.14), transparent 65%),
+    linear-gradient(180deg, rgba(15, 17, 26, 0.15), rgba(15, 17, 26, 0.35));
+  mix-blend-mode: screen;
+}
+
+.lh-world-realm-tile__badge--fog {
+  color: rgba(99, 102, 241, 0.95);
+}
+
 .lh-world-realm-tile--selected {
   border-color: var(--lh-amber);
   box-shadow: var(--lh-accent-glow);

@@ -91,6 +91,8 @@ export type RealmExplorationProgressEntry = {
   last_entered_iso?: string;
   /** Guild HQ research step (Milestone 7). */
   research_complete?: boolean;
+  /** Player-facing "what I learned" notes saved per realm (Act III map + fog menu). */
+  learned_notes?: string;
 };
 
 /** Comparison ledger row (Milestone 7+) — persisted in `exploration_loop.ledger_entries`. */
@@ -163,6 +165,8 @@ export type ExplorationLoopState = {
   ledger_entries: ComparisonLedgerEntry[];
   /** Milestone 11 — keyed by `task_id`. */
   academic_tasks?: Record<string, AcademicTaskProgress>;
+  /** Integrated modules: per-module draft fields (safe, compact, JSON-only). */
+  module_drafts?: Record<string, Record<string, string>>;
   /** Milestone 17 — XP from encounters this session (resets when exploration loop is reset on new session bootstrap). */
   session_encounter_xp_awarded?: number;
   encounter_log?: EncounterLogEntryV1[];
@@ -252,4 +256,68 @@ export type ManualSaveEnvelopeV1 = {
   ritual_drafts?: RitualDraftsV1;
   /** M8 — `manual` | `auto` for server logging. */
   save_kind?: 'manual' | 'auto';
+};
+
+/**
+ * Phase 2+ (Integrated plan v3): module adaptation contracts.
+ * These are intentionally additive and not yet wired into the save envelope in this repo.
+ */
+export type ModuleDefinition = {
+  module_id: string;
+  title: string;
+  /** Canon realm anchor for UX + reporting. */
+  realm_id: string;
+  /** Primary quest this module advances (can be mirrored as unlock logic elsewhere). */
+  quest_id: string;
+  /** Grouping lane for narrative sequencing (Act I–V). */
+  act: number;
+  /** Optional routing key once the shell hosts modules as screens. */
+  route_key?: string;
+};
+
+export type ModuleProgressStatus = 'not_started' | 'in_progress' | 'completed' | 'failed';
+
+export type ModuleProgressState = {
+  module_id: string;
+  status: ModuleProgressStatus;
+  started_at_iso?: string;
+  updated_at_iso?: string;
+  /** Module-specific draft fields persisted for resume; keep small and JSON-safe. */
+  partial?: Record<string, unknown>;
+  /** Optional opaque context for resuming a multi-step interaction. */
+  resume_context?: Record<string, unknown>;
+};
+
+export type UnlockEvent = {
+  kind: 'unlock_module' | 'unlock_quest' | 'award_item' | 'award_xp';
+  target_id: string;
+  qty?: number;
+};
+
+export type InterviewTranscriptRef = {
+  transcript_id: string;
+  storage: 'local' | 'apps_script' | 'drive';
+  created_iso: string;
+};
+
+export type ApplicationSubmissionRef = {
+  submission_id: string;
+  storage: 'local' | 'apps_script' | 'drive';
+  created_iso: string;
+};
+
+export type ModuleResultPayload = {
+  module_id: string;
+  quest_id: string;
+  realm_id: string;
+  npc_id?: string;
+  status: 'passed' | 'failed' | 'submitted' | 'completed';
+  score?: number;
+  soft_skill_score?: number;
+  artifacts?: {
+    transcript?: InterviewTranscriptRef;
+    application?: ApplicationSubmissionRef;
+  };
+  unlocks?: UnlockEvent[];
+  completed_at_iso: string;
 };

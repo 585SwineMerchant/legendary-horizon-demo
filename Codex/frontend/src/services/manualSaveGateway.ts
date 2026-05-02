@@ -99,6 +99,18 @@ export function coerceExplorationLoop(raw: unknown): ExplorationLoopState | null
   const fog = Array.isArray(o.fog_keys_cleared) ? o.fog_keys_cleared.map(String) : [];
   const wps = Array.isArray(o.waypoint_keys_visited) ? o.waypoint_keys_visited.map(String) : [];
   const led = Array.isArray(o.ledger_entries) ? (o.ledger_entries as ExplorationLoopState['ledger_entries']) : [];
+  const moduleDraftsRaw = o.module_drafts;
+  let module_drafts: ExplorationLoopState['module_drafts'];
+  if (moduleDraftsRaw && typeof moduleDraftsRaw === 'object' && !Array.isArray(moduleDraftsRaw)) {
+    const out: NonNullable<ExplorationLoopState['module_drafts']> = {};
+    for (const [moduleId, draft] of Object.entries(moduleDraftsRaw as Record<string, unknown>)) {
+      if (!draft || typeof draft !== 'object' || Array.isArray(draft)) continue;
+      out[moduleId] = Object.fromEntries(
+        Object.entries(draft as Record<string, unknown>).map(([k, v]) => [k, String(v ?? '')]),
+      );
+    }
+    module_drafts = out;
+  }
   const academicRaw = o.academic_tasks;
   let academic_tasks: ExplorationLoopState['academic_tasks'];
   if (academicRaw && typeof academicRaw === 'object' && !Array.isArray(academicRaw)) {
@@ -137,6 +149,9 @@ export function coerceExplorationLoop(raw: unknown): ExplorationLoopState | null
   };
   if (academic_tasks && Object.keys(academic_tasks).length) {
     base.academic_tasks = academic_tasks;
+  }
+  if (module_drafts && Object.keys(module_drafts).length) {
+    base.module_drafts = module_drafts;
   }
   const sx = o.session_encounter_xp_awarded;
   if (sx !== undefined && sx !== null && Number.isFinite(Number(sx)) && Number(sx) >= 0) {
@@ -230,8 +245,14 @@ export async function persistManualSaveEnvelope(envelope: ManualSaveEnvelopeV1):
   const forceSim = import.meta.env.VITE_LH_FORCE_SIMULATED_SAVE === 'true';
   const url = import.meta.env.VITE_LH_APPS_SCRIPT_WEBAPP_URL?.trim();
 
-  if (!url || forceSim) {
+  if (forceSim) {
     return simulateManualSavePersist(envelope);
+  }
+  if (!url) {
+    return {
+      ok: false,
+      message: 'Missing Apps Script Web App URL. Set VITE_LH_APPS_SCRIPT_WEBAPP_URL (or set VITE_LH_FORCE_SIMULATED_SAVE=true).',
+    };
   }
 
   const res = await postLhWebAppJson({
@@ -348,8 +369,11 @@ export async function loadPlayerStateFromRemote(playerId: string): Promise<LoadP
   const forceSim = import.meta.env.VITE_LH_FORCE_SIMULATED_SAVE === 'true';
   const url = import.meta.env.VITE_LH_APPS_SCRIPT_WEBAPP_URL?.trim();
 
-  if (!url || forceSim) {
-    return { ok: false, message: 'Remote load skipped (no Web App URL or simulation forced).' };
+  if (forceSim) {
+    return { ok: false, message: 'Remote load skipped (simulation forced).' };
+  }
+  if (!url) {
+    return { ok: false, message: 'Remote load requires VITE_LH_APPS_SCRIPT_WEBAPP_URL.' };
   }
 
   const res = await postLhWebAppJson({
@@ -390,9 +414,12 @@ export async function loadPlayerStateFromRemote(playerId: string): Promise<LoadP
 export async function appendSessionHistoryRemote(summary: SessionSummaryV1): Promise<{ ok: boolean; message?: string }> {
   const forceSim = import.meta.env.VITE_LH_FORCE_SIMULATED_SAVE === 'true';
   const url = import.meta.env.VITE_LH_APPS_SCRIPT_WEBAPP_URL?.trim();
-  if (!url || forceSim) {
+  if (forceSim) {
     console.info('[LhSession]', 'Simulated session_end', summary);
     return { ok: true };
+  }
+  if (!url) {
+    return { ok: false, message: 'session_end requires VITE_LH_APPS_SCRIPT_WEBAPP_URL.' };
   }
   const res = await postLhWebAppJson({
     action: 'session_end',
@@ -412,9 +439,12 @@ export async function appendSessionHistoryRemote(summary: SessionSummaryV1): Pro
 export async function markExitTicketRemote(playerId: string, state: string): Promise<{ ok: boolean; message?: string }> {
   const forceSim = import.meta.env.VITE_LH_FORCE_SIMULATED_SAVE === 'true';
   const url = import.meta.env.VITE_LH_APPS_SCRIPT_WEBAPP_URL?.trim();
-  if (!url || forceSim) {
+  if (forceSim) {
     console.info('[LhExitTicket]', 'Simulated mark_exit_ticket', playerId, state);
     return { ok: true };
+  }
+  if (!url) {
+    return { ok: false, message: 'mark_exit_ticket requires VITE_LH_APPS_SCRIPT_WEBAPP_URL.' };
   }
   const res = await postLhWebAppJson({
     action: 'mark_exit_ticket',

@@ -23,6 +23,7 @@ type Props = {
   onTravelToRealm: (realmId: string) => void;
   onClearFog: (fogKey: string) => void;
   onResearchRealm: (realmId: string) => void;
+  onUpdateRealmNotes: (realmId: string, notes: string) => void;
   onSubmitLedger: (entry: Omit<ComparisonLedgerEntry, 'id' | 'created_iso'>) => void;
 };
 
@@ -40,6 +41,7 @@ export function WorldMapOverlay({
   onTravelToRealm,
   onClearFog,
   onResearchRealm,
+  onUpdateRealmNotes,
   onSubmitLedger,
 }: Props) {
   const ordered = useMemo(() => sortRealmsCanon(realms), [realms]);
@@ -64,6 +66,7 @@ export function WorldMapOverlay({
 
   const selectedUnlocked = selected ? isRealmUnlocked(selected.realm_id, player, quests) : false;
   const researched = selected ? Boolean(realmProgress[selected.realm_id]?.research_complete) : false;
+  const notes = selected ? realmProgress[selected.realm_id]?.learned_notes ?? '' : '';
 
   return (
     <div className="lh-overlay lh-overlay--dim" role="dialog" aria-label="World map">
@@ -93,16 +96,18 @@ export function WorldMapOverlay({
                 const here = r.realm_id === player.current_realm_id;
                 const visited = Boolean(realmProgress[r.realm_id]?.entered);
                 const sel = r.realm_id === selected?.realm_id;
+                const fogged = unlocked && !visited && !here;
                 return (
                   <button
                     key={r.realm_id}
                     type="button"
-                    className={`lh-world-realm-tile ${sel ? 'lh-world-realm-tile--selected' : ''} ${unlocked ? '' : 'lh-world-realm-tile--locked'} ${here ? 'lh-world-realm-tile--here' : ''}`}
+                    className={`lh-world-realm-tile ${sel ? 'lh-world-realm-tile--selected' : ''} ${unlocked ? '' : 'lh-world-realm-tile--locked'} ${fogged ? 'lh-world-realm-tile--fogged' : ''} ${here ? 'lh-world-realm-tile--here' : ''}`}
                     onClick={() => setSelectedId(r.realm_id)}
                   >
                     <span className="lh-world-realm-tile__name">{r.display_name}</span>
                     <span className="lh-world-realm-tile__hq">{r.guild_headquarters}</span>
                     {!unlocked ? <span className="lh-world-realm-tile__badge">Locked</span> : null}
+                    {fogged ? <span className="lh-world-realm-tile__badge lh-world-realm-tile__badge--fog">Fogged</span> : null}
                     {here ? <span className="lh-world-realm-tile__badge lh-world-realm-tile__badge--here">Here</span> : null}
                     {visited && !here ? (
                       <span className="lh-world-realm-tile__badge lh-world-realm-tile__badge--muted">Visited</span>
@@ -144,6 +149,22 @@ export function WorldMapOverlay({
                   ) : null}
                 </div>
 
+                {selectedUnlocked ? (
+                  <section className="lh-world-map__ledger" aria-label="Realm notes">
+                    <h4 className="lh-heading-sm">What I learned here</h4>
+                    <p className="lh-world-map__meta">
+                      Jot quick notes you can reference later. These save with your realm progress.
+                    </p>
+                    <textarea
+                      className="lh-input lh-input--textarea"
+                      rows={4}
+                      value={notes}
+                      onChange={(ev) => onUpdateRealmNotes(selected.realm_id, ev.target.value)}
+                      placeholder="Key facts, careers you found, vocabulary, interesting surprises…"
+                    />
+                  </section>
+                ) : null}
+
                 <section className="lh-world-map__fog" aria-label="Fog of war">
                   <h4 className="lh-heading-sm">Fog regions (map export)</h4>
                   {parsedMap.fog_regions.length === 0 ? (
@@ -166,6 +187,24 @@ export function WorldMapOverlay({
                           </li>
                         );
                       })}
+                    </ul>
+                  )}
+                </section>
+
+                <section className="lh-world-map__fog" aria-label="Realm markers">
+                  <h4 className="lh-heading-sm">Realm markers (Tiled bridge)</h4>
+                  {parsedMap.realm_markers.length === 0 ? (
+                    <p className="lh-world-map__meta">No realm_marker objects found in the active Tiled export.</p>
+                  ) : (
+                    <ul className="lh-world-map__fog-list">
+                      {parsedMap.realm_markers.slice(0, 12).map((m) => (
+                        <li key={m.tiled_object_id} className="lh-world-map__fog-row">
+                          <span>{m.realm_id ?? m.name ?? `marker_${m.tiled_object_id}`}</span>
+                          <span className="lh-world-map__meta" style={{ marginLeft: 'auto' }}>
+                            #{m.tiled_object_id}
+                          </span>
+                        </li>
+                      ))}
                     </ul>
                   )}
                 </section>

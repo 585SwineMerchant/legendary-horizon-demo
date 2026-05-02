@@ -5,6 +5,7 @@ import { WorldMapOverlay } from './components/WorldMapOverlay';
 import { AcademicWorksheetsOverlay } from './components/AcademicWorksheetsOverlay';
 import { InventoryOverlay } from './components/InventoryOverlay';
 import { QuestLogShell } from './components/QuestLogShell';
+import { ModuleHostOverlay } from './components/ModuleHostOverlay';
 import { useLhAccessibilityPrefs } from './hooks/useLhAccessibilityPrefs';
 import { useNightOneFlow } from './hooks/useNightOneFlow';
 import { ExplorationScreen } from './screens/ExplorationScreen';
@@ -60,11 +61,18 @@ export function App() {
     submitLedgerEntry,
     markActiveWaypointVisited,
     markQuestTurnedIn,
+    updateRealmNotes,
     academicWorksheetsOpen,
     applyAcademicTasks,
     startAcademicTask,
     academicWorksheetDefs,
     inventoryOpen,
+    moduleHostOpen,
+    activeModuleId,
+    getModuleDraft,
+    patchModuleDraft,
+    clearModuleDraft,
+    applyModuleResult,
     bootstrapPhase,
     bootstrapError,
     facilitatorToolsProps,
@@ -110,6 +118,8 @@ export function App() {
           realm={realm}
           hotspots={explorationHotspots}
           onActivateHotspot={hotspotControls.activate}
+          parsedMap={parsedMap}
+          renderer={(import.meta.env.VITE_LH_RENDERER as 'hotspots' | 'phaser' | undefined) ?? 'hotspots'}
           saveFeedback={saveFeedback}
           onDismissSaveFeedback={saveFeedback ? navigate.dismissSaveFeedback : undefined}
           onPause={navigate.openPause}
@@ -142,6 +152,11 @@ export function App() {
           navigate.closePause();
           navigate.openQuestLog();
         }}
+        onOpenEnrollmentRune={() => navigate.openModule('mod_gt101_enrollment_rune')}
+        onOpenTrialOfTongues={() => navigate.openModule('mod_gt102_trial_of_tongues')}
+        onOpenManifest={() => navigate.openModule('mod_manifest_sod')}
+        onOpenOracleOfFate={() => navigate.openModule('mod_oracle_of_fate')}
+        onOpenVaultOfRunes={() => navigate.openModule('mod_vault_of_runes')}
         onOpenRealmAtlas={navigate.openRealmAtlas}
         onOpenWorldMap={navigate.openWorldMap}
         onOpenInventory={() => {
@@ -208,6 +223,7 @@ export function App() {
           onTravelToRealm={enterRealmFromWorldMap}
           onClearFog={clearFogKey}
           onResearchRealm={researchRealm}
+          onUpdateRealmNotes={updateRealmNotes}
           onSubmitLedger={submitLedgerEntry}
         />
       ) : null}
@@ -217,6 +233,25 @@ export function App() {
         quests={quests}
         onClose={navigate.closeQuestLog}
         onMarkQuestTurnedIn={markQuestTurnedIn}
+      />
+
+      <ModuleHostOverlay
+        open={moduleHostOpen}
+        moduleId={activeModuleId}
+        onClose={navigate.closeModule}
+        playerId={player?.player_id ?? 'unknown_player'}
+        realmId={player?.current_realm_id ?? realm.realm_id}
+        draft={activeModuleId ? getModuleDraft(activeModuleId) : {}}
+        onDraftChange={(patch) => {
+          if (!activeModuleId) return;
+          patchModuleDraft(activeModuleId, patch);
+        }}
+        onSubmitResult={(payload) => {
+          // For now: treat module completion as a narrative checkpoint + clear draft.
+          clearModuleDraft(payload.module_id);
+          applyModuleResult(payload);
+          navigate.closeModule();
+        }}
       />
       </main>
     </div>

@@ -84,6 +84,16 @@ export function markQuestTurnedIn(quests: QuestDefinition[], questId: string): Q
   );
 }
 
+export function markQuestCompleted(quests: QuestDefinition[], questId: string): QuestDefinition[] {
+  return reconcileQuestPrerequisites(
+    quests.map((q) => (q.quest_id === questId ? { ...q, status: 'completed' as const } : q)),
+  );
+}
+
+export function forceUnlockQuest(quests: QuestDefinition[], questId: string): QuestDefinition[] {
+  return quests.map((q) => (q.quest_id === questId ? { ...q, status: 'available' as const } : q));
+}
+
 /**
  * Groups for quest log: in-progress main / side / guild, then finished (`completed` + `turned_in`).
  */

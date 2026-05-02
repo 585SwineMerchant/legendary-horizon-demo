@@ -186,6 +186,21 @@ function doPost(e) {
       return lhWebJsonOutput_(out);
     }
 
+    if (action === 'gt102_turn' || action === 'trial_of_tongues_turn') {
+      var turn = LhInterview_runGt102Turn(body);
+      if (turn.ok) {
+        out.ok = true;
+        out.npc = turn.npc;
+        out.reply_text = turn.reply_text;
+        out.next = turn.next;
+      } else {
+        out.ok = false;
+        out.message = 'gt102_turn failed.';
+        out.errors = [turn.error || 'gt102_turn_failed'];
+      }
+      return lhWebJsonOutput_(out);
+    }
+
     out.error = 'unknown_action';
     return lhWebJsonOutput_(out);
   } catch (err) {

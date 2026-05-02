@@ -21,6 +21,11 @@ type Props = {
   open: boolean;
   onResume: () => void;
   onOpenQuestLog: () => void;
+  onOpenEnrollmentRune?: () => void;
+  onOpenTrialOfTongues?: () => void;
+  onOpenManifest?: () => void;
+  onOpenOracleOfFate?: () => void;
+  onOpenVaultOfRunes?: () => void;
   onOpenRealmAtlas?: () => void;
   onOpenWorldMap?: () => void;
   onOpenInventory?: () => void;
@@ -42,6 +47,11 @@ export function PauseMenu({
   open,
   onResume,
   onOpenQuestLog,
+  onOpenEnrollmentRune,
+  onOpenTrialOfTongues,
+  onOpenManifest,
+  onOpenOracleOfFate,
+  onOpenVaultOfRunes,
   onOpenRealmAtlas,
   onOpenWorldMap,
   onOpenInventory,
@@ -78,6 +88,31 @@ export function PauseMenu({
               <button type="button" className="lh-button lh-button--secondary" onClick={onOpenQuestLog}>
                 Quest log
               </button>
+              {onOpenEnrollmentRune ? (
+                <button type="button" className="lh-button lh-button--secondary" onClick={onOpenEnrollmentRune}>
+                  Enrollment Rune (GT-101)
+                </button>
+              ) : null}
+              {onOpenTrialOfTongues ? (
+                <button type="button" className="lh-button lh-button--secondary" onClick={onOpenTrialOfTongues}>
+                  Trial of Tongues (GT-102)
+                </button>
+              ) : null}
+              {onOpenManifest ? (
+                <button type="button" className="lh-button lh-button--secondary" onClick={onOpenManifest}>
+                  Manifest (Janene’s SOD)
+                </button>
+              ) : null}
+              {onOpenOracleOfFate ? (
+                <button type="button" className="lh-button lh-button--secondary" onClick={onOpenOracleOfFate}>
+                  Oracle of Fate (Act II)
+                </button>
+              ) : null}
+              {onOpenVaultOfRunes ? (
+                <button type="button" className="lh-button lh-button--secondary" onClick={onOpenVaultOfRunes}>
+                  Vault of Runes (Act II)
+                </button>
+              ) : null}
               {onOpenInventory ? (
                 <button type="button" className="lh-button lh-button--secondary" onClick={onOpenInventory}>
                   Inventory

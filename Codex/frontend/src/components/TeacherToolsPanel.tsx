@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
 import type { ExplorationLoopState, PlayerSave, QuestDefinition } from '../types';
+import { listGt102TranscriptsForPlayer, loadGt102Transcript } from '../services/gt102TranscriptStore';
 
 export type TeacherToolsPanelProps = {
   rosterSectionLabel: string;
@@ -14,6 +15,8 @@ export type TeacherToolsPanelProps = {
   onRestoreMentorVial: () => Promise<void>;
   onMarkExitTicketSent: () => Promise<void>;
   onResetAct: (act: number) => Promise<void>;
+  onOverrideGt102: (outcome: 'passed' | 'failed') => void;
+  onClearModuleDraft: (moduleId: string) => void;
 };
 
 export function TeacherToolsPanel({
@@ -28,10 +31,13 @@ export function TeacherToolsPanel({
   onRestoreMentorVial,
   onMarkExitTicketSent,
   onResetAct,
+  onOverrideGt102,
+  onClearModuleDraft,
 }: TeacherToolsPanelProps) {
   const [tierFilter, setTierFilter] = useState<'all' | QuestDefinition['tier']>('all');
   const [selectedQuestId, setSelectedQuestId] = useState('');
   const [resetActInput, setResetActInput] = useState(2);
+  const [selectedTranscriptId, setSelectedTranscriptId] = useState('');
 
   const filteredQuests = useMemo(() => {
     if (tierFilter === 'all') return quests;
@@ -39,6 +45,12 @@ export function TeacherToolsPanel({
   }, [quests, tierFilter]);
 
   const lockedIds = useMemo(() => quests.filter((q) => q.status === 'locked').map((q) => q.quest_id), [quests]);
+
+  const gt102TranscriptIds = useMemo(() => listGt102TranscriptsForPlayer(player.player_id), [player.player_id]);
+  const gt102Transcript = useMemo(
+    () => (selectedTranscriptId ? loadGt102Transcript(selectedTranscriptId) : null),
+    [selectedTranscriptId],
+  );
 
   const debugPayload = useMemo(
     () => ({
@@ -161,6 +173,66 @@ export function TeacherToolsPanel({
           </button>
         </div>
       </div>
+
+      <details className="lh-facilitator-tools__details">
+        <summary>GT-102 override + transcript review</summary>
+        <div className="lh-stack" style={{ marginTop: 10 }}>
+          <div className="lh-facilitator-tools__row">
+            <button
+              type="button"
+              className="lh-button lh-button--secondary"
+              disabled={busy}
+              onClick={() => onOverrideGt102('passed')}
+            >
+              Override: GT-102 Passed
+            </button>
+            <button
+              type="button"
+              className="lh-button lh-button--secondary"
+              disabled={busy}
+              onClick={() => onOverrideGt102('failed')}
+            >
+              Override: GT-102 Failed
+            </button>
+            <button
+              type="button"
+              className="lh-button lh-button--ghost"
+              disabled={busy}
+              onClick={() => onClearModuleDraft('mod_gt102_trial_of_tongues')}
+            >
+              Clear GT-102 draft
+            </button>
+          </div>
+
+          <div className="lh-facilitator-tools__row">
+            <label className="lh-facilitator-tools__label" htmlFor="lh-fac-gt102-transcript">
+              Transcript
+            </label>
+            <select
+              id="lh-fac-gt102-transcript"
+              className="lh-facilitator-tools__select"
+              value={selectedTranscriptId}
+              onChange={(e) => setSelectedTranscriptId(e.target.value)}
+              disabled={busy}
+            >
+              <option value="">Select transcript…</option>
+              {gt102TranscriptIds.map((t) => (
+                <option key={t.transcript_id} value={t.transcript_id}>
+                  {t.created_iso} — {t.realm_id} — {t.transcript_id}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {gt102Transcript ? (
+            <pre className="lh-facilitator-tools__pre" style={{ maxHeight: 240, overflow: 'auto' }}>
+              {JSON.stringify(gt102Transcript, null, 2)}
+            </pre>
+          ) : (
+            <p className="lh-facilitator-tools__hint">No transcript selected (or none saved locally yet).</p>
+          )}
+        </div>
+      </details>
 
       <details className="lh-facilitator-tools__details">
         <summary>Player state debug (read-only)</summary>

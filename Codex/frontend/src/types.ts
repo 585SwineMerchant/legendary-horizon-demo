@@ -1,5 +1,27 @@
 export type Screen = 'title' | 'instructions' | 'resume' | 'explore';
 
+export type NightOneNavigate = {
+  beginDemo: () => Promise<void>;
+  quitToTitle: () => void;
+  proceedInstructions: () => void;
+  resumeToExplore: () => void;
+  openPause: () => void;
+  closePause: () => void;
+  openQuestLog: () => void;
+  closeQuestLog: () => void;
+  dismissSaveFeedback: () => void;
+  openRealmAtlas: () => void;
+  closeRealmAtlas: () => void;
+  openWorldMap: () => void;
+  closeWorldMap: () => void;
+  openResearchWorksheets: () => void;
+  closeResearchWorksheets: () => void;
+  openInventory: () => void;
+  closeInventory: () => void;
+  openModule: (moduleId: string) => void;
+  closeModule: () => void;
+};
+
 export type {
   AcademicTaskKind,
   AcademicTaskProgress,
@@ -9,6 +31,9 @@ export type {
   EncounterLogEntryV1,
   InventoryLineItem,
   InventorySummary,
+  ModuleDefinition,
+  ModuleProgressState,
+  ModuleResultPayload,
   LhBackupCheckpointV1,
   LhRuntimeFixture,
   ManualSaveEnvelopeV1,

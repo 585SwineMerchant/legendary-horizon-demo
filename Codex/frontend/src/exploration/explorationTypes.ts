@@ -8,6 +8,7 @@ export function createEmptyExplorationLoopState(): ExplorationLoopState {
     waypoint_keys_visited: [],
     ledger_entries: [],
     academic_tasks: {},
+    module_drafts: {},
     session_encounter_xp_awarded: 0,
     encounter_log: [],
   };

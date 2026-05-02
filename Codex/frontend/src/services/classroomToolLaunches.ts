@@ -6,7 +6,6 @@
 export type ClassroomToolHandlers = {
   onOpenOnet: () => void;
   onOpenMaia: () => void;
-  onOpenGmailExitTicket: () => void;
   onOpenChronicleSlides: () => void;
   onOpenEnrollmentForm: () => void;
   onOpenQuizlet: () => void;
