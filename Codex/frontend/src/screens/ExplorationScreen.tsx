@@ -22,7 +22,7 @@ export type ExplorationHotspot = {
 
 type SaveFeedback =
   | { tone: 'success'; text: string }
-  | { tone: 'error'; text: string };
+  | { tone: 'error'; text: string; retryLabel?: string; onRetry?: () => void };
 
 type Act3Strip = {
   activeWaypointLabel: string | null;
@@ -88,14 +88,14 @@ export function ExplorationScreen({
   useEscapeToClose(Boolean(npcDialogue), onDismissNpcDialogue ?? (() => undefined));
   useEscapeToClose(Boolean(activeEncounter), onEncounterRetreat ?? (() => undefined));
   const showTiledHotspots = Boolean(realm.map_tiled_export);
-  const usePhaser = renderer === 'phaser' && showTiledHotspots;
+  const usePhaser = renderer === 'phaser';
 
   return (
-    <section className="lh-exploration">
-      <header className="lh-exploration__topbar">
+    <section className="lh-exploration" style={{ position: 'relative' }}>
+      <header className="lh-exploration__topbar" style={usePhaser ? { position: 'relative', zIndex: 10 } : undefined}>
         <div>
           <p className="lh-exploration__eyebrow">{realm.display_name}</p>
-          <h2 className="lh-heading-lg">Exploration • Tiled trigger slice</h2>
+          <h2 className="lh-heading-lg">{usePhaser ? 'Legendary Horizon' : 'Exploration • Tiled trigger slice'}</h2>
         </div>
         <div className="lh-stack lh-stack--horizontal lh-exploration__actions">
           {act3 ? (
@@ -117,7 +117,16 @@ export function ExplorationScreen({
         </div>
       </header>
 
-      <div className="lh-exploration__body">
+      {usePhaser ? (
+        <PhaserExplorationView
+          realmId={realm.realm_id}
+          parsedMap={parsedMap}
+          hotspots={hotspots}
+          onActivateHotspot={onActivateHotspot}
+        />
+      ) : null}
+
+      {!usePhaser ? <div className="lh-exploration__body">
         <aside className="lh-hud-card">
           <h3 className="lh-heading-md">{player.display_name}</h3>
           <dl className="lh-hud-grid">
@@ -214,14 +223,7 @@ export function ExplorationScreen({
             </p>
           ) : null}
 
-          {usePhaser ? (
-            <PhaserExplorationView
-              realmId={realm.realm_id}
-              parsedMap={parsedMap}
-              hotspots={hotspots}
-              onActivateHotspot={onActivateHotspot}
-            />
-          ) : null}
+
 
           {showTiledHotspots && !usePhaser
             ? hotspots.map((hotspot) => (
@@ -254,15 +256,30 @@ export function ExplorationScreen({
               role={saveFeedback.tone === 'error' ? 'alert' : 'status'}
             >
               <pre className="lh-toast__preformatted">{saveFeedback.text}</pre>
-              {onDismissSaveFeedback ? (
-                <button type="button" className="lh-button lh-button--ghost lh-toast__dismiss" onClick={onDismissSaveFeedback}>
-                  Dismiss
-                </button>
-              ) : null}
+              <div className="lh-stack lh-stack--horizontal" style={{ justifyContent: 'flex-end', marginTop: 8 }}>
+                {saveFeedback.tone === 'error' && saveFeedback.onRetry ? (
+                  <button
+                    type="button"
+                    className="lh-button lh-button--secondary lh-button--small"
+                    onClick={saveFeedback.onRetry}
+                  >
+                    {saveFeedback.retryLabel ?? 'Retry'}
+                  </button>
+                ) : null}
+                {onDismissSaveFeedback ? (
+                  <button
+                    type="button"
+                    className="lh-button lh-button--ghost lh-toast__dismiss"
+                    onClick={onDismissSaveFeedback}
+                  >
+                    Dismiss
+                  </button>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </div>
-      </div>
+      </div> : null}
 
       {npcDialogue && onDismissNpcDialogue ? (
         <div className="lh-overlay lh-overlay--dim lh-npc-dialogue-overlay" role="presentation">

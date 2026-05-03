@@ -135,6 +135,8 @@ export function useNightOneFlow() {
     | {
         tone: 'success' | 'error';
         text: string;
+        retryLabel?: string;
+        onRetry?: () => void;
       }
     | null
   >(null);
@@ -529,6 +531,10 @@ export function useNightOneFlow() {
       setSaveFeedback({
         tone: 'error',
         text: persist.message + (persist.errors ? `\n${persist.errors.join('\n')}` : ''),
+        retryLabel: 'Retry save',
+        onRetry: () => {
+          void handleManualSave();
+        },
       });
       return;
     }
@@ -593,6 +599,10 @@ export function useNightOneFlow() {
       setSaveFeedback({
         tone: 'error',
         text: persist.message + (persist.errors ? `\n${persist.errors.join('\n')}` : ''),
+        retryLabel: 'Retry end session',
+        onRetry: () => {
+          void handleEndSessionRitual();
+        },
       });
       return;
     }
