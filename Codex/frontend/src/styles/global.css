@@ -351,10 +351,11 @@ code.lh-code-inline {
 }
 
 .lh-exploration {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   background-color: var(--lh-bg);
+  overflow: hidden;
 }
 
 .lh-exploration__topbar {

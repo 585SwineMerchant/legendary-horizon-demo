@@ -119,7 +119,7 @@ export function App() {
           hotspots={explorationHotspots}
           onActivateHotspot={hotspotControls.activate}
           parsedMap={parsedMap}
-          renderer={(import.meta.env.VITE_LH_RENDERER as 'hotspots' | 'phaser' | undefined) ?? 'hotspots'}
+          renderer="phaser"
           saveFeedback={saveFeedback}
           onDismissSaveFeedback={saveFeedback ? navigate.dismissSaveFeedback : undefined}
           onPause={navigate.openPause}

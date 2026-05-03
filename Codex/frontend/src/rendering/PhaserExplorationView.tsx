@@ -21,9 +21,27 @@ type TriggerRect = {
   completed: boolean;
 };
 
+/** Static list of all tileset image keys used by the map. */
+const TILESET_IMAGES = [
+  'water to grass - river orientation-spritesheet',
+  'Tileset-Terrain-new grass',
+  'guild_hqs',
+  'Tileset-Terrain',
+  'tree - color scheme 4 - 1',
+  'tree - color scheme 5 - 2',
+  'tree - color scheme 1 - 3',
+  'tree - color scheme 2 - 1',
+  'tree - color scheme 3 - 2',
+  'tree - color scheme 2 - 3',
+  'orc melee - all animations with fx',
+  'cabin',
+  'Aethelwood Farmsteads',
+] as const;
+
 /**
- * Minimal Phaser bridge (v4): replaces percent-positioned buttons with a mover + overlap-based interaction.
- * The current Tiled demo export is object-layers only, so we render trigger/fog rectangles rather than tile graphics.
+ * Full-screen Phaser 4 world view for Legendary Horizon.
+ * Uses Phaser's own loader (tilemapTiledJSON + image) in preload() so that
+ * the engine handles all async loading before create() is called.
  */
 export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivateHotspot }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -46,144 +64,228 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
   }, [hotspots, parsedMap.triggers, realmId]);
 
   useEffect(() => {
+    let active = true;
+    let initialized = false;
     const host = hostRef.current;
     if (!host) return;
 
-    if (gameRef.current) {
-      gameRef.current.destroy(true);
-      gameRef.current = null;
-    }
+    const initGame = (width: number, height: number) => {
+      if (!active || initialized || width < 10 || height < 10) return;
+      initialized = true;
 
-    const width = Math.max(host.clientWidth, 640);
-    const height = Math.max(host.clientHeight, 420);
-
-    class LhScene extends Phaser.Scene {
-      private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-      private keySpace!: Phaser.Input.Keyboard.Key;
-      private player!: Phaser.Physics.Arcade.Sprite;
-      private fogStatics!: Phaser.Physics.Arcade.StaticGroup;
-      private triggerBodies: Array<{ rect: Phaser.GameObjects.Rectangle; meta: TriggerRect }> = [];
-
-      create() {
-        const wpx = parsedMap.footprint.width_px || 960;
-        const hpx = parsedMap.footprint.height_px || 640;
-
-        this.cameras.main.setBackgroundColor(0x0b1220);
-        this.physics.world.setBounds(0, 0, wpx, hpx);
-        this.cameras.main.setBounds(0, 0, wpx, hpx);
-
-        // Fog regions become collision “walls” in this minimal pass.
-        this.fogStatics = this.physics.add.staticGroup();
-        parsedMap.fog_regions.forEach((f) => {
-          const b = f.bounds;
-          const r = this.add.rectangle(b.x + b.width / 2, b.y + b.height / 2, b.width, b.height, 0x111827, 0.7);
-          this.physics.add.existing(r, true);
-          this.fogStatics.add(r);
-        });
-
-        // Trigger zones (non-colliding).
-        triggers.forEach((tr) => {
-          const color = tr.completed ? 0x334155 : 0x22c55e;
-          const rect = this.add.rectangle(tr.x + tr.w / 2, tr.y + tr.h / 2, tr.w, tr.h, color, 0.22);
-          rect.setStrokeStyle(1, color, 0.55);
-          this.triggerBodies.push({ rect, meta: tr });
-        });
-
-        // Player sprite (simple circle).
-        const g = this.add.graphics();
-        g.fillStyle(0xe2e8f0, 1);
-        g.fillCircle(10, 10, 10);
-        g.generateTexture('lh_player_dot', 20, 20);
-        g.destroy();
-
-        this.player = this.physics.add.sprite(96, 96, 'lh_player_dot');
-        this.player.setCollideWorldBounds(true);
-        this.player.setDamping(true);
-        this.player.setDrag(600, 600);
-        this.player.setMaxVelocity(220, 220);
-
-        this.physics.add.collider(this.player, this.fogStatics);
-
-        this.cursors = this.input.keyboard?.createCursorKeys() as Phaser.Types.Input.Keyboard.CursorKeys;
-        this.keySpace = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE) as Phaser.Input.Keyboard.Key;
-
-        this.cameras.main.startFollow(this.player, true, 0.12, 0.12);
-        this.cameras.main.setZoom(1);
-
-        const hint = this.add
-          .text(12, 10, 'Phaser renderer (WIP): arrows to move · Space to interact', {
-            fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial',
-            fontSize: '12px',
-            color: '#94a3b8',
-          })
-          .setScrollFactor(0)
-          .setDepth(999);
-        hint.setAlpha(0.95);
+      if (gameRef.current) {
+        gameRef.current.destroy(true);
+        gameRef.current = null;
       }
 
-      update() {
-        const accel = 520;
-        const body = this.player.body as Phaser.Physics.Arcade.Body;
-        if (!body) return;
+      // Capture refs for use inside the scene class
+      const _triggers = triggers;
+      const _parsedMap = parsedMap;
+      const _onActivate = onActivateHotspot;
 
-        let ax = 0;
-        let ay = 0;
-        if (this.cursors.left?.isDown) ax -= accel;
-        if (this.cursors.right?.isDown) ax += accel;
-        if (this.cursors.up?.isDown) ay -= accel;
-        if (this.cursors.down?.isDown) ay += accel;
-        this.player.setAcceleration(ax, ay);
+      class LhScene extends Phaser.Scene {
+        private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+        private keySpace!: Phaser.Input.Keyboard.Key;
+        private player!: Phaser.Physics.Arcade.Sprite;
+        private fogStatics!: Phaser.Physics.Arcade.StaticGroup;
+        private triggerBodies: Array<{ rect: Phaser.GameObjects.Rectangle; meta: TriggerRect }> = [];
 
-        if (Phaser.Input.Keyboard.JustDown(this.keySpace)) {
-          // Interact with first incomplete trigger we overlap; otherwise nearest overlapping.
-          const px = this.player.x;
-          const py = this.player.y;
-          const overlaps = this.triggerBodies
-            .filter(({ rect }) => Phaser.Geom.Intersects.RectangleToRectangle(this.player.getBounds(), rect.getBounds()))
-            .map((row) => ({
-              ...row,
-              d: (row.rect.x - px) * (row.rect.x - px) + (row.rect.y - py) * (row.rect.y - py),
-            }))
-            .sort((a, b) => {
-              if (a.meta.completed !== b.meta.completed) return a.meta.completed ? 1 : -1;
-              return a.d - b.d;
-            });
+        preload() {
+          // ── Let Phaser's loader handle the map JSON and all tileset images ──
+          this.load.tilemapTiledJSON('lh_world', '/assets/maps/Legendary_Horizon_Map.json');
 
-          const hit = overlaps[0]?.meta;
-          if (hit && !hit.completed) {
-            onActivateHotspot(hit.interactable_id);
+          for (const name of TILESET_IMAGES) {
+            const encodedName = name.replace(/ /g, '%20');
+            this.load.image(name, `/assets/maps/${encodedName}.png`);
+          }
+        }
+
+        create() {
+          const map = this.make.tilemap({ key: 'lh_world' });
+
+          const wpx = map.widthInPixels  || _parsedMap.footprint.width_px  || 12800;
+          const hpx = map.heightInPixels || _parsedMap.footprint.height_px || 9600;
+
+          this.cameras.main.setBackgroundColor(0x0b1220);
+          this.physics.world.setBounds(0, 0, wpx, hpx);
+          this.cameras.main.setBounds(0, 0, wpx, hpx);
+
+          // Add all tilesets (name in Tiled editor ↔ image key in loader)
+          const tilesets: Phaser.Tilemaps.Tileset[] = [];
+          for (const name of TILESET_IMAGES) {
+            try {
+              const t = map.addTilesetImage(name, name);
+              if (t) tilesets.push(t);
+            } catch (e) {
+              console.warn(`[LhScene] Could not add tileset "${name}":`, e);
+            }
+          }
+
+          console.log(`[LhScene] Loaded ${tilesets.length}/${TILESET_IMAGES.length} tilesets. Map: ${wpx}x${hpx}px`);
+
+          // Render all tile layers
+          const layerNames = ['Main', 'Hillside', 'forest 4', 'Hillside 2', 'forest layer 3', 'Guild HQs'];
+          for (const layerName of layerNames) {
+            try {
+              const layer = map.createLayer(layerName, tilesets, 0, 0);
+              if (!layer) console.warn(`[LhScene] Layer "${layerName}" returned null`);
+            } catch (e) {
+              console.warn(`[LhScene] Could not create layer "${layerName}":`, e);
+            }
+          }
+
+          // Fog regions — dark blocking rectangles
+          this.fogStatics = this.physics.add.staticGroup();
+          _parsedMap.fog_regions.forEach((f) => {
+            const b = f.bounds;
+            const r = this.add.rectangle(
+              b.x + b.width / 2, b.y + b.height / 2,
+              b.width, b.height,
+              0x111827, 0.7,
+            );
+            this.physics.add.existing(r, true);
+            this.fogStatics.add(r);
+          });
+
+          // Trigger zones
+          _triggers.forEach((tr) => {
+            const color = tr.completed ? 0x334155 : 0x22c55e;
+            const rect = this.add.rectangle(
+              tr.x + tr.w / 2, tr.y + tr.h / 2,
+              tr.w, tr.h, color, 0.22,
+            );
+            rect.setStrokeStyle(1, color, 0.55);
+            this.triggerBodies.push({ rect, meta: tr });
+          });
+
+          // Player dot
+          const g = this.add.graphics();
+          g.fillStyle(0xe2e8f0, 1);
+          g.fillCircle(12, 12, 12);
+          g.generateTexture('lh_player_dot', 24, 24);
+          g.destroy();
+
+          this.player = this.physics.add.sprite(wpx / 2, hpx / 2, 'lh_player_dot');
+          this.player.setCollideWorldBounds(true);
+          this.player.setDamping(true);
+          this.player.setDrag(600, 600);
+          this.player.setMaxVelocity(500, 500);
+
+          this.physics.add.collider(this.player, this.fogStatics);
+
+          this.cursors = this.input.keyboard?.createCursorKeys() as Phaser.Types.Input.Keyboard.CursorKeys;
+          this.keySpace = this.input.keyboard?.addKey(
+            Phaser.Input.Keyboard.KeyCodes.SPACE,
+          ) as Phaser.Input.Keyboard.Key;
+
+          this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+          this.cameras.main.setZoom(1.5);
+
+          this.add
+            .text(12, 10, '⬆⬇⬅➡ Move  ·  SPACE Interact', {
+              fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial',
+              fontSize: '13px',
+              color: '#94a3b8',
+            })
+            .setScrollFactor(0)
+            .setDepth(999)
+            .setAlpha(0.92);
+        }
+
+        update() {
+          const accel = 1400;
+          const body = this.player?.body as Phaser.Physics.Arcade.Body | undefined;
+          if (!body) return;
+
+          let ax = 0, ay = 0;
+          if (this.cursors.left?.isDown)  ax -= accel;
+          if (this.cursors.right?.isDown) ax += accel;
+          if (this.cursors.up?.isDown)    ay -= accel;
+          if (this.cursors.down?.isDown)  ay += accel;
+          this.player.setAcceleration(ax, ay);
+
+          if (Phaser.Input.Keyboard.JustDown(this.keySpace)) {
+            const px = this.player.x;
+            const py = this.player.y;
+            const overlaps = this.triggerBodies
+              .filter(({ rect }) =>
+                Phaser.Geom.Intersects.RectangleToRectangle(
+                  this.player.getBounds(), rect.getBounds(),
+                ),
+              )
+              .map((row) => ({
+                ...row,
+                d: (row.rect.x - px) ** 2 + (row.rect.y - py) ** 2,
+              }))
+              .sort((a, b) => {
+                if (a.meta.completed !== b.meta.completed) return a.meta.completed ? 1 : -1;
+                return a.d - b.d;
+              });
+
+            const hit = overlaps[0]?.meta;
+            if (hit && !hit.completed) _onActivate(hit.interactable_id);
           }
         }
       }
-    }
 
-    const cfg: Phaser.Types.Core.GameConfig = {
-      type: Phaser.CANVAS,
-      parent: host,
-      backgroundColor: '#0b1220',
-      width,
-      height,
-      physics: {
-        default: 'arcade',
-        arcade: { gravity: { x: 0, y: 0 }, debug: false },
-      },
-      scene: LhScene,
-      scale: {
-        mode: Phaser.Scale.RESIZE,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-      },
+      const cfg: Phaser.Types.Core.GameConfig = {
+        type: Phaser.CANVAS,
+        parent: host,
+        backgroundColor: '#0b1220',
+        width,
+        height,
+        physics: {
+          default: 'arcade',
+          arcade: { gravity: { x: 0, y: 0 }, debug: false },
+        },
+        scene: LhScene,
+        scale: {
+          mode: Phaser.Scale.RESIZE,
+          autoCenter: Phaser.Scale.CENTER_BOTH,
+        },
+      };
+
+      gameRef.current = new Phaser.Game(cfg);
     };
 
-    gameRef.current = new Phaser.Game(cfg);
+    // Use ResizeObserver to wait for real dimensions
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 10 && height > 10) {
+          initGame(width, height);
+          ro.disconnect();
+          break;
+        }
+      }
+    });
+    ro.observe(host);
+    initGame(host.clientWidth, host.clientHeight);
 
     return () => {
+      active = false;
+      ro.disconnect();
       if (gameRef.current) {
         gameRef.current.destroy(true);
         gameRef.current = null;
       }
     };
-  }, [onActivateHotspot, parsedMap.fog_regions, parsedMap.footprint.height_px, parsedMap.footprint.width_px, realmId, triggers]);
+  }, [onActivateHotspot, parsedMap, realmId, triggers]);
 
-  return <div ref={hostRef} style={{ position: 'absolute', inset: 0 }} aria-label="Phaser exploration renderer" />;
+  return (
+    <div
+      ref={hostRef}
+      style={{
+        flex: 1,
+        minHeight: '0',
+        minWidth: '0',
+        width: '100%',
+        height: '100%',
+        position: 'relative',
+        overflow: 'hidden',
+        background: '#0b1220',
+      }}
+      aria-label="Phaser exploration renderer"
+    />
+  );
 }
-
