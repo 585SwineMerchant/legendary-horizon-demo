@@ -7,6 +7,8 @@ export type ParsedLhTrigger = {
   kind: string;
   /** Present when `lh_kind` is `npc_dialogue` (Milestone 16). */
   npc_id?: string;
+  /** Guild HQ desk / manager gate — `lh_realm_id` on the Tiled object. */
+  target_realm_id?: string;
   target_quest_id?: string;
   bounds: {
     x: number;
@@ -120,6 +122,7 @@ function normaliseTriggers(objects: TiledObject[], layerName: string): ParsedLhT
       layer_name: layerName,
       kind,
       npc_id: tileProperty(props, 'lh_npc_id'),
+      target_realm_id: tileProperty(props, 'lh_realm_id'),
       target_quest_id: tileProperty(props, 'lh_target_quest_id'),
       bounds: objectBounds(obj),
       interaction_label_active:

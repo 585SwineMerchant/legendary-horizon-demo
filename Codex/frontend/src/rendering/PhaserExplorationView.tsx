@@ -89,18 +89,41 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
         private player!: Phaser.Physics.Arcade.Sprite;
         private fogStatics!: Phaser.Physics.Arcade.StaticGroup;
         private triggerBodies: Array<{ rect: Phaser.GameObjects.Rectangle; meta: TriggerRect }> = [];
+        private debugText?: Phaser.GameObjects.Text;
 
         preload() {
+          // ── Diagnostics: surface loader failures immediately ──
+          this.load.on('loaderror', (file: unknown) => {
+            console.error('[LhScene] Loader error:', file);
+          });
+          this.load.on('filecomplete', (key: string, type: string) => {
+            if (key === 'lh_world' || type === 'image') {
+              // Keep this noisy logging scoped to map + images only.
+              // (Phaser 4 emits many filecomplete events.)
+              console.log(`[LhScene] Loaded file: type=${type} key=${key}`);
+            }
+          });
+
           // ── Let Phaser's loader handle the map JSON and all tileset images ──
-          this.load.tilemapTiledJSON('lh_world', '/assets/maps/Legendary_Horizon_Map.json');
+          // Avoid a leading slash so Vite base paths / previews still work.
+          this.load.tilemapTiledJSON('lh_world', 'assets/maps/Legendary_Horizon_Map.json');
 
           for (const name of TILESET_IMAGES) {
             const encodedName = name.replace(/ /g, '%20');
-            this.load.image(name, `/assets/maps/${encodedName}.png`);
+            this.load.image(name, `assets/maps/${encodedName}.png`);
           }
         }
 
         create() {
+          try {
+            // Diagnostics: capture global scene errors (helps catch swallowed exceptions)
+            this.game.events.on('error', (err: unknown) => {
+              console.error('[LhScene] Game error event:', err);
+            });
+          } catch {
+            // Ignore if not supported in this Phaser build.
+          }
+
           const map = this.make.tilemap({ key: 'lh_world' });
 
           const wpx = map.widthInPixels  || _parsedMap.footprint.width_px  || 12800;
@@ -109,6 +132,14 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
           this.cameras.main.setBackgroundColor(0x0b1220);
           this.physics.world.setBounds(0, 0, wpx, hpx);
           this.cameras.main.setBounds(0, 0, wpx, hpx);
+
+          // ── Diagnostics: summarize map structure ──
+          const discoveredLayerNames = (map.layers ?? [])
+            .map((l) => (l as unknown as { name?: string; type?: string })?.name)
+            .filter(Boolean) as string[];
+          const discoveredTilesetNames = (map.tilesets ?? [])
+            .map((t) => (t as unknown as { name?: string })?.name)
+            .filter(Boolean) as string[];
 
           // Add all tilesets (name in Tiled editor ↔ image key in loader)
           const tilesets: Phaser.Tilemaps.Tileset[] = [];
@@ -121,18 +152,47 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
             }
           }
 
-          console.log(`[LhScene] Loaded ${tilesets.length}/${TILESET_IMAGES.length} tilesets. Map: ${wpx}x${hpx}px`);
+          console.log(
+            `[LhScene] Map loaded. tilesetsAdded=${tilesets.length}/${TILESET_IMAGES.length} ` +
+            `mapTilesets=[${discoveredTilesetNames.join(', ')}] layers=[${discoveredLayerNames.join(', ')}] ` +
+            `size=${map.width}x${map.height} tiles (${wpx}x${hpx}px) tile=${map.tileWidth}x${map.tileHeight}`,
+          );
 
           // Render all tile layers
-          const layerNames = ['Main', 'Hillside', 'forest 4', 'Hillside 2', 'forest layer 3', 'Guild HQs'];
-          for (const layerName of layerNames) {
+          const createdLayers: string[] = [];
+          // Prefer dynamic creation (tolerates changes in the Tiled file).
+          for (const layerData of map.layers ?? []) {
+            const layerName = (layerData as unknown as { name?: string; type?: string })?.name;
+            const layerType = (layerData as unknown as { name?: string; type?: string })?.type;
+            if (!layerName) continue;
+            if (layerType && layerType !== 'tilelayer') continue;
             try {
               const layer = map.createLayer(layerName, tilesets, 0, 0);
-              if (!layer) console.warn(`[LhScene] Layer "${layerName}" returned null`);
+              if (!layer) {
+                console.warn(`[LhScene] Layer "${layerName}" returned null`);
+                continue;
+              }
+              createdLayers.push(layerName);
             } catch (e) {
               console.warn(`[LhScene] Could not create layer "${layerName}":`, e);
             }
           }
+
+          // If dynamic discovery produced nothing, fall back to the historical list.
+          if (createdLayers.length === 0) {
+            const fallbackLayerNames = ['Main', 'Hillside', 'forest 4', 'Hillside 2', 'forest layer 3', 'Guild HQs'];
+            for (const layerName of fallbackLayerNames) {
+              try {
+                const layer = map.createLayer(layerName, tilesets, 0, 0);
+                if (!layer) console.warn(`[LhScene] Layer "${layerName}" returned null`);
+                else createdLayers.push(layerName);
+              } catch (e) {
+                console.warn(`[LhScene] Could not create layer "${layerName}":`, e);
+              }
+            }
+          }
+
+          console.log(`[LhScene] Layers created: ${createdLayers.length ? createdLayers.join(', ') : '(none)'}`);
 
           // Fog regions — dark blocking rectangles
           this.fogStatics = this.physics.add.staticGroup();
@@ -181,6 +241,19 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
           this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
           this.cameras.main.setZoom(1.5);
 
+          // ── Temporary on-screen debug overlay ──
+          this.debugText = this.add
+            .text(12, 34, '', {
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+              fontSize: '11px',
+              color: '#cbd5e1',
+              backgroundColor: '#0b1220cc',
+              padding: { x: 8, y: 6 },
+            })
+            .setScrollFactor(0)
+            .setDepth(1000)
+            .setAlpha(0.95);
+
           this.add
             .text(12, 10, '⬆⬇⬅➡ Move  ·  SPACE Interact', {
               fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial',
@@ -197,12 +270,26 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
           const body = this.player?.body as Phaser.Physics.Arcade.Body | undefined;
           if (!body) return;
 
+          if (this.debugText) {
+            const cam = this.cameras.main;
+            const z = (cam.zoom ?? 1).toFixed(2);
+            this.debugText.setText([
+              `map tiles: ${this.cache.tilemap.has('lh_world') ? 'cached' : 'missing'}`,
+              `map px: ${Math.round(cam.getBounds().width)}x${Math.round(cam.getBounds().height)}`,
+              `cam: x=${Math.round(cam.scrollX)} y=${Math.round(cam.scrollY)} zoom=${z}`,
+              `player: x=${Math.round(this.player.x)} y=${Math.round(this.player.y)}`,
+            ]);
+          }
+
           let ax = 0, ay = 0;
           if (this.cursors.left?.isDown)  ax -= accel;
           if (this.cursors.right?.isDown) ax += accel;
           if (this.cursors.up?.isDown)    ay -= accel;
           if (this.cursors.down?.isDown)  ay += accel;
           this.player.setAcceleration(ax, ay);
+          // Important: acceleration-based movement + damping will "coast".
+          // For exploration, we want immediate stop on input release.
+          if (ax === 0 && ay === 0) this.player.setVelocity(0, 0);
 
           if (Phaser.Input.Keyboard.JustDown(this.keySpace)) {
             const px = this.player.x;
@@ -229,7 +316,8 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
       }
 
       const cfg: Phaser.Types.Core.GameConfig = {
-        type: Phaser.CANVAS,
+        // Phaser 4 tilemaps render via GPU layers; prefer WebGL when available.
+        type: Phaser.AUTO,
         parent: host,
         backgroundColor: '#0b1220',
         width,

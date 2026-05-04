@@ -94,6 +94,10 @@ export function forceUnlockQuest(quests: QuestDefinition[], questId: string): Qu
   return quests.map((q) => (q.quest_id === questId ? { ...q, status: 'available' as const } : q));
 }
 
+export function forceLockQuest(quests: QuestDefinition[], questId: string): QuestDefinition[] {
+  return quests.map((q) => (q.quest_id === questId ? { ...q, status: 'locked' as const } : q));
+}
+
 /**
  * Groups for quest log: in-progress main / side / guild, then finished (`completed` + `turned_in`).
  */

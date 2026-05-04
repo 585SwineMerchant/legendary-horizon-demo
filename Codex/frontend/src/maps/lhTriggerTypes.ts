@@ -10,6 +10,8 @@ export const LH_TRIGGER_KINDS = [
   'vocab_battle',
   'combat_encounter',
   'guild_hq_research',
+  'guild_manager_hq',
+  'guild_interview_invite',
 ] as const;
 
 export type LhTriggerKind = (typeof LH_TRIGGER_KINDS)[number] | 'unknown';

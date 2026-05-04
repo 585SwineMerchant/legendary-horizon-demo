@@ -9,81 +9,40 @@ export class Overworld extends Phaser.Scene {
         // Assets are loaded manually in create() from hidden <img> elements
     }
 
-    create() {
-        console.log("Overworld: Starting Create (8000x8000)...");
-        const W = 8000;
-        const H = 8000;
-
-        // =============================================
-        // REALM DATA — 17 Guild HQs (positions from LH Map)
-        // =============================================
-        this.realms = [
-            { id: 1,  name: "Aethelwood Farmsteads",      cluster: "Agriculture",             x: 1000, y: 2600, color: 0x84cc16, entryDir: 'right' },
-            { id: 2,  name: "Monolith of Masonry",         cluster: "Architecture",            x: 6500, y: 1300, color: 0x94a3b8, entryDir: 'up' },
-            { id: 3,  name: "Chronicler's Spire",          cluster: "Arts/AV",                 x: 2300, y: 2300, color: 0xa855f7, entryDir: 'up' },
-            { id: 4,  name: "Mercantile's Citadel",        cluster: "Business",                x: 1000, y: 4600, color: 0x3b82f6, entryDir: 'right' },
-            { id: 5,  name: "Archives of Ascension",       cluster: "Education",               x: 4000, y: 3300, color: 0x6366f1, entryDir: 'up' },
-            { id: 6,  name: "Arcanum Reactor",             cluster: "Energy",                  x: 6600, y: 4000, color: 0xec4899, entryDir: 'left' },
-            { id: 7,  name: "The Gilded Vault",            cluster: "Finance",                 x: 2600, y: 4000, color: 0xeab308, entryDir: 'right' },
-            { id: 8,  name: "The High Council Hall",       cluster: "Government",              x: 4000, y: 1000, color: 0xef4444, entryDir: 'up' },
-            { id: 9,  name: "Aurora Apothecary",           cluster: "Health Science",          x: 6600, y: 6600, color: 0x10b981, entryDir: 'up' },
-            { id: 10, name: "The Crossroads Haven",        cluster: "Hospitality",             x: 4000, y: 5300, color: 0xf97316, entryDir: 'down' },
-            { id: 11, name: "Empath's Enclave",            cluster: "Human Services",          x: 2600, y: 6600, color: 0xf43f5e, entryDir: 'down' },
-            { id: 12, name: "The Etheric Nexus",           cluster: "Information Technology",   x: 7300, y: 5300, color: 0x06b6d4, entryDir: 'left' },
-            { id: 13, name: "Valor's Watchtower",          cluster: "Law/Safety",              x: 1300, y: 1000, color: 0x1e293b, entryDir: 'up' },
-            { id: 14, name: "The Great Vulcanis Forge",    cluster: "Manufacturing",           x: 7300, y: 2000, color: 0x7c2d12, entryDir: 'up' },
-            { id: 15, name: "The Bard's Beacon",           cluster: "Marketing",               x: 6000, y: 5000, color: 0xf59e0b, entryDir: 'right' },
-            { id: 16, name: "The Alchemical Observatory",  cluster: "STEM",                    x: 5000, y: 7300, color: 0x8b5cf6, entryDir: 'up' },
-            { id: 17, name: "Odyssey's Harbor",            cluster: "Transportation",          x: 6000, y: 7000, color: 0x0ea5e9, entryDir: 'down' }
-        ];
-
-        // =============================================
-        // TEXTURE LOADING from hidden <img> DOM elements
-        // =============================================
-        this.textures.addSpriteSheet('hero', document.getElementById('hero-img'), {
-            frameWidth: 256, frameHeight: 256
-        });
-        // buildings uses the original guild_hqs_clean
-        this.textures.addSpriteSheet('buildings', document.getElementById('buildings-img'), {
-            frameWidth: 256, frameHeight: 256
-        });
-        this.textures.addSpriteSheet('characters', document.getElementById('chars-img'), {
-            frameWidth: 128, frameHeight: 128
-        });
-
-        // Tilesets for the Tilemap
-        this.textures.addImage('grasssheet', document.getElementById('grasssheet-img'));
-        this.textures.addImage('cliffsheet', document.getElementById('cliffsheet-img'));
-        this.textures.addImage('watersheet', document.getElementById('watersheet-img'));
-
-        // NEAREST filter on everything for crisp pixel art
-        ['hero', 'buildings', 'characters', 'grasssheet', 'cliffsheet', 'watersheet'].forEach(k => {
-            try { this.textures.get(k).setFilter(Phaser.Textures.FilterMode.NEAREST); } catch(e) {}
-        });
-
-        // =============================================
-        // TILEMAP GENERATION
-        // =============================================
         // Load the JSON map data into cache
         this.cache.tilemap.add('world_map', { format: Phaser.Tilemaps.Formats.TILED_JSON, data: window.worldMapData });
         const map = this.make.tilemap({ key: 'world_map' });
+        
+        console.log("Overworld: Map created...");
+        const W = map.widthInPixels;
+        const H = map.heightInPixels;
+        console.log(`Map size: ${map.width}x${map.height} tiles, ${W}x${H} pixels`);
 
-        // Add tilesets
-        const grassTiles = map.addTilesetImage('grasssheet', 'grasssheet');
-        const cliffTiles = map.addTilesetImage('cliffsheet', 'cliffsheet');
-        const waterTiles = map.addTilesetImage('watersheet', 'watersheet');
+        // Add tilesets dynamically
+        const tilesets = [];
+        window.worldMapData.tilesets.forEach(ts => {
+            const tileset = map.addTilesetImage(ts.name, ts.name);
+            if (tileset) {
+                tilesets.push(tileset);
+            }
+        });
 
-        const allTiles = [grassTiles, cliffTiles, waterTiles];
-
-        // Create layers
-        const groundLayer = map.createLayer('Ground', allTiles, 0, 0).setDepth(-10);
-        const waterLayer = map.createLayer('Water', allTiles, 0, 0).setDepth(-9);
-        const mountainLayer = map.createLayer('Mountains', allTiles, 0, 0).setDepth(-8);
-
-        // Set up collision for Water and Mountains
-        waterLayer.setCollisionByExclusion([-1, 0]);
-        mountainLayer.setCollisionByExclusion([-1, 0]);
-        this.obstacles = [waterLayer, mountainLayer];
+        // Create layers dynamically
+        this.obstacles = [];
+        map.layers.forEach((layerData, index) => {
+            console.log(`Overworld: Creating layer ${layerData.name}`);
+            const layer = map.createLayer(layerData.name, tilesets, 0, 0);
+            if (layer) {
+                layer.setDepth(-20 + index);
+                
+                // Basic collision logic: layers with 'Hillside' or 'water' or 'forest' in name might be obstacles
+                const lowerName = layerData.name.toLowerCase();
+                if (lowerName.includes('hillside') || lowerName.includes('water') || lowerName.includes('forest')) {
+                    layer.setCollisionByExclusion([-1, 0]);
+                    this.obstacles.push(layer);
+                }
+            }
+        });
 
         // =============================================
         // FOG OF WAR (Temporarily disabled for performance)

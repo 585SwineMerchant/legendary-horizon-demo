@@ -3,7 +3,6 @@ import dialogueCatalogJson from '@samples/dialogue_catalog.json';
 import npcRegistryJson from '@samples/npc_registry.json';
 import playerJson from '@samples/player_save.json';
 import questsJson from '@samples/quests.json';
-import realmRegistryJson from '@samples/realm_registry.json';
 import rosterJson from '@samples/roster_entry.json';
 import assetsJson from '@samples/media_assets.json';
 import tiledMapJson from '@maps/aethelwood_demo.json';
@@ -19,7 +18,9 @@ import type { LhDialogueCatalogV1, LhNpcRegistryV1 } from '../domain/lh-dialogue
 
 import { loadAcademicWorksheetCatalog } from '../academic/academicCatalog';
 import { loadQuestDefinitionsFromJson, reconcileQuestPrerequisites } from '../quests/questEngine';
+import { CANON_REALMS } from '../realm/canonRealms';
 import { resolveActiveRealm } from '../realm/realmRegistry';
+import { PRIMARY_WORLD_TILED_DEMO_RELATIVE_PATH } from './primaryWorldMap';
 
 /** Deep-clone JSON-backed shapes so downstream systems can mutate without aliasing fixtures. */
 function lhCloneFixture<T>(value: T): T {
@@ -30,10 +31,10 @@ function lhCloneFixture<T>(value: T): T {
  * Canonical loader — centralises SPA binding + Apps Script parity testing fixtures.
  */
 export function loadLhRuntimeFixture(): LhRuntimeFixture {
-  const realms = lhCloneFixture(realmRegistryJson as RealmDefinition[]);
+  const realms = lhCloneFixture(CANON_REALMS as RealmDefinition[]);
   const player = lhCloneFixture(playerJson as PlayerSave);
+  /** Guild / HQ / narrative context — not the source of the explorable tilemap in the current design. */
   const realm = resolveActiveRealm(realms, player.current_realm_id);
-  const mapFile = realm.map_tiled_export ?? 'aethelwood_demo.json';
 
   return {
     player,
@@ -45,7 +46,7 @@ export function loadLhRuntimeFixture(): LhRuntimeFixture {
     npc_registry: lhCloneFixture(npcRegistryJson as LhNpcRegistryV1),
     dialogue_catalog: lhCloneFixture(dialogueCatalogJson as LhDialogueCatalogV1),
     academic_worksheet_tasks: loadAcademicWorksheetCatalog(lhCloneFixture(academicTasksJson)),
-    tiled_demo_map_relative_path: mapFile,
+    tiled_demo_map_relative_path: PRIMARY_WORLD_TILED_DEMO_RELATIVE_PATH,
     tiled_map_payload: lhCloneFixture(tiledMapJson as unknown),
   };
 }

@@ -27,6 +27,13 @@ interface ImportMetaEnv {
   readonly VITE_LH_GOOGLE_CLASSROOM_URL?: string;
   /** When `true`, show Pause → Facilitator tools (also on in Vite dev server). */
   readonly VITE_LH_TEACHER_PANEL?: string;
+  /**
+   * When `true`, Pause shows direct GT-101 / GT-102 module shortcuts (bypasses intended HQ + quest gating).
+   * Defaults off in production-shaped builds; dev server still enables via `import.meta.env.DEV`.
+   */
+  readonly VITE_LH_PAUSE_MODULE_SHORTCUTS?: string;
+  /** Full URL to the illustrated realm atlas art; overrides default `lh3.googleusercontent.com` host for the Fog map file. */
+  readonly VITE_LH_REALM_ATLAS_IMAGE_URL?: string;
 }
 
 interface ImportMeta {

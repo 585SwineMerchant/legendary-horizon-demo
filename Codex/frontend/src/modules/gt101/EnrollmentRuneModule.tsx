@@ -201,7 +201,6 @@ export function EnrollmentRuneModule({ draft, onDraftChange, onSubmitResult }: P
                 artifacts: {
                   application: { submission_id: runeId(), storage: 'local', created_iso: now },
                 },
-                unlocks: [{ kind: 'unlock_module', target_id: 'mod_gt102_trial_of_tongues' }],
                 completed_at_iso: now,
               });
             }}

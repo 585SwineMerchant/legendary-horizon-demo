@@ -7,6 +7,8 @@ export type Gt102TranscriptState = {
   favor: number;
   finished: boolean;
   npc: { npc_id: string; name: string; title: string };
+  /** Present when the transcript is sealed — return-to-HQ punctuality vs deadline. */
+  interview_punctuality?: 'on_time' | 'late';
 };
 
 type TurnOutcome =

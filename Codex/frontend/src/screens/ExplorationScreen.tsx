@@ -30,13 +30,18 @@ type Act3Strip = {
   fogTotal: number;
   waypointVisited: number;
   waypointTotal: number;
-  onOpenWorldMap: () => void;
+  /** Distinct Foretold Signpost realms with ≥1 ledger row vs three (when Scroll defines a triad). */
+  scrollLedgerMilestone: { covered: number; total: number } | null;
+  /** Opens the full-screen World Atlas (Fog map), not the charter / ledger overlay. */
+  onOpenWorldAtlas: () => void;
   onMarkWaypoint: () => void;
 };
 
 type Props = {
   player: PlayerSave;
   realm: RealmDefinition;
+  /** Stable realm prefix for primary-map trigger IDs (independent of guild `realm`). */
+  phaserSurfaceTriggerRealmId?: string;
   hotspots: ExplorationHotspot[];
   onActivateHotspot: (interactableId: string) => void;
   parsedMap: ParsedLhMap;
@@ -61,11 +66,16 @@ type Props = {
   activeEncounter?: EncounterLaunchPayload | null;
   onEncounterWin?: (summary: { requestedXp: number }) => void;
   onEncounterRetreat?: () => void;
+  /** Guild endgame — post–GT-101 breather strip (Phaser path has no sidebar HUD). */
+  guildBreatherBanner?: { title: string; body: string } | null;
+  /** Scroll of Destiny — Foretold Signpost realm labels (exploration direction). */
+  signpostStrip?: { labels: string[] } | null;
 };
 
 export function ExplorationScreen({
   player,
   realm,
+  phaserSurfaceTriggerRealmId,
   hotspots,
   onActivateHotspot,
   parsedMap,
@@ -84,23 +94,37 @@ export function ExplorationScreen({
   activeEncounter,
   onEncounterWin,
   onEncounterRetreat,
+  guildBreatherBanner,
+  signpostStrip,
 }: Props) {
   useEscapeToClose(Boolean(npcDialogue), onDismissNpcDialogue ?? (() => undefined));
   useEscapeToClose(Boolean(activeEncounter), onEncounterRetreat ?? (() => undefined));
   const showTiledHotspots = Boolean(realm.map_tiled_export);
   const usePhaser = renderer === 'phaser';
+  const phaserTriggerRealmId = phaserSurfaceTriggerRealmId ?? realm.realm_id;
 
   return (
     <section className="lh-exploration" style={{ position: 'relative' }}>
       <header className="lh-exploration__topbar" style={usePhaser ? { position: 'relative', zIndex: 10 } : undefined}>
         <div>
-          <p className="lh-exploration__eyebrow">{realm.display_name}</p>
+          <p className="lh-exploration__eyebrow">Guild focus — {realm.display_name}</p>
+          {signpostStrip?.labels?.length ? (
+            <p className="lh-exploration__signpost-line" role="note">
+              <strong>Scroll signposts:</strong> {signpostStrip.labels.join(' · ')}
+            </p>
+          ) : null}
+          {usePhaser && act3?.scrollLedgerMilestone ? (
+            <p className="lh-exploration__scroll-ledger-line" role="status">
+              <strong>Scroll ledger:</strong> {act3.scrollLedgerMilestone.covered} / {act3.scrollLedgerMilestone.total}{' '}
+              signpost realms documented (world map ledger). Other realms stay explorable.
+            </p>
+          ) : null}
           <h2 className="lh-heading-lg">{usePhaser ? 'Legendary Horizon' : 'Exploration • Tiled trigger slice'}</h2>
         </div>
         <div className="lh-stack lh-stack--horizontal lh-exploration__actions">
           {act3 ? (
-            <button type="button" className="lh-button lh-button--secondary" onClick={act3.onOpenWorldMap}>
-              World map
+            <button type="button" className="lh-button lh-button--secondary" onClick={act3.onOpenWorldAtlas}>
+              World Atlas
             </button>
           ) : null}
           <button type="button" className="lh-button lh-button--secondary" onClick={onOpenQuestLog}>
@@ -117,9 +141,16 @@ export function ExplorationScreen({
         </div>
       </header>
 
+      {usePhaser && guildBreatherBanner ? (
+        <aside className="lh-exploration__breather-strip" role="status" aria-live="polite">
+          <p className="lh-exploration__breather-strip-title">{guildBreatherBanner.title}</p>
+          <p className="lh-exploration__breather-strip-body">{guildBreatherBanner.body}</p>
+        </aside>
+      ) : null}
+
       {usePhaser ? (
         <PhaserExplorationView
-          realmId={realm.realm_id}
+          realmId={phaserTriggerRealmId}
           parsedMap={parsedMap}
           hotspots={hotspots}
           onActivateHotspot={onActivateHotspot}
@@ -209,13 +240,21 @@ export function ExplorationScreen({
                   {act3.waypointTotal ? `${act3.waypointVisited} / ${act3.waypointTotal}` : '—'}
                 </span>
               </div>
+              {act3.scrollLedgerMilestone ? (
+                <div className="lh-act3-strip__row">
+                  <span className="lh-act3-strip__label">Scroll ledger</span>
+                  <span className="lh-act3-strip__value">
+                    {act3.scrollLedgerMilestone.covered} / {act3.scrollLedgerMilestone.total} signpost realms
+                  </span>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
           {!showTiledHotspots ? (
             <p className="lh-map-caption lh-map-caption--hint">
-              This realm has no Tiled export bound yet — use the World map to visit another zone or continue narrative
-              objectives from the quest log.
+              This guild row has no optional hotspot export — use the World map for HQ research, or follow objectives in
+              the quest log. The shared explorable map uses the primary world export.
             </p>
           ) : hotspots.length === 0 ? (
             <p className="lh-map-caption lh-map-caption--hint">

@@ -2,6 +2,7 @@ import type { MediaAssetRecord } from '../domain/lh-contract';
 
 /**
  * Realm-scoped media rows — uses optional `realm_ids` on catalog entries; assets with no `realm_ids` are treated as global (included for every realm).
+ * Do not use this list alone for guild HQ hero art (globals such as title backdrops appear first); use `resolveGuildHqHeroAsset` instead.
  */
 export function listMediaAssetsForRealm(catalog: readonly MediaAssetRecord[], realmId: string): MediaAssetRecord[] {
   return catalog.filter((row) => {

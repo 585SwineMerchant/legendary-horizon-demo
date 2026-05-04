@@ -29,6 +29,8 @@ export type {
   AcademicWorksheetFieldDef,
   AcademicWorksheetTaskDef,
   EncounterLogEntryV1,
+  GuildEndgameInterviewOutcomeV1,
+  GuildEndgameV1,
   InventoryLineItem,
   InventorySummary,
   ModuleDefinition,

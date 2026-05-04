@@ -6,6 +6,7 @@ import { classroomInfoPanelBody, classroomInfoStubNotice } from '../lib/demoCopy
 
 type Props = {
   onContinue: () => void;
+  onOpenTeacherDashboard?: () => void;
   bootstrapPhase?: 'idle' | 'loading' | 'error';
   bootstrapError?: string | null;
   /** Milestone 14 — resolved from `LhMediaAssets` / fixture catalog (falls back to CSS default if blank). */
@@ -14,6 +15,7 @@ type Props = {
 
 export function TitleScreen({
   onContinue,
+  onOpenTeacherDashboard,
   bootstrapPhase = 'idle',
   bootstrapError = null,
   backdropImageUrl,
@@ -21,6 +23,7 @@ export function TitleScreen({
   const [classroomOpen, setClassroomOpen] = useState(false);
   const loading = bootstrapPhase === 'loading';
   const failed = bootstrapPhase === 'error';
+  const showTeacher = Boolean(onOpenTeacherDashboard) && (import.meta.env.DEV || import.meta.env.VITE_LH_TEACHER_DASHBOARD === 'true');
 
   return (
     <section className="lh-screen lh-screen--title" aria-busy={loading}>
@@ -60,6 +63,11 @@ export function TitleScreen({
           >
             {loading ? 'Loading…' : 'Continue'}
           </button>
+          {showTeacher ? (
+            <button type="button" className="lh-button lh-button--secondary" onClick={onOpenTeacherDashboard} disabled={loading}>
+              Teacher dashboard
+            </button>
+          ) : null}
           <button
             type="button"
             className="lh-button lh-button--secondary"

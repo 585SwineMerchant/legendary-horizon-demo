@@ -720119,14 +720119,14 @@
       "firstgid": 4831,
       "name": "guild_hqs",
       "image": "assets/maps/guild_hqs.png",
-      "imageheight": 0,
-      "imagewidth": 0,
+      "imagewidth": 1024,
+      "imageheight": 1024,
       "margin": 0,
       "spacing": 0,
-      "tilecount": 0,
-      "tileheight": 32,
+      "tilecount": 1024,
       "tilewidth": 32,
-      "columns": 0
+      "tileheight": 32,
+      "columns": 32
     },
     {
       "firstgid": 5847,

@@ -2,13 +2,20 @@ import type {
   AcademicTaskKind,
   AcademicTaskStatus,
   ExplorationLoopState,
+  GuildEndgameInterviewOutcomeV1,
+  GuildEndgameV1,
   ManualSaveEnvelopeV1,
   PlayerSave,
   QuestDefinition,
   RitualDraftsV1,
   SessionSummaryV1,
 } from '../domain/lh-contract';
+import { coerceLedgerRow } from '../exploration/comparisonLedger';
+import { normalizeForetoldSignpostRealmIds } from '../exploration/foretoldSignposts';
+import { createDefaultGuildEndgameV1 } from '../exploration/explorationTypes';
 import type { RealmProgressMap } from '../realm/realmProgress';
+import { CANON_REALMS } from '../realm/canonRealms';
+import { computeGuildInterviewDeadlineIso } from '../exploration/guildInterviewDeadline';
 import { loadQuestDefinitionsFromJson, reconcileQuestPrerequisites } from '../quests/questEngine';
 
 import { cacheFullStateAfterSave } from './localFullStateCache';
@@ -98,7 +105,10 @@ export function coerceExplorationLoop(raw: unknown): ExplorationLoopState | null
   const o = raw as Record<string, unknown>;
   const fog = Array.isArray(o.fog_keys_cleared) ? o.fog_keys_cleared.map(String) : [];
   const wps = Array.isArray(o.waypoint_keys_visited) ? o.waypoint_keys_visited.map(String) : [];
-  const led = Array.isArray(o.ledger_entries) ? (o.ledger_entries as ExplorationLoopState['ledger_entries']) : [];
+  const ledRaw = Array.isArray(o.ledger_entries) ? o.ledger_entries : [];
+  const ledger_entries = ledRaw
+    .map((e) => coerceLedgerRow(e))
+    .filter((e): e is NonNullable<ReturnType<typeof coerceLedgerRow>> => e !== null);
   const moduleDraftsRaw = o.module_drafts;
   let module_drafts: ExplorationLoopState['module_drafts'];
   if (moduleDraftsRaw && typeof moduleDraftsRaw === 'object' && !Array.isArray(moduleDraftsRaw)) {
@@ -139,13 +149,7 @@ export function coerceExplorationLoop(raw: unknown): ExplorationLoopState | null
   const base: ExplorationLoopState = {
     fog_keys_cleared: fog,
     waypoint_keys_visited: wps,
-    ledger_entries: led.filter(
-      (e) =>
-        e &&
-        typeof e === 'object' &&
-        typeof (e as { id?: unknown }).id === 'string' &&
-        typeof (e as { realm_id?: unknown }).realm_id === 'string',
-    ),
+    ledger_entries,
   };
   if (academic_tasks && Object.keys(academic_tasks).length) {
     base.academic_tasks = academic_tasks;
@@ -180,6 +184,65 @@ export function coerceExplorationLoop(raw: unknown): ExplorationLoopState | null
     }
     if (rows.length) base.encounter_log = rows;
   }
+
+  const d = createDefaultGuildEndgameV1();
+  const geRaw = o.guild_endgame_v1;
+  if (geRaw && typeof geRaw === 'object' && !Array.isArray(geRaw)) {
+    const g = geRaw as Record<string, unknown>;
+    const tp = g.true_path_realm_id;
+    const true_path_realm_id =
+      tp === null || tp === undefined ? null : typeof tp === 'string' && tp.trim() ? tp.trim() : null;
+    const deadline = g.interview_deadline_iso;
+    const interview_deadline_iso =
+      deadline === null || deadline === undefined ? null : typeof deadline === 'string' && deadline.trim() ? deadline.trim() : null;
+    const lo = g.last_interview_outcome;
+    const last_interview_outcome: GuildEndgameInterviewOutcomeV1 =
+      lo === 'passed' || lo === 'failed' ? lo : 'none';
+    let geNext: GuildEndgameV1 = {
+      phase: typeof g.phase === 'string' && g.phase.trim() ? g.phase.trim() : d.phase,
+      true_path_realm_id,
+      application_unlocked: g.application_unlocked === true,
+      application_sealed: g.application_sealed === true,
+      interview_invited: g.interview_invited === true,
+      interview_deadline_iso,
+      last_interview_outcome,
+    };
+    if (geNext.phase === 'interview_invitation_expired') {
+      geNext = {
+        ...geNext,
+        phase: 'interview_invited',
+        interview_invited: true,
+        interview_deadline_iso: geNext.interview_deadline_iso?.trim() || computeGuildInterviewDeadlineIso(),
+      };
+    }
+    if (geNext.phase === 'interview_passed' && geNext.last_interview_outcome === 'passed') {
+      geNext = { ...geNext, phase: 'guild_accepted_v1' };
+    }
+    base.guild_endgame_v1 = geNext;
+  } else {
+    base.guild_endgame_v1 = d;
+  }
+
+  const ghqRaw = o.guild_hq_atlas_revealed_realm_ids;
+  if (Array.isArray(ghqRaw)) {
+    const ids = ghqRaw
+      .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+      .map((x) => x.trim());
+    if (ids.length) {
+      base.guild_hq_atlas_revealed_realm_ids = [...new Set(ids)];
+    }
+  }
+
+  const fsRaw = o.foretold_signpost_realm_ids;
+  if (Array.isArray(fsRaw)) {
+    const allowed = new Set(CANON_REALMS.map((r) => r.realm_id));
+    const ids = normalizeForetoldSignpostRealmIds(
+      fsRaw.filter((x): x is string => typeof x === 'string' && x.trim().length > 0).map((x) => x.trim()),
+      allowed,
+    );
+    if (ids.length) base.foretold_signpost_realm_ids = ids;
+  }
+
   return base;
 }
 

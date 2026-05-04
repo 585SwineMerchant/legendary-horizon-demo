@@ -31,7 +31,7 @@
           "visible": true,
           "properties": [
             { "name": "lh_kind", "type": "string", "value": "quest_advance" },
-            { "name": "lh_target_quest_id", "type": "string", "value": "mq_act2_path_of_roots" },
+            { "name": "lh_target_quest_id", "type": "string", "value": "mq_act1_manifest_support" },
             {
               "name": "lh_interaction_copy_active",
               "type": "string",
@@ -146,12 +146,62 @@
               "value": "Lexicon sealed for today"
             }
           ]
+        },
+        {
+          "id": 7,
+          "name": "aethelwood_guild_manager_desk",
+          "type": "lh_trigger_zone",
+          "x": 32,
+          "y": 400,
+          "width": 112,
+          "height": 72,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "lh_kind", "type": "string", "value": "guild_manager_hq" },
+            { "name": "lh_realm_id", "type": "string", "value": "realm_aethelwood" },
+            {
+              "name": "lh_interaction_copy_active",
+              "type": "string",
+              "value": "Speak with the Guild Manager (Aethelwood)"
+            },
+            {
+              "name": "lh_interaction_copy_complete",
+              "type": "string",
+              "value": "Guild application issued — use Pause to file when your charter matches this hall"
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "name": "aethelwood_guild_summons_porter",
+          "type": "lh_trigger_zone",
+          "x": 152,
+          "y": 400,
+          "width": 96,
+          "height": 72,
+          "rotation": 0,
+          "visible": true,
+          "properties": [
+            { "name": "lh_kind", "type": "string", "value": "guild_interview_invite" },
+            { "name": "lh_realm_id", "type": "string", "value": "realm_aethelwood" },
+            {
+              "name": "lh_interaction_copy_active",
+              "type": "string",
+              "value": "Receive the Guild summons (interview)"
+            },
+            {
+              "name": "lh_interaction_copy_complete",
+              "type": "string",
+              "value": "Summons accepted — the Trial of Tongues is on your path"
+            }
+          ]
         }
       ]
     }
   ],
   "nextlayerid": 2,
-  "nextobjectid": 7,
+  "nextobjectid": 9,
   "properties": [{ "name": "lh_realm_id", "type": "string", "value": "realm_aethelwood" }],
   "tilesets": [],
   "tiledversion": "1.12.2",

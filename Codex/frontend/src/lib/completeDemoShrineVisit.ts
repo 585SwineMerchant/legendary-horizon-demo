@@ -16,6 +16,18 @@ export function completeDemoShrineVisit(
   quests: QuestDefinition[],
   mainQuestId: string,
 ): Outcome {
+  // Act I: the grove nudges toward the Manifest module — do not auto-complete the SOD here.
+  if (mainQuestId === 'mq_act1_manifest_support') {
+    return {
+      nextPlayer: {
+        ...player,
+        required_next_action:
+          'The Ley Root hums beneath Aethelwood: open Pause → Manifest (Janene’s SOD) to seal your Career Map — the shrine will not inscribe the scroll for you.',
+      },
+      nextQuests: quests,
+    };
+  }
+
   return {
     nextPlayer: {
       ...player,

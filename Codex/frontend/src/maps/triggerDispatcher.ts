@@ -27,7 +27,15 @@ export type TriggerDispatchResult =
     }
   | { handled: false; reason: string };
 
-const STUB_KINDS = new Set<string>(['quest_start', 'quest_complete', 'fog_clear', 'external_link', 'guild_hq_research']);
+const STUB_KINDS = new Set<string>([
+  'quest_start',
+  'quest_complete',
+  'fog_clear',
+  'external_link',
+  'guild_hq_research',
+  'guild_manager_hq',
+  'guild_interview_invite',
+]);
 
 /**
  * Central entry for Tiled object triggers → gameplay state updates.

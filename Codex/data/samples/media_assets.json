@@ -44,5 +44,13 @@
     "delivery_url_placeholder": "/assets/map-aethelwood-thumb.svg",
     "realm_ids": ["realm_aethelwood"],
     "fallback_asset_id": "media_image_missing_placeholder"
+  },
+  {
+    "asset_id": "guild_hq_hero_realm_aethelwood",
+    "kind": "guild_hq",
+    "description": "Aethelwood Farmsteads — guild HQ hall plate. Populate drive_file_id and/or delivery_url_placeholder from the Drive + Apps Script media deploy (do not point this at map_thumb / decorative stubs).",
+    "drive_file_id": "",
+    "delivery_url_placeholder": "",
+    "realm_ids": ["realm_aethelwood"]
   }
 ]

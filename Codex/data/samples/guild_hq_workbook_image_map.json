@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "source": "Gamified Cluster headquarter Names (1).xlsx",
+  "entries": [
+    {
+      "realm_id": "realm_aethelwood",
+      "workbook_hq_label": "Aethelwood Farmsteads",
+      "workbook_career_cluster": "Agriculture, Food, Natural Resources",
+      "hero_image_url": "https://drive.google.com/uc?export=view&id=1aFaRa8tFcj6ay-Xdk5IpYfYVaO49ePpc",
+      "drive_file_id": "1aFaRa8tFcj6ay-Xdk5IpYfYVaO49ePpc"
+    },
+    {
+      "realm_id": "realm_alchemical_observatory",
+      "workbook_hq_label": "The Alchemical Observatory",
+      "workbook_career_cluster": "Science, Technology, Engineering, Mathematics",
+      "hero_image_url": "https://drive.google.com/uc?export=view&id=1iJk7fHDo-Sg0U70KtgyJya4XXWv2YiUr",
+      "drive_file_id": "1iJk7fHDo-Sg0U70KtgyJya4XXWv2YiUr"
+    },
+    {
+      "realm_id": "realm_archives_ascension",
+      "workbook_hq_label": "The Archives of Ascension",
+      "workbook_career_cluster": "Education & Training",
+      "hero_image_url": "https://drive.google.com/uc?export=view&id=1enIWPockAd0Uh4PoL5KYzVfVq3fOY66T",
+      "drive_file_id": "1enIWPockAd0Uh4PoL5KYzVfVq3fOY66T"
+    },
+    {
+      "realm_id": "realm_aurora_apothecary",
+      "workbook_hq_label": "Aurora Apothecary",
+      "workbook_career_cluster": "Health Science",
+      "hero_image_url": "https://drive.google.com/uc?export=view&id=1YtX8KqbHmn_wdG90Wekd1XJqcEfEL5Ax",
+      "drive_file_id": "1YtX8KqbHmn_wdG90Wekd1XJqcEfEL5Ax"
+    },
+    {
+      "realm_id": "realm_bards_beacon",
+      "workbook_hq_label": "The Bard's Beacon",
+      "workbook_career_cluster": "Marketing",
+      "hero_image_url": "https://drive.google.com/uc?export=view&id=17J4liMqInsUfiBKQFA_Rxo4ZjFdzz2wX",
+      "drive_file_id": "17J4liMqInsUfiBKQFA_Rxo4ZjFdzz2wX"
+    },
+    {
+      "realm_id": "realm_chroniclers_spire",
+      "workbook_hq_label": "Chronicler's Spire",
+      "workbook_career_cluster": "Arts, A/V Tech, & Communications",
+      "hero_image_url": "https://drive.google.com/uc?export=view&id=1-YznHPalN28oEj4dnwM8H4fFaUC_6ms6",
+      "drive_file_id": "1-YznHPalN28oEj4dnwM8H4fFaUC_6ms6"
+    },
+    {
+      "realm_id": "realm_crossroads_haven",
+      "workbook_hq_label": "The Crossroads Haven",
+      "workbook_career_cluster": "Hospitality & Tourism",
+      "hero_image_url": "https://drive.google.com/uc?export=view&id=1h7N4YVadX6r1sJhhEV8Ot5SeQVdNJ0qq",
+      "drive_file_id": "1h7N4YVadX6r1sJhhEV8Ot5SeQVdNJ0qq"
+    },
+    {
+      "realm_id": "realm_empaths_enclave",
+      "workbook_hq_label": "Empath's Enclave",
+      "workbook_career_cluster": "Human Services",
+      "hero_image_url": "https://drive.google.com/uc?export=view&id=1xKVKVShZftCZjbZ5GIQt_X4cf_YL_u--",
+      "drive_file_id": "1xKVKVShZftCZjbZ5GIQt_X4cf_YL_u--"
+    },
+    {
+      "realm_id": "realm_etheric_nexus",
+      "workbook_hq_label": "The Etheric Nexus",
+      "workbook_career_cluster": "Information Technology",
+      "hero_image_url": "https://drive.google.com/uc?export=view&id=1kG9Q4ZWbnFEupXjcXK7mW1J6rslHKmBe",
+      "drive_file_id": "1kG9Q4ZWbnFEupXjcXK7mW1J6rslHKmBe"
+    },
+    {
+      "realm_id": "realm_gilded_vault",
+      "workbook_hq_label": "The Gilded Vault",
+      "workbook_career_cluster": "Finance",
+      "hero_image_url": "https://drive.google.com/uc?export=view&id=1KpE9cD7kIsxn4VjAz3FpZ6FEopDZLNPE",
+      "drive_file_id": "1KpE9cD7kIsxn4VjAz3FpZ6FEopDZLNPE"
+    },
+    {
+      "realm_id": "realm_high_council_hall",
+      "workbook_hq_label": "The High Council Hall",
+      "workbook_career_cluster": "Government & Public Administration",
+      "hero_image_url": "https://drive.google.com/uc?export=view&id=1fZfnnif-jeQuP0V2Cc0D7htk6vm9O7iW",
+      "drive_file_id": "1fZfnnif-jeQuP0V2Cc0D7htk6vm9O7iW"
+    },
+    {
+      "realm_id": "realm_mercantile_citadel",
+      "workbook_hq_label": "Mercantile's citadel",
+      "workbook_career_cluster": "Business Management & Administration",
+      "hero_image_url": "https://drive.google.com/uc?export=view&id=1tVCawHWYzFt1yX5Q1PFFvI3a3q7nqz-8",
+      "drive_file_id": "1tVCawHWYzFt1yX5Q1PFFvI3a3q7nqz-8"
+    },
+    {
+      "realm_id": "realm_monolith_masonry",
+      "workbook_hq_label": "Monolith of Masonry",
+      "workbook_career_cluster": "Architecture & Construction",
+      "hero_image_url": "https://drive.google.com/uc?export=view&id=1AMjbr-7xHgUESF_K3a08wDcpGfaUSTkf",
+      "drive_file_id": "1AMjbr-7xHgUESF_K3a08wDcpGfaUSTkf"
+    },
+    {
+      "realm_id": "realm_odyssey_harbor",
+      "workbook_hq_label": "Odyssey's Harbor",
+      "workbook_career_cluster": "Transportation, Distribution, Logistics",
+      "hero_image_url": "https://drive.google.com/uc?export=view&id=1UFYCzZEZDL8FQFyChw_Pjm_qd9pQ77W9",
+      "drive_file_id": "1UFYCzZEZDL8FQFyChw_Pjm_qd9pQ77W9"
+    },
+    {
+      "realm_id": "realm_valors_watchtower",
+      "workbook_hq_label": "Valor's Watchtower",
+      "workbook_career_cluster": "Law, Public Safety, Corrections, Security",
+      "hero_image_url": "https://drive.google.com/uc?export=view&id=15eCaOhvgcaFCUs7POY2zpvczHLIKi8Se",
+      "drive_file_id": "15eCaOhvgcaFCUs7POY2zpvczHLIKi8Se"
+    },
+    {
+      "realm_id": "realm_vulcanis_forge",
+      "workbook_hq_label": "The Great Vulcanis Forge",
+      "workbook_career_cluster": "Manufacturing",
+      "hero_image_url": "https://drive.google.com/uc?export=view&id=1gJtTkBV4m5_jyPoY5dt7_m3tp_6obadi",
+      "drive_file_id": "1gJtTkBV4m5_jyPoY5dt7_m3tp_6obadi"
+    }
+  ]
+}

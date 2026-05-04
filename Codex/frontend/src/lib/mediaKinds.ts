@@ -3,7 +3,8 @@
  * Sheet rows use the same string tokens in `kind`.
  */
 
-const IMAGE_LIKE = new Set(['image', 'portrait', 'map_thumb', 'ui', 'banner']);
+/** `guild_hq` — primary guild hall / HQ hero plate (Drive-backed row; `realm_ids` should list the hall). */
+const IMAGE_LIKE = new Set(['image', 'portrait', 'map_thumb', 'ui', 'banner', 'guild_hq']);
 
 const AUDIO_KINDS = new Set(['audio', 'sfx', 'music']);
 

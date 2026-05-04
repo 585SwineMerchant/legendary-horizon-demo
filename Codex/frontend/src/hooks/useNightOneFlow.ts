@@ -7,6 +7,7 @@ import { getEmptyParsedLhMap, loadLhTiledMapPayload } from '../maps/mapLoader';
 import type { ParsedLhMap, ParsedLhTrigger } from '../maps/parseLhTiledMap';
 import { makeTriggerInteractableId } from '../maps/parseLhTiledMap';
 import { dispatchLhTrigger } from '../maps/triggerDispatcher';
+import { normaliseLhTriggerKind } from '../maps/lhTriggerTypes';
 import type { LoadPlayerOutcome } from '../services/manualSaveGateway';
 import {
   appendSessionHistoryRemote,
@@ -57,7 +58,55 @@ import {
   markAcademicTaskInProgress,
   syncComparisonLedgerAcademicTask,
 } from '../academic/academicProgress';
-import { createEmptyExplorationLoopState, type ExplorationLoopState } from '../exploration/explorationTypes';
+import {
+  GUILD_GT101_BREATHER_REQUIRED_NEXT_ACTION,
+  GUILD_GT101_BREATHER_SEAL_TOAST,
+  GUILD_GT101_BREATHER_BANNER_BODY,
+  GUILD_GT101_BREATHER_BANNER_TITLE,
+  GUILD_GT101_BREATHER_QUEST_LOG_NOTE,
+} from '../exploration/guildEndgameBreatherCopy';
+import {
+  buildGuildInterviewAlreadySummonsToast,
+  buildGuildInterviewInvitedRequiredNextAction,
+  buildGuildInterviewInviteBannerBody,
+  buildGuildInterviewInviteQuestLogNote,
+  buildGuildInterviewInviteToast,
+  GUILD_INTERVIEW_INVITE_BANNER_TITLE,
+  GUILD_INTERVIEW_INVITE_LATE_BANNER_TITLE,
+  GUILD_MANAGER_DESK_SUMMONS_ACTIVE,
+} from '../exploration/guildEndgameInterviewInviteCopy';
+import {
+  computeGuildInterviewDeadlineIso,
+  formatGuildInterviewDeadlineForPlayer,
+  isGuildInterviewDeadlinePassed,
+} from '../exploration/guildInterviewDeadline';
+import {
+  GUILD_ACCEPTANCE_BANNER_BODY,
+  GUILD_ACCEPTANCE_BANNER_TITLE,
+  GUILD_ACCEPTANCE_PASS_SEAL_TOAST,
+  GUILD_ACCEPTANCE_QUEST_LOG_NOTE,
+  GUILD_ACCEPTANCE_REQUIRED_NEXT_ACTION,
+  GUILD_MANAGER_DESK_POST_ACCEPTANCE,
+} from '../exploration/guildGuildAcceptanceCopy';
+import {
+  GUILD_GT102_FAIL_SEAL_TOAST,
+  GUILD_GT102_RETRY_BANNER_BODY,
+  GUILD_GT102_RETRY_BANNER_TITLE,
+  GUILD_GT102_RETRY_QUEST_LOG_NOTE,
+  GUILD_GT102_RETRY_REQUIRED_NEXT_ACTION,
+  GUILD_MANAGER_DESK_INTERVIEW_RETRY,
+} from '../exploration/guildGt102OutcomeCopy';
+import { emptyLedgerDraft, ritualDraftsFromLedgerDraft } from '../exploration/comparisonLedger';
+import { normalizeForetoldSignpostRealmIds, signpostLedgerMilestone } from '../exploration/foretoldSignposts';
+import {
+  createDefaultGuildEndgameV1,
+  createEmptyExplorationLoopState,
+  mergeGuildEndgameIntoExploration,
+  mergeGuildHqAtlasRevealed,
+  mergeGuildHqAtlasRevealedFromRealmProgress,
+  syncGuildTruePathFromPlayerIfUnset,
+  type ExplorationLoopState,
+} from '../exploration/explorationTypes';
 import { applyLedgerEntryToQuests } from '../exploration/ledgerQuestBridge';
 import { selectActiveWaypoint, waypointKey } from '../exploration/waypoints';
 import type { EncounterLaunchPayload } from '../components/EncounterOverlay';
@@ -73,18 +122,27 @@ import {
   touchRealmEntered,
   type RealmProgressMap,
 } from '../realm/realmProgress';
+import { CANON_REALMS } from '../realm/canonRealms';
 import {
   loadQuestDefinitionsFromJson,
   markQuestTurnedIn as markQuestTurnedInOnList,
   markQuestCompleted,
   forceUnlockQuest,
+  isTerminalQuestStatus,
   reconcileQuestPrerequisites,
 } from '../quests/questEngine';
-import { resolveActiveRealm } from '../realm/realmRegistry';
-import type { ComparisonLedgerEntry, NightOneNavigate, PlayerSave, QuestDefinition, Screen } from '../types';
+import { getRealmById, resolveActiveRealm } from '../realm/realmRegistry';
+import { PRIMARY_WORLD_TRIGGER_REALM_ID } from '../runtime/primaryWorldMap';
+import type {
+  ComparisonLedgerEntry,
+  ModuleResultPayload,
+  NightOneNavigate,
+  PlayerSave,
+  QuestDefinition,
+  Screen,
+} from '../types';
 import type { TeacherToolsPanelProps } from '../components/TeacherToolsPanel';
 
-const emptyLedgerDraft = () => ({ career_a: '', career_b: '', note: '' });
 
 const BLUEPRINT = loadLhRuntimeFixture();
 const seededPlayerSeed = BLUEPRINT.player;
@@ -142,6 +200,8 @@ export function useNightOneFlow() {
   >(null);
   const [realmAtlasOpen, setRealmAtlasOpen] = useState(false);
   const [worldMapOpen, setWorldMapOpen] = useState(false);
+  /** Inline message when travel is blocked (shown inside World Map overlay). */
+  const [realmTravelNotice, setRealmTravelNotice] = useState<string | null>(null);
   const [academicWorksheetsOpen, setAcademicWorksheetsOpen] = useState(false);
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [moduleHostOpen, setModuleHostOpen] = useState(false);
@@ -150,12 +210,15 @@ export function useNightOneFlow() {
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [realmProgress, setRealmProgress] = useState<RealmProgressMap>({});
   const [exploration, setExploration] = useState<ExplorationLoopState>(() => createEmptyExplorationLoopState());
+  /** Nudges interview deadline / pause GT-102 gating when wall-clock crosses the return window. */
+  const [guildInterviewInviteTimerTick, setGuildInterviewInviteTimerTick] = useState(0);
   const [ledgerDraft, setLedgerDraft] = useState(emptyLedgerDraft);
   const [npcDialogue, setNpcDialogue] = useState<LhNpcDialogueOverlayModel | null>(null);
   const [activeEncounter, setActiveEncounter] = useState<EncounterLaunchPayload | null>(null);
   const activeEncounterRef = useRef<EncounterLaunchPayload | null>(null);
   activeEncounterRef.current = activeEncounter;
 
+  /** Active guild / HQ / narrative row — `current_realm_id` on the player save. */
   const realm = useMemo(() => {
     if (!player) return BLUEPRINT.realm;
     return resolveActiveRealm(allRealms, player.current_realm_id);
@@ -170,7 +233,12 @@ export function useNightOneFlow() {
 
   useEffect(() => {
     if (screen === 'explore' && player) {
-      setRealmProgress((p) => touchRealmEntered(p, player.current_realm_id));
+      const rid = player.current_realm_id;
+      setRealmProgress((p) => touchRealmEntered(p, rid));
+      // World Atlas charting: charter focus while exploring reveals this hall on the atlas immediately today.
+      // Future: first HQ visit may show Guild Info first, then open atlas + reveal animation; keep merge here or
+      // defer to that flow via a pending-reveal queue — see `RealmAtlasOverlay` initialGuildInfoRealmId props.
+      setExploration((e) => mergeGuildHqAtlasRevealed(e, rid));
     }
   }, [screen, player?.current_realm_id]);
 
@@ -188,6 +256,154 @@ export function useNightOneFlow() {
     if (!wp) return null;
     return wp.name?.trim() || wp.waypoint_key || `Waypoint ${wp.tiled_object_id}`;
   }, [exploration.waypoint_keys_visited]);
+
+  /** Production-shaped: show GT-101 on Pause only after in-map manager unlock + HQ context. */
+  const pauseCanOpenGt101 = useMemo(() => {
+    if (!player) return false;
+    const devBypass = import.meta.env.DEV || import.meta.env.VITE_LH_PAUSE_MODULE_SHORTCUTS === 'true';
+    if (devBypass) return false;
+    const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+    return Boolean(
+      ge.application_unlocked &&
+        !ge.application_sealed &&
+        ge.true_path_realm_id &&
+        player.current_realm_id === ge.true_path_realm_id,
+    );
+  }, [player, exploration.guild_endgame_v1]);
+
+  /** Post–GT-101 breather: submitted, under review, not yet in interview invitation flow. */
+  const guildBreatherSurface = useMemo(() => {
+    const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+    if (ge.phase !== 'breather' || !ge.application_sealed || ge.interview_invited) return null;
+    return {
+      bannerTitle: GUILD_GT101_BREATHER_BANNER_TITLE,
+      bannerBody: GUILD_GT101_BREATHER_BANNER_BODY,
+      questLogNote: GUILD_GT101_BREATHER_QUEST_LOG_NOTE,
+    };
+  }, [exploration.guild_endgame_v1]);
+
+  /** Guild Manager summons — active interview invitation (deadline is a professionalism check, not a hard lock). */
+  const guildInterviewInviteSurface = useMemo(() => {
+    const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+    if (!ge.interview_invited) return null;
+    const iso = ge.interview_deadline_iso?.trim();
+    if (!iso) return null;
+    const dl = formatGuildInterviewDeadlineForPlayer(iso);
+    const late = isGuildInterviewDeadlinePassed(iso);
+    return {
+      bannerTitle: late ? GUILD_INTERVIEW_INVITE_LATE_BANNER_TITLE : GUILD_INTERVIEW_INVITE_BANNER_TITLE,
+      bannerBody: buildGuildInterviewInviteBannerBody(dl, late),
+      questLogNote: buildGuildInterviewInviteQuestLogNote(dl, late),
+    };
+  }, [exploration.guild_endgame_v1, guildInterviewInviteTimerTick]);
+
+  const guildGt102RetrySurface = useMemo(() => {
+    const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+    if (ge.phase !== 'interview_failed_pending_retry' || !ge.application_sealed) return null;
+    return {
+      bannerTitle: GUILD_GT102_RETRY_BANNER_TITLE,
+      bannerBody: GUILD_GT102_RETRY_BANNER_BODY,
+      questLogNote: GUILD_GT102_RETRY_QUEST_LOG_NOTE,
+    };
+  }, [exploration.guild_endgame_v1]);
+
+  /** Post–GT-102 acceptance beat (`guild_accepted_v1`; legacy `interview_passed` migrates in an effect below). */
+  const guildAcceptanceSurface = useMemo(() => {
+    const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+    if (ge.phase !== 'guild_accepted_v1' && ge.phase !== 'interview_passed') return null;
+    return {
+      bannerTitle: GUILD_ACCEPTANCE_BANNER_TITLE,
+      bannerBody: GUILD_ACCEPTANCE_BANNER_BODY,
+      questLogNote: GUILD_ACCEPTANCE_QUEST_LOG_NOTE,
+    };
+  }, [exploration.guild_endgame_v1]);
+
+  const guildPathExplorationBanner = useMemo(
+    () =>
+      guildGt102RetrySurface ??
+      guildInterviewInviteSurface ??
+      guildAcceptanceSurface ??
+      guildBreatherSurface ??
+      null,
+    [guildGt102RetrySurface, guildInterviewInviteSurface, guildAcceptanceSurface, guildBreatherSurface],
+  );
+
+  const guildPathQuestLogNote = useMemo(
+    () =>
+      guildGt102RetrySurface?.questLogNote ??
+      guildInterviewInviteSurface?.questLogNote ??
+      guildAcceptanceSurface?.questLogNote ??
+      guildBreatherSurface?.questLogNote ??
+      null,
+    [guildGt102RetrySurface, guildInterviewInviteSurface, guildAcceptanceSurface, guildBreatherSurface],
+  );
+
+  /** Production: GT-102 with summons + HQ match (return deadline affects scoring, not availability). */
+  const pauseCanOpenGt102 = useMemo(() => {
+    if (!player) return false;
+    const devBypass = import.meta.env.DEV || import.meta.env.VITE_LH_PAUSE_MODULE_SHORTCUTS === 'true';
+    if (devBypass) return false;
+    const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+    if (!ge.interview_invited || !ge.true_path_realm_id) return false;
+    return player.current_realm_id === ge.true_path_realm_id;
+  }, [player, exploration.guild_endgame_v1, guildInterviewInviteTimerTick]);
+
+  /** True when the player may open GT-102 and the HQ return deadline has passed (professionalism lane). */
+  const gt102InterviewArrivalMissedDeadline = useMemo(() => {
+    const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+    const iso = ge.interview_deadline_iso?.trim();
+    if (!ge.interview_invited || !iso) return false;
+    return isGuildInterviewDeadlinePassed(iso);
+  }, [exploration.guild_endgame_v1, guildInterviewInviteTimerTick]);
+
+  useEffect(() => {
+    const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+    if (!ge.interview_invited || !ge.interview_deadline_iso?.trim()) return;
+    const id = window.setInterval(() => {
+      setGuildInterviewInviteTimerTick((n) => n + 1);
+    }, 8000);
+    return () => window.clearInterval(id);
+  }, [exploration.guild_endgame_v1?.interview_invited, exploration.guild_endgame_v1?.interview_deadline_iso]);
+
+  useEffect(() => {
+    const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+    if (!ge.interview_invited || ge.interview_deadline_iso?.trim()) return;
+    if (ge.phase === 'interview_failed_pending_retry') return;
+    const deadlineIso = computeGuildInterviewDeadlineIso();
+    const dl = formatGuildInterviewDeadlineForPlayer(deadlineIso);
+    setExploration((e) =>
+      mergeGuildEndgameIntoExploration(e, {
+        interview_deadline_iso: deadlineIso,
+      }),
+    );
+    setPlayer((p) =>
+      p ? { ...p, required_next_action: buildGuildInterviewInvitedRequiredNextAction(dl) } : p,
+    );
+  }, [exploration.guild_endgame_v1?.interview_invited, exploration.guild_endgame_v1?.interview_deadline_iso]);
+
+  /** Legacy: prior build used `interview_invitation_expired` — normalize back to an open invitation lane. */
+  useEffect(() => {
+    const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+    if (ge.phase !== 'interview_invitation_expired') return;
+    setExploration((e) =>
+      mergeGuildEndgameIntoExploration(e, {
+        phase: 'interview_invited',
+        interview_invited: true,
+        interview_deadline_iso:
+          ge.interview_deadline_iso?.trim() || computeGuildInterviewDeadlineIso(),
+      }),
+    );
+  }, [exploration.guild_endgame_v1?.phase]);
+
+  /** Legacy: `interview_passed` → canonical post-interview acceptance phase. */
+  useEffect(() => {
+    const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+    if (ge.phase !== 'interview_passed' || ge.last_interview_outcome !== 'passed') return;
+    setExploration((e) => mergeGuildEndgameIntoExploration(e, { phase: 'guild_accepted_v1' }));
+    setPlayer((p) =>
+      p ? { ...p, required_next_action: GUILD_ACCEPTANCE_REQUIRED_NEXT_ACTION } : p,
+    );
+  }, [exploration.guild_endgame_v1?.phase, exploration.guild_endgame_v1?.last_interview_outcome]);
 
   const beginDemo = useCallback(async () => {
     setBootstrapPhase('loading');
@@ -260,6 +476,8 @@ export function useNightOneFlow() {
     }
 
     explorationInit = ensureAcademicTasksSeeded(BLUEPRINT.academic_worksheet_tasks, explorationInit);
+    explorationInit = syncGuildTruePathFromPlayerIfUnset(explorationInit, nextPlayer.current_realm_id);
+    explorationInit = mergeGuildHqAtlasRevealedFromRealmProgress(explorationInit, realmProgressInit);
 
     setPlayer(nextPlayer);
     setQuests(reconcileQuestPrerequisites(loadQuestDefinitionsFromJson(nextQuests)));
@@ -361,7 +579,178 @@ export function useNightOneFlow() {
 
   const handleTriggerActivation = useCallback(
     (interactableId: string, triggerMeta: ParsedLhTrigger) => {
-      if (!player || visitedInteractableIds.includes(interactableId)) {
+      if (!player) return;
+
+      const kind = normaliseLhTriggerKind(String(triggerMeta.kind ?? ''));
+      if (kind === 'guild_interview_invite') {
+        if (visitedInteractableIds.includes(interactableId)) return;
+
+        const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+        const triggerRealm = String(triggerMeta.target_realm_id ?? '').trim() || 'realm_aethelwood';
+
+        if (!ge.true_path_realm_id) {
+          setSaveFeedback({
+            tone: 'error',
+            text: 'The porter finds no charter on file. Set your guild headquarters on the world map before claiming a summons.',
+          });
+          return;
+        }
+        if (ge.true_path_realm_id !== triggerRealm) {
+          setSaveFeedback({
+            tone: 'error',
+            text: 'This summons bears another guild’s seal — you are at the wrong hall.',
+          });
+          return;
+        }
+        if (player.current_realm_id !== ge.true_path_realm_id) {
+          setSaveFeedback({
+            tone: 'error',
+            text: 'Your active guild focus does not match this summons. Open the world map and align your charter with this guild.',
+          });
+          return;
+        }
+        if (ge.interview_invited) {
+          const iso = ge.interview_deadline_iso?.trim();
+          const dl = iso ? formatGuildInterviewDeadlineForPlayer(iso) : 'the hour on your summons';
+          const late = Boolean(iso && isGuildInterviewDeadlinePassed(iso));
+          setExploration((e) => mergeGuildHqAtlasRevealed(e, triggerRealm));
+          setSaveFeedback({
+            tone: 'success',
+            text: buildGuildInterviewAlreadySummonsToast(dl, late),
+          });
+          setVisitedInteractableIds((curr) => (curr.includes(interactableId) ? curr : [...curr, interactableId]));
+          return;
+        }
+        if (!ge.application_sealed || ge.phase !== 'breather') {
+          setSaveFeedback({
+            tone: 'error',
+            text: 'The porter has no interview scroll for you yet — finish and seal your application first, then await the Guild’s review.',
+          });
+          return;
+        }
+
+        const deadlineIso = computeGuildInterviewDeadlineIso();
+        const deadlineLabel = formatGuildInterviewDeadlineForPlayer(deadlineIso);
+
+        setExploration((e) =>
+          mergeGuildHqAtlasRevealed(
+            mergeGuildEndgameIntoExploration(e, {
+              interview_invited: true,
+              phase: 'interview_invited',
+              interview_deadline_iso: deadlineIso,
+            }),
+            triggerRealm,
+          ),
+        );
+        setPlayer((p) =>
+          p
+            ? {
+                ...p,
+                required_next_action: buildGuildInterviewInvitedRequiredNextAction(deadlineLabel),
+              }
+            : p,
+        );
+        setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'gq_gt102_trial_of_tongues')));
+        setSaveFeedback({ tone: 'success', text: buildGuildInterviewInviteToast(deadlineLabel) });
+        setVisitedInteractableIds((curr) => (curr.includes(interactableId) ? curr : [...curr, interactableId]));
+        return;
+      }
+
+      if (kind === 'guild_manager_hq') {
+        const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+        const triggerRealm = String(triggerMeta.target_realm_id ?? '').trim() || 'realm_aethelwood';
+
+        if (!ge.true_path_realm_id) {
+          setSaveFeedback({
+            tone: 'error',
+            text: 'The Guild Manager waits for a chosen path. Open the world map and set your active guild headquarters to the guild you intend to walk.',
+          });
+          return;
+        }
+        if (ge.true_path_realm_id !== triggerRealm) {
+          setSaveFeedback({
+            tone: 'error',
+            text: 'This desk belongs to another guild. Travel to your chosen guild headquarters on the map.',
+          });
+          return;
+        }
+        if (player.current_realm_id !== ge.true_path_realm_id) {
+          setSaveFeedback({
+            tone: 'error',
+            text: 'Your charter still lists another guild as active. Open the world map and align your guild focus with this hall before speaking with the manager.',
+          });
+          return;
+        }
+
+        const markDeskVisited = () =>
+          setVisitedInteractableIds((curr) => (curr.includes(interactableId) ? curr : [...curr, interactableId]));
+
+        const revealAtlasForThisHq = () =>
+          setExploration((e) => mergeGuildHqAtlasRevealed(e, triggerRealm));
+
+        if (ge.phase === 'guild_accepted_v1') {
+          revealAtlasForThisHq();
+          setSaveFeedback({ tone: 'success', text: GUILD_MANAGER_DESK_POST_ACCEPTANCE });
+          markDeskVisited();
+          return;
+        }
+        if (ge.phase === 'interview_failed_pending_retry' && ge.application_sealed) {
+          revealAtlasForThisHq();
+          setSaveFeedback({ tone: 'success', text: GUILD_MANAGER_DESK_INTERVIEW_RETRY });
+          markDeskVisited();
+          return;
+        }
+        if (ge.application_sealed && ge.interview_invited) {
+          revealAtlasForThisHq();
+          setSaveFeedback({ tone: 'success', text: GUILD_MANAGER_DESK_SUMMONS_ACTIVE });
+          markDeskVisited();
+          return;
+        }
+        if (ge.application_sealed) {
+          revealAtlasForThisHq();
+          setSaveFeedback({
+            tone: 'success',
+            text: 'The Guild Manager greets you warmly — your application is already on file.',
+          });
+          markDeskVisited();
+          return;
+        }
+        if (ge.application_unlocked) {
+          revealAtlasForThisHq();
+          setSaveFeedback({
+            tone: 'success',
+            text: 'The Guild Manager places the application before you again. Complete the Enrollment Rune while your charter is aligned with this hall.',
+          });
+          setPauseOpen(false);
+          setActiveModuleId('mod_gt101_enrollment_rune');
+          setModuleHostOpen(true);
+          markDeskVisited();
+          return;
+        }
+
+        if (visitedInteractableIds.includes(interactableId)) return;
+
+        setExploration((e) =>
+          mergeGuildHqAtlasRevealed(
+            mergeGuildEndgameIntoExploration(e, {
+              application_unlocked: true,
+              phase: 'application_available',
+            }),
+            triggerRealm,
+          ),
+        );
+        setSaveFeedback({
+          tone: 'success',
+          text: 'Welcome, traveler. The Guild Manager opens the Enrollment Rune and hands you the application for this hall.',
+        });
+        setPauseOpen(false);
+        setActiveModuleId('mod_gt101_enrollment_rune');
+        setModuleHostOpen(true);
+        markDeskVisited();
+        return;
+      }
+
+      if (visitedInteractableIds.includes(interactableId)) {
         return;
       }
 
@@ -411,7 +800,7 @@ export function useNightOneFlow() {
         setVisitedInteractableIds((curr) => (curr.includes(interactableId) ? curr : [...curr, interactableId]));
       }
     },
-    [player, quests, visitedInteractableIds, realm],
+    [player, quests, visitedInteractableIds, realm, exploration.guild_endgame_v1],
   );
 
   const explorationHotspots: ExplorationHotspot[] = useMemo(() => {
@@ -429,11 +818,13 @@ export function useNightOneFlow() {
         hit.kind === 'quest_advance' ||
         hit.kind === 'npc_dialogue' ||
         hit.kind === 'combat_encounter' ||
-        hit.kind === 'vocab_battle',
+        hit.kind === 'vocab_battle' ||
+        hit.kind === 'guild_manager_hq' ||
+        hit.kind === 'guild_interview_invite',
     );
 
     return relevant.map((trigger) => {
-      const interactableId = makeTriggerInteractableId(realm.realm_id, trigger.tiled_object_id);
+      const interactableId = makeTriggerInteractableId(PRIMARY_WORLD_TRIGGER_REALM_ID, trigger.tiled_object_id);
       const completed = visitedInteractableIds.includes(interactableId);
       const { bounds } = trigger;
 
@@ -451,15 +842,15 @@ export function useNightOneFlow() {
         },
       };
     });
-  }, [realm.realm_id, visitedInteractableIds]);
+  }, [visitedInteractableIds]);
 
   const hotspotIndex = useMemo(() => {
     const map = new Map<string, ParsedLhTrigger>();
     PARSED_PRIMARY_MAP.triggers.forEach((trigger) => {
-      map.set(makeTriggerInteractableId(realm.realm_id, trigger.tiled_object_id), trigger);
+      map.set(makeTriggerInteractableId(PRIMARY_WORLD_TRIGGER_REALM_ID, trigger.tiled_object_id), trigger);
     });
     return map;
-  }, [realm.realm_id]);
+  }, []);
 
   useEffect(() => {
     if (screen !== 'explore' || !player) return;
@@ -475,11 +866,7 @@ export function useNightOneFlow() {
           visitedTriggerInteractableIds: visitedInteractableIds,
           exploration_loop: exploration,
           realm_progress: realmProgress,
-          ritual_drafts: {
-            ledger_career_a: ledgerDraft.career_a || undefined,
-            ledger_career_b: ledgerDraft.career_b || undefined,
-            ledger_note: ledgerDraft.note || undefined,
-          },
+          ritual_drafts: ritualDraftsFromLedgerDraft(ledgerDraft),
           save_kind: 'auto',
         });
         await persistManualSaveEnvelope(envelope);
@@ -495,9 +882,7 @@ export function useNightOneFlow() {
     exploration,
     realmProgress,
     visitedInteractableIds,
-    ledgerDraft.career_a,
-    ledgerDraft.career_b,
-    ledgerDraft.note,
+    ledgerDraft,
   ]);
 
   const handleManualSave = useCallback(async () => {
@@ -516,11 +901,7 @@ export function useNightOneFlow() {
       visitedTriggerInteractableIds: visitedInteractableIds,
       exploration_loop: exploration,
       realm_progress: realmProgress,
-      ritual_drafts: {
-        ledger_career_a: ledgerDraft.career_a || undefined,
-        ledger_career_b: ledgerDraft.career_b || undefined,
-        ledger_note: ledgerDraft.note || undefined,
-      },
+      ritual_drafts: ritualDraftsFromLedgerDraft(ledgerDraft),
       save_kind: 'manual',
     });
 
@@ -584,11 +965,7 @@ export function useNightOneFlow() {
       exploration_loop: exploration,
       realm_progress: realmProgress,
       session_summary: sessionSummary,
-      ritual_drafts: {
-        ledger_career_a: ledgerDraft.career_a || undefined,
-        ledger_career_b: ledgerDraft.career_b || undefined,
-        ledger_note: ledgerDraft.note || undefined,
-      },
+      ritual_drafts: ritualDraftsFromLedgerDraft(ledgerDraft),
       save_kind: 'manual',
     });
 
@@ -665,25 +1042,58 @@ export function useNightOneFlow() {
     };
   }, [player]);
 
-  const enterRealmFromWorldMap = useCallback((realmId: string) => {
-    setPlayer((p) => (p ? { ...p, current_realm_id: realmId } : p));
-    setWorldMapOpen(false);
-    setScreen('explore');
-  }, []);
+  /** World map: set active guild/HQ context (does not swap the explorable tilemap). */
+  const enterRealmFromWorldMap = useCallback(
+    (realmId: string) => {
+      const target = getRealmById(allRealms, realmId);
+      if (!target) {
+        setRealmTravelNotice('That realm is not in the canon registry — selection cancelled.');
+        return;
+      }
+      setRealmTravelNotice(null);
+      setPlayer((p) => (p ? { ...p, current_realm_id: realmId } : p));
+      setExploration((e) => {
+        const ge = e.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+        if (ge.application_unlocked || ge.application_sealed) return e;
+        return mergeGuildEndgameIntoExploration(e, {
+          true_path_realm_id: realmId,
+          phase: 'true_path_chosen',
+        });
+      });
+      setWorldMapOpen(false);
+      setScreen('explore');
+    },
+    [allRealms],
+  );
 
-  const clearFogKey = useCallback((key: string) => {
-    setExploration((e) =>
-      e.fog_keys_cleared.includes(key) ? e : { ...e, fog_keys_cleared: [...e.fog_keys_cleared, key] },
-    );
-  }, []);
+  const clearFogKey = useCallback(
+    (key: string) => {
+      const vault = quests.find((q) => q.quest_id === 'mq_act2_vault_of_runes');
+      if (!vault || !isTerminalQuestStatus(vault.status)) return;
+      setExploration((e) =>
+        e.fog_keys_cleared.includes(key) ? e : { ...e, fog_keys_cleared: [...e.fog_keys_cleared, key] },
+      );
+    },
+    [quests],
+  );
 
-  const researchRealm = useCallback((realmId: string) => {
-    setRealmProgress((p) => markResearchComplete(p, realmId));
-  }, []);
+  const researchRealm = useCallback(
+    (realmId: string) => {
+      const vault = quests.find((q) => q.quest_id === 'mq_act2_vault_of_runes');
+      if (!vault || !isTerminalQuestStatus(vault.status)) return;
+      setRealmProgress((p) => markResearchComplete(p, realmId));
+    },
+    [quests],
+  );
 
-  const updateRealmNotes = useCallback((realmId: string, notes: string) => {
-    setRealmProgress((p) => setRealmLearnedNotes(p, realmId, notes));
-  }, []);
+  const updateRealmNotes = useCallback(
+    (realmId: string, notes: string) => {
+      const vault = quests.find((q) => q.quest_id === 'mq_act2_vault_of_runes');
+      if (!vault || !isTerminalQuestStatus(vault.status)) return;
+      setRealmProgress((p) => setRealmLearnedNotes(p, realmId, notes));
+    },
+    [quests],
+  );
 
   const getModuleDraft = useCallback(
     (moduleId: string): Record<string, string> => {
@@ -718,45 +1128,122 @@ export function useNightOneFlow() {
     });
   }, []);
 
-  const applyModuleResult = useCallback(
-    (payload: { module_id: string; quest_id: string; status: string; unlocks?: { kind: string; target_id: string }[] }) => {
-      if (!payload?.module_id) return;
+  const applyModuleResult = useCallback((payload: ModuleResultPayload) => {
+    if (!payload?.module_id) return;
 
-      // Mark the owning quest completed if the module finished in a terminal “success” state.
-      if (payload.quest_id && (payload.status === 'submitted' || payload.status === 'completed' || payload.status === 'passed')) {
-        setQuests((q) => markQuestCompleted(q, payload.quest_id));
-      }
+    if (payload.module_id === 'mod_gt101_enrollment_rune' && payload.status === 'submitted') {
+      setExploration((e) => {
+        const cur = e.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+        const tp =
+          cur.true_path_realm_id ??
+          (typeof payload.realm_id === 'string' && payload.realm_id.trim() ? payload.realm_id.trim() : null);
+        return mergeGuildEndgameIntoExploration(e, {
+          application_sealed: true,
+          phase: 'breather',
+          true_path_realm_id: tp,
+        });
+      });
+      setPlayer((p) =>
+        p
+          ? {
+              ...p,
+              required_next_action: GUILD_GT101_BREATHER_REQUIRED_NEXT_ACTION,
+            }
+          : p,
+      );
+      setSaveFeedback({ tone: 'success', text: GUILD_GT101_BREATHER_SEAL_TOAST });
+    }
 
-      // Handle unlock events for downstream quest/module flow.
-      if (payload.unlocks?.some((u) => u.kind === 'unlock_module' && u.target_id === 'mod_gt102_trial_of_tongues')) {
-        setQuests((q) => forceUnlockQuest(q, 'gq_gt102_trial_of_tongues'));
-        setPlayer((p) =>
-          p
-            ? {
-                ...p,
-                required_next_action: 'Begin GT‑102: Step into the Trial of Tongues.',
-              }
-            : p,
+    if (
+      payload.module_id === 'mod_gt102_trial_of_tongues' &&
+      (payload.status === 'passed' || payload.status === 'failed')
+    ) {
+      if (payload.status === 'passed') {
+        setExploration((e) =>
+          mergeGuildEndgameIntoExploration(e, {
+            last_interview_outcome: 'passed',
+            phase: 'guild_accepted_v1',
+            interview_invited: false,
+            interview_deadline_iso: null,
+          }),
         );
+        setPlayer((p) =>
+          p ? { ...p, required_next_action: GUILD_ACCEPTANCE_REQUIRED_NEXT_ACTION } : p,
+        );
+        setSaveFeedback({ tone: 'success', text: GUILD_ACCEPTANCE_PASS_SEAL_TOAST });
+      } else {
+        setExploration((e) =>
+          mergeGuildEndgameIntoExploration(e, {
+            last_interview_outcome: 'failed',
+            phase: 'interview_failed_pending_retry',
+            interview_invited: true,
+            interview_deadline_iso: null,
+          }),
+        );
+        setPlayer((p) =>
+          p ? { ...p, required_next_action: GUILD_GT102_RETRY_REQUIRED_NEXT_ACTION } : p,
+        );
+        setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'gq_gt102_trial_of_tongues')));
+        setSaveFeedback({ tone: 'success', text: GUILD_GT102_FAIL_SEAL_TOAST });
       }
-    },
-    [],
-  );
+    }
 
-  const submitLedgerEntry = useCallback((partial: Omit<ComparisonLedgerEntry, 'id' | 'created_iso'>) => {
-    const id = `ledger_${Date.now().toString(36)}`;
-    const entry: ComparisonLedgerEntry = {
-      ...partial,
-      id,
-      created_iso: new Date().toISOString(),
-    };
-    setExploration((e) => {
-      const withEntry = { ...e, ledger_entries: [...e.ledger_entries, entry] };
-      return syncComparisonLedgerAcademicTask(BLUEPRINT.academic_worksheet_tasks, withEntry);
-    });
-    setQuests((q) => applyLedgerEntryToQuests(q));
-    setLedgerDraft(emptyLedgerDraft());
+    if (
+      payload.module_id === 'mod_manifest_sod' &&
+      (payload.status === 'completed' || payload.status === 'submitted')
+    ) {
+      const raw = payload.artifacts?.foretold_signpost_realm_ids;
+      if (Array.isArray(raw)) {
+        const allowed = new Set(CANON_REALMS.map((r) => r.realm_id));
+        const ids = normalizeForetoldSignpostRealmIds(
+          raw.filter((x): x is string => typeof x === 'string').map((x) => x.trim()).filter(Boolean),
+          allowed,
+        );
+        if (ids.length === 3) {
+          setExploration((e) => ({ ...e, foretold_signpost_realm_ids: ids }));
+        }
+      }
+    }
+
+    // Mark the owning quest completed if the module finished in a terminal “success” state.
+    if (payload.quest_id && (payload.status === 'submitted' || payload.status === 'completed' || payload.status === 'passed')) {
+      setQuests((q) => markQuestCompleted(q, payload.quest_id));
+    }
+
+    // Guild interview unlock is deferred to `guild_endgame_v1` gates (interview_invited + HQ; deadline affects GT-102 scoring), not GT-101 unlock shortcuts.
   }, []);
+
+  const submitLedgerEntry = useCallback(
+    (partial: Omit<ComparisonLedgerEntry, 'id' | 'created_iso'>) => {
+      const vault = quests.find((q) => q.quest_id === 'mq_act2_vault_of_runes');
+      if (!vault || !isTerminalQuestStatus(vault.status)) return;
+      const id = `ledger_${Date.now().toString(36)}`;
+      const entry: ComparisonLedgerEntry = {
+        ...partial,
+        id,
+        created_iso: new Date().toISOString(),
+      };
+      setExploration((e) => {
+        const withEntry = { ...e, ledger_entries: [...e.ledger_entries, entry] };
+        return syncComparisonLedgerAcademicTask(BLUEPRINT.academic_worksheet_tasks, withEntry);
+      });
+      const entriesAfter = [...exploration.ledger_entries, entry];
+      const scrollMs = signpostLedgerMilestone(entriesAfter, exploration.foretold_signpost_realm_ids);
+      setQuests((q) => {
+        let next = applyLedgerEntryToQuests(q);
+        const act3q = next.find((x) => x.quest_id === 'gq_act3_fog_of_unknown');
+        if (act3q && (act3q.status === 'available' || act3q.status === 'active')) {
+          const fogLedgerReady = !scrollMs.guidesMilestone || scrollMs.milestoneComplete;
+          if (fogLedgerReady) {
+            next = markQuestCompleted(next, 'gq_act3_fog_of_unknown');
+          }
+        }
+        return next;
+      });
+      setLedgerDraft(emptyLedgerDraft());
+    },
+    [quests, exploration.ledger_entries, exploration.foretold_signpost_realm_ids],
+  );
 
   const applyAcademicTasks = useCallback((nextTasks: NonNullable<ExplorationLoopState['academic_tasks']>) => {
     setExploration((e) => ({ ...e, academic_tasks: nextTasks }));
@@ -774,6 +1261,8 @@ export function useNightOneFlow() {
   }, []);
 
   const markActiveWaypointVisited = useCallback(() => {
+    const vault = quests.find((q) => q.quest_id === 'mq_act2_vault_of_runes');
+    if (!vault || !isTerminalQuestStatus(vault.status)) return;
     setExploration((e) => {
       const wp = selectActiveWaypoint(PARSED_PRIMARY_MAP.waypoints, e.waypoint_keys_visited);
       if (!wp) return e;
@@ -781,7 +1270,7 @@ export function useNightOneFlow() {
       if (e.waypoint_keys_visited.includes(k)) return e;
       return { ...e, waypoint_keys_visited: [...e.waypoint_keys_visited, k] };
     });
-  }, []);
+  }, [quests]);
 
   const markQuestTurnedIn = useCallback((questId: string) => {
     setQuests((q) => reconcileQuestPrerequisites(markQuestTurnedInOnList(q, questId)));
@@ -793,13 +1282,21 @@ export function useNightOneFlow() {
       const coerced = coerceExplorationLoop(remote.exploration_loop);
       if (coerced) explorationInit = coerced;
     }
+    const realmProgressMerged = remote.realm_progress ? mergeRealmProgressMaps({}, remote.realm_progress) : {};
+    explorationInit = mergeGuildHqAtlasRevealedFromRealmProgress(
+      syncGuildTruePathFromPlayerIfUnset(
+        ensureAcademicTasksSeeded(BLUEPRINT.academic_worksheet_tasks, explorationInit),
+        remote.player.current_realm_id,
+      ),
+      realmProgressMerged,
+    );
     setPlayer(remote.player);
     setQuests((q) =>
       reconcileQuestPrerequisites(loadQuestDefinitionsFromJson(remote.quests.length ? remote.quests : q)),
     );
     setVisitedInteractableIds(remote.progression_flags.visited_trigger_object_ids);
-    setRealmProgress(remote.realm_progress ? mergeRealmProgressMaps({}, remote.realm_progress) : {});
-    setExploration(ensureAcademicTasksSeeded(BLUEPRINT.academic_worksheet_tasks, explorationInit));
+    setRealmProgress(realmProgressMerged);
+    setExploration(explorationInit);
   }, []);
 
   const handleTeacherUnlockQuest = useCallback(
@@ -859,7 +1356,12 @@ export function useNightOneFlow() {
         setQuests(local.quests);
         setVisitedInteractableIds(local.visited);
         setRealmProgress(local.realmProgress);
-        setExploration(ensureAcademicTasksSeeded(BLUEPRINT.academic_worksheet_tasks, local.exploration));
+        setExploration(
+          mergeGuildHqAtlasRevealedFromRealmProgress(
+            ensureAcademicTasksSeeded(BLUEPRINT.academic_worksheet_tasks, local.exploration),
+            local.realmProgress,
+          ),
+        );
         setSaveFeedback({ tone: 'success', text: 'Restored from local backup snapshot.' });
         return;
       }
@@ -957,24 +1459,25 @@ export function useNightOneFlow() {
   const handleTeacherOverrideGt102 = useCallback(
     (outcome: 'passed' | 'failed') => {
       if (!player) return;
+      const nowIso = new Date().toISOString();
       if (outcome === 'passed') {
         applyModuleResult({
           module_id: 'mod_gt102_trial_of_tongues',
           quest_id: 'gq_gt102_trial_of_tongues',
+          realm_id: player.current_realm_id,
           status: 'passed',
+          completed_at_iso: nowIso,
         });
         setSaveFeedback({ tone: 'success', text: 'GT-102 override applied: passed.' });
         return;
       }
-      setQuests((q) => forceUnlockQuest(q, 'gq_gt102_trial_of_tongues'));
-      setPlayer((p) =>
-        p
-          ? {
-              ...p,
-              required_next_action: 'Retry GT‑102: return to the Trial of Tongues.',
-            }
-          : p,
-      );
+      applyModuleResult({
+        module_id: 'mod_gt102_trial_of_tongues',
+        quest_id: 'gq_gt102_trial_of_tongues',
+        realm_id: player.current_realm_id,
+        status: 'failed',
+        completed_at_iso: nowIso,
+      });
       setSaveFeedback({ tone: 'success', text: 'GT-102 override applied: failed (quest set to available).' });
     },
     [player, applyModuleResult],
@@ -1017,6 +1520,7 @@ export function useNightOneFlow() {
     closeRealmAtlas: () => setRealmAtlasOpen(false),
     openWorldMap: () => {
       setPauseOpen(false);
+      setRealmTravelNotice(null);
       setWorldMapOpen(true);
     },
     closeWorldMap: () => setWorldMapOpen(false),
@@ -1031,6 +1535,47 @@ export function useNightOneFlow() {
     },
     closeInventory: () => setInventoryOpen(false),
     openModule: (moduleId: string) => {
+      const devBypass = import.meta.env.DEV || import.meta.env.VITE_LH_PAUSE_MODULE_SHORTCUTS === 'true';
+      if (moduleId === 'mod_gt101_enrollment_rune' && player && !devBypass) {
+        const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+        if (!ge.application_unlocked || ge.application_sealed) {
+          setPauseOpen(false);
+          setSaveFeedback({
+            tone: 'error',
+            text: ge.application_sealed
+              ? 'Your guild application is already filed.'
+              : 'Meet your Guild Manager in person at your chosen headquarters on the map before opening the application.',
+          });
+          return;
+        }
+        if (player.current_realm_id !== ge.true_path_realm_id) {
+          setPauseOpen(false);
+          setSaveFeedback({
+            tone: 'error',
+            text: 'Return to your chosen guild headquarters on the map (set your active guild HQ on the world map to match), then open the application again.',
+          });
+          return;
+        }
+      }
+      if (moduleId === 'mod_gt102_trial_of_tongues' && player && !devBypass) {
+        const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+        if (!ge.interview_invited) {
+          setPauseOpen(false);
+          setSaveFeedback({
+            tone: 'error',
+            text: 'You have not been handed the Guild’s interview summons yet — visit your guild hall on the map after your papers are in review.',
+          });
+          return;
+        }
+        if (player.current_realm_id !== ge.true_path_realm_id) {
+          setPauseOpen(false);
+          setSaveFeedback({
+            tone: 'error',
+            text: 'Return to your chosen guild headquarters on the map (charter must match this hall) before opening the Trial of Tongues.',
+          });
+          return;
+        }
+      }
       setPauseOpen(false);
       setActiveModuleId(moduleId);
       setModuleHostOpen(true);
@@ -1064,11 +1609,17 @@ export function useNightOneFlow() {
     questLogOpen,
     saveFeedback,
     explorationHotspots,
+    pauseCanOpenGt101,
+    pauseCanOpenGt102,
+    gt102InterviewArrivalMissedDeadline,
+    guildPathExplorationBanner,
+    guildPathQuestLogNote,
 
     navigate,
 
     realmAtlasOpen,
     worldMapOpen,
+    realmTravelNotice,
     academicWorksheetsOpen,
     inventoryOpen,
     moduleHostOpen,
@@ -1086,8 +1637,13 @@ export function useNightOneFlow() {
       fogTotal: PARSED_PRIMARY_MAP.fog_regions.length,
       waypointVisited: exploration.waypoint_keys_visited.length,
       waypointTotal: PARSED_PRIMARY_MAP.waypoints.length,
+      scrollLedgerMilestone: (() => {
+        const m = signpostLedgerMilestone(exploration.ledger_entries, exploration.foretold_signpost_realm_ids);
+        return m.guidesMilestone ? { covered: m.covered, total: m.total } : null;
+      })(),
     },
     enterRealmFromWorldMap,
+    primaryWorldTriggerRealmId: PRIMARY_WORLD_TRIGGER_REALM_ID,
     clearFogKey,
     researchRealm,
     updateRealmNotes,

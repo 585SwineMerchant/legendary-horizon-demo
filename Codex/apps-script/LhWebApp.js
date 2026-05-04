@@ -69,6 +69,31 @@ function doPost(e) {
       return lhWebJsonOutput_(out);
     }
 
+    if (action === 'list_roster' || action === 'listroster') {
+      var filters = body.filters && typeof body.filters === 'object' ? body.filters : {};
+      var tabRoster = body.tab_roster || null;
+      var roster = LhRoster_listRoster(spreadsheetId, tabRoster, filters);
+      if (!roster.ok) {
+        out.error = roster.error || 'list_roster_failed';
+        return lhWebJsonOutput_(out);
+      }
+      out.ok = true;
+      out.roster = roster.roster || [];
+      return lhWebJsonOutput_(out);
+    }
+
+    if (action === 'list_player_summaries' || action === 'listplayersummaries') {
+      var sumFilters = body.filters && typeof body.filters === 'object' ? body.filters : {};
+      var sums = LhSave_listPlayerSummaries(spreadsheetId, tabPlayer, sumFilters);
+      if (!sums.ok) {
+        out.error = sums.error || 'list_player_summaries_failed';
+        return lhWebJsonOutput_(out);
+      }
+      out.ok = true;
+      out.players = sums.players || [];
+      return lhWebJsonOutput_(out);
+    }
+
     if (action === 'session_end' || action === 'sessionend') {
       var sid = body.player_id;
       if (!sid) {

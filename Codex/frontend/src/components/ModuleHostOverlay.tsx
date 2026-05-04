@@ -6,6 +6,8 @@ import { ManifestSodModule } from '../modules/manifest/ManifestSodModule';
 import { OracleOfFateModule } from '../modules/act2/OracleOfFateModule';
 import { VaultOfRunesModule } from '../modules/act2/VaultOfRunesModule';
 
+type ManifestRealmPick = { realm_id: string; label: string };
+
 type Props = {
   open: boolean;
   moduleId: string | null;
@@ -15,6 +17,10 @@ type Props = {
   onDraftChange: (patch: Partial<Record<string, string>>) => void;
   playerId: string;
   realmId: string;
+  /** When set, GT-102 applies a punctuality penalty toward passage (return deadline passed). */
+  gt102InterviewArrivalMissedDeadline?: boolean;
+  /** Canon realm rows for Manifest Scroll — Foretold Signposts selects. */
+  manifestRealmPickList?: readonly ManifestRealmPick[];
 };
 
 export function ModuleHostOverlay({
@@ -26,6 +32,8 @@ export function ModuleHostOverlay({
   onDraftChange,
   playerId,
   realmId,
+  gt102InterviewArrivalMissedDeadline = false,
+  manifestRealmPickList = [],
 }: Props) {
   useEscapeToClose(open, onClose);
   if (!open || !moduleId) return null;
@@ -55,12 +63,18 @@ export function ModuleHostOverlay({
           <TrialOfTonguesModule
             playerId={playerId}
             realmId={realmId}
+            interviewArrivalMissedDeadline={gt102InterviewArrivalMissedDeadline}
             draft={draft}
             onDraftChange={onDraftChange}
             onSubmitResult={onSubmitResult}
           />
         ) : moduleId === 'mod_manifest_sod' ? (
-          <ManifestSodModule draft={draft} onDraftChange={onDraftChange} onSubmitResult={onSubmitResult} />
+          <ManifestSodModule
+            draft={draft}
+            onDraftChange={onDraftChange}
+            onSubmitResult={onSubmitResult}
+            canonRealmPickList={manifestRealmPickList}
+          />
         ) : moduleId === 'mod_oracle_of_fate' ? (
           <OracleOfFateModule draft={draft} onDraftChange={onDraftChange} onSubmitResult={onSubmitResult} />
         ) : moduleId === 'mod_vault_of_runes' ? (

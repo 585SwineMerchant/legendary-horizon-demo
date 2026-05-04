@@ -18,5 +18,6 @@ export function tryQuestLinkedEncounterWin(
     return { nextPlayer: player, nextQuests: quests, advanced: false };
   }
   const { nextPlayer, nextQuests } = completeDemoShrineVisit(player, quests, targetQuestId);
-  return { nextPlayer, nextQuests, advanced: true };
+  const advanced = nextQuests !== quests;
+  return { nextPlayer, nextQuests, advanced };
 }

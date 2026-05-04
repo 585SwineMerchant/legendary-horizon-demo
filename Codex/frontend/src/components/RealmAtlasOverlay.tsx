@@ -1,17 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
-import { LhCatalogImage } from './LhCatalogImage';
-import { isImageLikeMediaKind } from '../lib/mediaKinds';
+import { GuildRealmInfoOverlay } from './GuildRealmInfoOverlay';
+import type { ClassroomToolHandlers } from '../services/classroomToolLaunches';
 import type { MediaAssetRecord, QuestDefinition, RealmDefinition } from '../types';
-import {
-  countQuestHooksForRealm,
-  getCareerClusterLabel,
-  getGuildHqLabel,
-  getRealmIntroBody,
-  sortRealmsCanon,
-} from '../realm/realmRegistry';
-import { listMediaAssetsForRealm } from '../realm/realmAssets';
+import { buildRealmAtlasImageSrcCandidates, getAtlasPinPlacementForRealm } from '../realm/atlasWorldMap';
+import { sortRealmsCanon } from '../realm/realmRegistry';
 import type { RealmProgressMap } from '../realm/realmProgress';
 
 type Props = {
@@ -22,7 +16,25 @@ type Props = {
   quests: QuestDefinition[];
   mediaCatalog: readonly MediaAssetRecord[];
   realmProgress: RealmProgressMap;
+  /** Guild HQ `realm_id`s charted on the atlas (persisted); unfogged pins are interactive. */
+  guildHqAtlasRevealedRealmIds: readonly string[];
+  /** Scroll of Destiny — Foretold Signposts (canon `realm_id`s); emphasizes revealed pins. */
+  foretoldSignpostRealmIds?: readonly string[];
+  /** External research / classroom shortcuts (journal layer only). */
+  classroomTools: ClassroomToolHandlers | null;
+  /**
+   * When the World Atlas opens, optionally show this realm’s Guild Info full-screen first (must already be revealed).
+   * Parent should clear via `onInitialGuildInfoConsumed` after mount so reopening the atlas does not replay the sheet.
+   */
+  initialGuildInfoRealmId?: string | null;
+  onInitialGuildInfoConsumed?: () => void;
 };
+
+function truncateLabel(name: string, max = 22): string {
+  const t = name.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1)}…`;
+}
 
 export function RealmAtlasOverlay({
   open,
@@ -32,108 +44,185 @@ export function RealmAtlasOverlay({
   quests,
   mediaCatalog,
   realmProgress,
+  guildHqAtlasRevealedRealmIds,
+  foretoldSignpostRealmIds = [],
+  classroomTools,
+  initialGuildInfoRealmId = null,
+  onInitialGuildInfoConsumed,
 }: Props) {
   const ordered = useMemo(() => sortRealmsCanon(realms), [realms]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-
-  const selected = useMemo(
-    () => ordered.find((r) => r.realm_id === (selectedId ?? currentRealmId)) ?? ordered[0],
-    [ordered, selectedId, currentRealmId],
+  const revealedSet = useMemo(
+    () => new Set(guildHqAtlasRevealedRealmIds.map((id) => String(id || '').trim()).filter(Boolean)),
+    [guildHqAtlasRevealedRealmIds],
   );
-  useEscapeToClose(open, onClose);
+  const signpostSet = useMemo(
+    () => new Set(foretoldSignpostRealmIds.map((id) => String(id || '').trim()).filter(Boolean)),
+    [foretoldSignpostRealmIds],
+  );
+  const [guildInfoRealmId, setGuildInfoRealmId] = useState<string | null>(null);
+  const initialGuildInfoHandledRef = useRef(false);
+  const atlasSrcCandidates = useMemo(() => buildRealmAtlasImageSrcCandidates(), []);
+  const [atlasSrcIndex, setAtlasSrcIndex] = useState(0);
+
+  useEffect(() => {
+    if (!open) {
+      initialGuildInfoHandledRef.current = false;
+      setGuildInfoRealmId(null);
+      return;
+    }
+    if (initialGuildInfoHandledRef.current) return;
+    const raw = String(initialGuildInfoRealmId ?? '').trim();
+    if (!raw || !revealedSet.has(raw)) return;
+    initialGuildInfoHandledRef.current = true;
+    setGuildInfoRealmId(raw);
+    onInitialGuildInfoConsumed?.();
+  }, [open, initialGuildInfoRealmId, revealedSet, onInitialGuildInfoConsumed]);
+
+  useEffect(() => {
+    if (open) setAtlasSrcIndex(0);
+  }, [open]);
+
+  const { chartedCanonCount, charterTrailCanonCount } = useMemo(() => {
+    let charted = 0;
+    let trail = 0;
+    for (const r of ordered) {
+      if (revealedSet.has(r.realm_id)) charted += 1;
+      if (realmProgress[r.realm_id]?.entered) trail += 1;
+    }
+    return { chartedCanonCount: charted, charterTrailCanonCount: trail };
+  }, [ordered, revealedSet, realmProgress]);
+
+  const guildInfoRealm = useMemo(() => {
+    if (!guildInfoRealmId) return null;
+    return ordered.find((r) => r.realm_id === guildInfoRealmId) ?? null;
+  }, [ordered, guildInfoRealmId]);
+
+  useEscapeToClose(open && !guildInfoRealmId, onClose);
+  useEscapeToClose(open && Boolean(guildInfoRealmId), () => setGuildInfoRealmId(null));
 
   if (!open) return null;
 
-  const questCount = selected ? countQuestHooksForRealm(quests, selected.realm_id) : 0;
-  const mediaHits = selected ? listMediaAssetsForRealm(mediaCatalog, selected.realm_id) : [];
-  const visited = selected ? Boolean(realmProgress[selected.realm_id]?.entered) : false;
+  const revealedCount = revealedSet.size;
+  const n = ordered.length;
+  const atlasImgSrc = atlasSrcCandidates[Math.min(atlasSrcIndex, atlasSrcCandidates.length - 1)];
 
   return (
-    <div className="lh-overlay lh-overlay--dim" role="dialog" aria-label="Realm atlas">
-      <div className="lh-panel lh-panel--atlas">
-        <header className="lh-atlas__header">
+    <div className="lh-overlay lh-overlay--dim lh-overlay--atlas-full" role="dialog" aria-label="World Atlas">
+      <div className="lh-world-atlas">
+        <header className="lh-world-atlas__header">
           <div>
-            <p className="lh-eyebrow">Milestone 6 — Canon realms</p>
-            <h2 className="lh-heading-md">Realm atlas</h2>
+            <p className="lh-eyebrow">World Atlas</p>
+            <h2 className="lh-heading-md">Fog of the Unknown</h2>
+            <p className="lh-atlas__meta lh-world-atlas__lede">
+              Your illustrated reference map for the whole world. Shrouded markers are halls not yet charted; bright pins
+              are unlocked research entries (Act III guild HQs are research hubs only here — not manager trials). Tap a
+              revealed pin for the full guild research sheet. Fog applies only on this atlas. Use Pause → Charter & HQ
+              ledger for charter focus and notes.
+            </p>
+            <p className="lh-atlas__meta lh-atlas__journal-strip" aria-live="polite">
+              <strong>Expedition record:</strong> {chartedCanonCount} of {n} canon halls charted ·{' '}
+              <strong>Charter trail:</strong> {charterTrailCanonCount} realm(s) carry session notes from past focus
+            </p>
+            {signpostSet.size ? (
+              <p className="lh-atlas__meta lh-atlas__signpost-strip" role="note">
+                <strong>Foretold Signposts (Scroll):</strong>{' '}
+                {foretoldSignpostRealmIds
+                  .map((id) => ordered.find((r) => r.realm_id === id)?.display_name ?? id)
+                  .join(' · ')}
+                . Chart these halls on the atlas first when they appear.
+              </p>
+            ) : null}
           </div>
           <button type="button" className="lh-button lh-button--ghost" onClick={onClose}>
             Close
           </button>
         </header>
 
-        <div className="lh-atlas__layout">
-          <div className="lh-atlas__grid" role="list">
-            {ordered.map((r) => {
+        <div className="lh-atlas__map-shell lh-atlas__map-shell--world-fill">
+          <div
+            className="lh-atlas__map-plate lh-atlas__map-plate--world-art lh-atlas__map-plate--fill-height"
+            role="presentation"
+            aria-label="Illustrated world atlas with guild hall markers"
+          >
+            <img
+              className="lh-atlas__map-plate-img"
+              src={atlasImgSrc}
+              alt=""
+              aria-hidden
+              decoding="async"
+              draggable={false}
+              referrerPolicy="no-referrer"
+              onError={() => {
+                setAtlasSrcIndex((i) => (i + 1 < atlasSrcCandidates.length ? i + 1 : i));
+              }}
+            />
+            <div className="lh-atlas__map-plate__veil" aria-hidden="true" />
+            {revealedCount === 0 ? (
+              <div className="lh-atlas__map-empty-hint">
+                <p className="lh-atlas__map-empty-title">No halls charted yet</p>
+                <p className="lh-atlas__map-empty-body">
+                  Visit a guild HQ in play to unlock its research entry — you will see the guild sheet first, then this
+                  World Atlas opens with the reveal. Until then, align charter focus while exploring or use hall staff
+                  encounters when available.
+                </p>
+              </div>
+            ) : null}
+            {ordered.map((r, idx) => {
+              const { leftPct, topPct } = getAtlasPinPlacementForRealm(r.realm_id, idx, n);
+              const slotStyle: CSSProperties = {
+                left: `${leftPct}%`,
+                top: `${topPct}%`,
+              };
+              const revealed = revealedSet.has(r.realm_id);
               const isCurrent = r.realm_id === currentRealmId;
-              const isSel = r.realm_id === selected.realm_id;
-              const wasHere = Boolean(realmProgress[r.realm_id]?.entered);
+              const infoOpen = guildInfoRealmId === r.realm_id;
+
+              if (!revealed) {
+                return (
+                  <div key={r.realm_id} className="lh-atlas-pin-slot lh-atlas-pin-slot--fog" style={slotStyle}>
+                    <div
+                      role="presentation"
+                      className="lh-atlas-pin lh-atlas-pin--fog"
+                      title="Not charted in your expedition save yet"
+                    >
+                      <span className="lh-atlas-pin__fog-core" />
+                    </div>
+                  </div>
+                );
+              }
+
               return (
-                <button
-                  key={r.realm_id}
-                  type="button"
-                  role="listitem"
-                  className={`lh-realm-card ${isSel ? 'lh-realm-card--selected' : ''} ${isCurrent ? 'lh-realm-card--current' : ''}`}
-                  onClick={() => setSelectedId(r.realm_id)}
-                >
-                  <span className="lh-realm-card__name">{r.display_name}</span>
-                  <span className="lh-realm-card__hq">{r.guild_headquarters}</span>
-                  {isCurrent ? <span className="lh-realm-card__badge">Current</span> : null}
-                  {wasHere && !isCurrent ? <span className="lh-realm-card__badge lh-realm-card__badge--muted">Visited</span> : null}
-                </button>
+                <div key={r.realm_id} className="lh-atlas-pin-slot" style={slotStyle}>
+                  <button
+                    type="button"
+                    role="listitem"
+                    className={`lh-atlas-pin lh-atlas-pin--revealed ${infoOpen ? 'lh-atlas-pin--selected' : ''} ${isCurrent ? 'lh-atlas-pin--charter' : ''} ${signpostSet.has(r.realm_id) ? 'lh-atlas-pin--signpost' : ''}`}
+                    title={`${r.display_name} — ${r.guild_headquarters}`}
+                    onClick={() => setGuildInfoRealmId(r.realm_id)}
+                  >
+                    <span className="lh-atlas-pin__glyph" aria-hidden="true" />
+                    <span className="lh-atlas-pin__label">{truncateLabel(r.display_name)}</span>
+                    {isCurrent ? <span className="lh-atlas-pin__ribbon">Charter</span> : null}
+                    {signpostSet.has(r.realm_id) ? (
+                      <span className="lh-atlas-pin__ribbon lh-atlas-pin__ribbon--signpost">Scroll</span>
+                    ) : null}
+                  </button>
+                </div>
               );
             })}
           </div>
-
-          {selected ? (
-            <aside className="lh-atlas__detail">
-              <h3 className="lh-heading-md">{selected.display_name}</h3>
-              <p className="lh-atlas__meta">
-                <strong>Career cluster:</strong> {getCareerClusterLabel(selected)}
-              </p>
-              <p className="lh-atlas__meta">
-                <strong>Guild headquarters:</strong> {getGuildHqLabel(selected)}
-              </p>
-              <section className="lh-atlas__intro" aria-label="Realm introduction">
-                <h4 className="lh-heading-sm">Realm introduction</h4>
-                <p className="lh-atlas__intro-body">{getRealmIntroBody(selected)}</p>
-              </section>
-              <section className="lh-atlas__hooks" aria-label="Realm hooks">
-                <h4 className="lh-heading-sm">Quest hooks</h4>
-                <p className="lh-atlas__meta">{questCount} quest definition(s) reference this realm in fixture data.</p>
-              </section>
-              <section className="lh-atlas__hooks" aria-label="Realm assets">
-                <h4 className="lh-heading-sm">Media bundle (fixture)</h4>
-                <p className="lh-atlas__meta">
-                  {mediaHits.length} catalog row(s) — global assets plus rows tagged for <code className="lh-code-inline">{selected.realm_id}</code>.
-                </p>
-                {visited ? (
-                  <p className="lh-atlas__meta lh-atlas__meta--success">Exploration progress: entered this realm this session.</p>
-                ) : (
-                  <p className="lh-atlas__meta">Exploration progress: not yet visited this session.</p>
-                )}
-                {mediaHits.some((m) => isImageLikeMediaKind(m.kind)) ? (
-                  <ul className="lh-atlas__media-thumbs" aria-label="Image previews from catalog">
-                    {mediaHits
-                      .filter((m) => isImageLikeMediaKind(m.kind))
-                      .map((m) => (
-                        <li key={m.asset_id} className="lh-atlas__media-thumb">
-                          <LhCatalogImage
-                            assetId={m.asset_id}
-                            alt={m.description || m.asset_id}
-                            catalog={mediaCatalog}
-                            loading="lazy"
-                            className="lh-atlas__media-thumb-img"
-                          />
-                          <span className="lh-atlas__media-thumb-id">{m.asset_id}</span>
-                        </li>
-                      ))}
-                  </ul>
-                ) : null}
-              </section>
-            </aside>
-          ) : null}
         </div>
       </div>
+
+      <GuildRealmInfoOverlay
+        open={Boolean(guildInfoRealm)}
+        realm={guildInfoRealm}
+        onClose={() => setGuildInfoRealmId(null)}
+        quests={quests}
+        mediaCatalog={mediaCatalog}
+        realmProgress={realmProgress}
+        classroomTools={classroomTools}
+      />
     </div>
   );
 }

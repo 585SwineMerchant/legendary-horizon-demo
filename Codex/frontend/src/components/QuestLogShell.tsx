@@ -9,6 +9,8 @@ type Props = {
   onClose: () => void;
   quests: QuestDefinition[];
   onMarkQuestTurnedIn?: (questId: string) => void;
+  /** Guild endgame — optional note when application is in breather / review. */
+  guildPathBreatherNote?: string | null;
 };
 
 const GROUP_LABEL: Record<QuestLogGroupKey, string> = {
@@ -51,7 +53,7 @@ function QuestCard({
   );
 }
 
-export function QuestLogShell({ open, onClose, quests, onMarkQuestTurnedIn }: Props) {
+export function QuestLogShell({ open, onClose, quests, onMarkQuestTurnedIn, guildPathBreatherNote }: Props) {
   const groups = useMemo(() => groupQuestsForQuestLog(quests), [quests]);
   useEscapeToClose(open, onClose);
 
@@ -91,6 +93,11 @@ export function QuestLogShell({ open, onClose, quests, onMarkQuestTurnedIn }: Pr
             );
           })}
         </div>
+        {guildPathBreatherNote ? (
+          <aside className="lh-quest-log__breather-note" role="note">
+            <p>{guildPathBreatherNote}</p>
+          </aside>
+        ) : null}
         <footer className="lh-quest-log__footer">
           <p>
             Stuck? Use <strong>Pause → World map</strong> for realms and fog, and <strong>Research worksheets</strong> for

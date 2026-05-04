@@ -88,6 +88,7 @@ var LH_ITEM_DEF_HEADERS = {
 /** Media tab — core columns plus optional filters for AssetService.getRealmAssets / getNpcAssets. */
 var LH_MEDIA_HEADERS = {
   asset_id: 'asset_id',
+  /** image, portrait, map_thumb, banner, ui, audio, … — use `guild_hq` for guild hall hero plates (Codex `resolveGuildHqHeroAsset`). */
   kind: 'kind',
   description: 'description',
   drive_file_id: 'drive_file_id',

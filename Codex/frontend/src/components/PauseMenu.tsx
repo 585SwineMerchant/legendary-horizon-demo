@@ -28,6 +28,10 @@ type Props = {
   onOpenVaultOfRunes?: () => void;
   onOpenRealmAtlas?: () => void;
   onOpenWorldMap?: () => void;
+  /** Native tooltip for the charter / world map button (reflects narrative unlock state). */
+  charterWorldMapTooltip?: string;
+  /** Shown under the charter / world map control when Act III map tools are still gated. */
+  charterWorldMapHint?: string;
   onOpenInventory?: () => void;
   onSave: () => void;
   /** Milestone 9 — save + session history + exit ticket + Sheets exit_ticket_state. */
@@ -54,6 +58,8 @@ export function PauseMenu({
   onOpenVaultOfRunes,
   onOpenRealmAtlas,
   onOpenWorldMap,
+  charterWorldMapTooltip,
+  charterWorldMapHint,
   onOpenInventory,
   onSave,
   onEndSession,
@@ -126,13 +132,21 @@ export function PauseMenu({
             <div className="lh-stack">
               {onOpenRealmAtlas ? (
                 <button type="button" className="lh-button lh-button--secondary" onClick={onOpenRealmAtlas}>
-                  Realm atlas
+                  World Atlas
                 </button>
               ) : null}
               {onOpenWorldMap ? (
-                <button type="button" className="lh-button lh-button--secondary" onClick={onOpenWorldMap}>
-                  World map
+                <button
+                  type="button"
+                  className="lh-button lh-button--secondary"
+                  onClick={onOpenWorldMap}
+                  title={charterWorldMapTooltip ?? 'Open the charter and guild ledger overlay.'}
+                >
+                  Charter & HQ ledger
                 </button>
+              ) : null}
+              {charterWorldMapHint && onOpenWorldMap ? (
+                <p className="lh-pause-access-hint">{charterWorldMapHint}</p>
               ) : null}
               {onResearchWorksheets ? (
                 <button type="button" className="lh-button lh-button--secondary" onClick={onResearchWorksheets}>

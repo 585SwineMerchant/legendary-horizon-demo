@@ -448,6 +448,90 @@ function LhSave_readPlayerSave(spreadsheetId, tabNameOverride, playerId) {
 }
 
 /**
+ * Lists lightweight progress summaries for the teacher dashboard.
+ * This avoids parsing JSON blobs and only reads headline columns when present.
+ *
+ * @param {string} spreadsheetId
+ * @param {string | null} tabNameOverride
+ * @param {{ player_ids?: string[], limit?: number }} filters
+ * @returns {{ ok: boolean, players?: object[], error?: string }}
+ */
+function LhSave_listPlayerSummaries(spreadsheetId, tabNameOverride, filters) {
+  try {
+    var tab = tabNameOverride || LH_SCHEMA.PLAYER_SAVE_TAB;
+    var sheet = lhSheetGetOrThrow_(spreadsheetId, tab);
+    var headerMap = lhSheetReadHeaderMap_(sheet);
+    var rows = lhSheetReadTable_(sheet);
+    if (!rows || rows.length < 2) {
+      return { ok: true, players: [] };
+    }
+
+    var limit = filters && filters.limit ? Number(filters.limit) : 500;
+    if (!limit || limit < 1) limit = 500;
+    if (limit > 2000) limit = 2000;
+
+    var want = null;
+    if (filters && filters.player_ids && Array.isArray(filters.player_ids)) {
+      want = {};
+      for (var i = 0; i < filters.player_ids.length; i++) {
+        var pid = String(filters.player_ids[i] || '').trim();
+        if (pid) want[pid] = true;
+      }
+    }
+
+    function idx(headerKey) {
+      var h = LH_PLAYER_SAVE_HEADERS[headerKey];
+      return headerMap[h];
+    }
+
+    var idxPid = idx('player_id');
+    if (idxPid === undefined) {
+      return { ok: false, error: 'player_id_column_missing' };
+    }
+
+    var idxDisplay = idx('display_name');
+    var idxAct = idx('current_act');
+    var idxRealm = idx('current_realm_id');
+    var idxNext = idx('required_next_action');
+    var idxQuest = idx('active_main_quest_id');
+    var idxQuestTitle = idx('active_main_quest_title');
+    var idxXp = idx('xp_total');
+    var idxLevel = idx('level_cached');
+    var idxLastManual = idx('last_manual_save_iso');
+    var idxExit = idx('exit_ticket_state');
+
+    var out = [];
+    for (var r = 1; r < rows.length; r++) {
+      if (out.length >= limit) break;
+      var row = rows[r] || [];
+      var playerId = String(row[idxPid] || '').trim();
+      if (!playerId) continue;
+      if (want && !want[playerId]) continue;
+
+      out.push({
+        player_id: playerId,
+        display_name: idxDisplay !== undefined ? String(row[idxDisplay] || '') : '',
+        current_act: idxAct !== undefined ? Number(row[idxAct]) || 1 : 1,
+        current_realm_id: idxRealm !== undefined ? String(row[idxRealm] || '') : '',
+        required_next_action: idxNext !== undefined ? String(row[idxNext] || '') : '',
+        active_main_quest_id: idxQuest !== undefined ? String(row[idxQuest] || '') : '',
+        active_main_quest_title: idxQuestTitle !== undefined ? String(row[idxQuestTitle] || '') : '',
+        xp_total: idxXp !== undefined ? Number(row[idxXp]) || 0 : 0,
+        level_cached: idxLevel !== undefined ? Number(row[idxLevel]) || 1 : 1,
+        last_manual_save_iso: idxLastManual !== undefined ? String(row[idxLastManual] || '') : '',
+        exit_ticket_state: idxExit !== undefined ? String(row[idxExit] || '') : '',
+        save_row: r + 1,
+      });
+    }
+
+    return { ok: true, players: out };
+  } catch (err) {
+    Logger.log('LhSave_listPlayerSummaries failure: ' + err);
+    return { ok: false, error: String(err) };
+  }
+}
+
+/**
  * Updates only `exit_ticket_state` on the player row (Gmail / mailto workflow).
  */
 function LhSave_writeExitTicketState(spreadsheetId, tabNameOverride, playerId, state) {

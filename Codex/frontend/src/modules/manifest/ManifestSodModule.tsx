@@ -1,11 +1,16 @@
 import { useMemo, useState } from 'react';
 
+import { normalizeForetoldSignpostRealmIds, signpostsFromManifestDraft } from '../../exploration/foretoldSignposts';
 import type { ModuleResultPayload } from '../../types';
+
+type RealmPick = { realm_id: string; label: string };
 
 type Props = {
   draft: Record<string, string>;
   onDraftChange: (patch: Partial<Record<string, string>>) => void;
   onSubmitResult: (payload: ModuleResultPayload) => void;
+  /** Canon realms for Scroll of Destiny — three Foretold Signposts (distinct `realm_id`s). */
+  canonRealmPickList: readonly RealmPick[];
 };
 
 type StepId = 'self' | 'career' | 'skills' | 'goals' | 'export';
@@ -51,7 +56,7 @@ function copyText(text: string): Promise<boolean> {
   }
 }
 
-export function ManifestSodModule({ draft, onDraftChange, onSubmitResult }: Props) {
+export function ManifestSodModule({ draft, onDraftChange, onSubmitResult, canonRealmPickList }: Props) {
   const [step, setStep] = useState<StepId>('self');
   const [copyStatus, setCopyStatus] = useState<string>('');
 
@@ -121,6 +126,18 @@ export function ManifestSodModule({ draft, onDraftChange, onSubmitResult }: Prop
     };
   }, [draft]);
 
+  const signpostLineForExport = useMemo(() => {
+    const byId = new Map(canonRealmPickList.map((x) => [x.realm_id, x.label]));
+    const parts = (['foretold_signpost_realm_1', 'foretold_signpost_realm_2', 'foretold_signpost_realm_3'] as const).map(
+      (k) => {
+        const id = String(draft[k] ?? '').trim();
+        if (!id) return '(not chosen)';
+        return byId.get(id) ?? id;
+      },
+    );
+    return parts.join(' · ');
+  }, [draft, canonRealmPickList]);
+
   const exportBlocks = useMemo(() => {
     return [
       { label: 'A1a Out-of-school Activities', value: mirrorA.personal },
@@ -149,8 +166,9 @@ export function ManifestSodModule({ draft, onDraftChange, onSubmitResult }: Prop
       { label: 'C Education Plans', value: mirrorC.eduPlans },
       { label: 'C Action Steps', value: mirrorC.steps },
       { label: 'C Completed Steps', value: mirrorC.completed },
+      { label: 'Scroll of Destiny — Foretold Signposts (canon realms)', value: signpostLineForExport },
     ];
-  }, [mirrorA, mirrorB, mirrorC, mirrorSkills]);
+  }, [mirrorA, mirrorB, mirrorC, mirrorSkills, signpostLineForExport]);
 
   const update = (key: string, value: string) => onDraftChange({ [key]: value });
 
@@ -176,6 +194,9 @@ export function ManifestSodModule({ draft, onDraftChange, onSubmitResult }: Prop
       need_to_learn: 'goals',
       first_step: 'goals',
       completed_steps: 'goals',
+      foretold_signpost_realm_1: 'export',
+      foretold_signpost_realm_2: 'export',
+      foretold_signpost_realm_3: 'export',
     };
     return map;
   }, []);
@@ -406,6 +427,45 @@ export function ManifestSodModule({ draft, onDraftChange, onSubmitResult }: Prop
 
         {step === 'export' ? (
           <div className="lh-panel" style={{ padding: 12, marginTop: 12 }}>
+            <section className="lh-manifest-scroll" aria-label="Scroll of Destiny signposts">
+              <h4 className="lh-heading-sm" style={{ marginTop: 0 }}>
+                Scroll of Destiny — three Foretold Signposts
+              </h4>
+              <p className="lh-world-map__meta">
+                After the Mirror of Maia, name the three canon realms that call to you. They anchor your comparison
+                ledger and map emphasis in Acts II–III; you may still explore all sixteen later.
+              </p>
+              {canonRealmPickList.length === 0 ? (
+                <p className="lh-world-map__meta lh-world-map__meta--muted">Realm catalog unavailable — cannot seal signposts.</p>
+              ) : (
+                <div style={{ display: 'grid', gap: 10, marginTop: 10 }}>
+                  {(
+                    [
+                      { key: 'foretold_signpost_realm_1', label: 'First signpost' },
+                      { key: 'foretold_signpost_realm_2', label: 'Second signpost' },
+                      { key: 'foretold_signpost_realm_3', label: 'Third signpost' },
+                    ] as const
+                  ).map((row) => (
+                    <label key={row.key} className="lh-world-map__label">
+                      {row.label}
+                      <select
+                        className="lh-input"
+                        value={draft[row.key] ?? ''}
+                        onChange={(e) => update(row.key, e.target.value)}
+                      >
+                        <option value="">— choose a realm —</option>
+                        {canonRealmPickList.map((opt) => (
+                          <option key={opt.realm_id} value={opt.realm_id}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </section>
+
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               <button
                 type="button"
@@ -473,6 +533,14 @@ export function ManifestSodModule({ draft, onDraftChange, onSubmitResult }: Prop
                     window.setTimeout(() => setCopyStatus(''), 2200);
                     return;
                   }
+                  const allowedIds = new Set(canonRealmPickList.map((x) => x.realm_id));
+                  const signIds = normalizeForetoldSignpostRealmIds(signpostsFromManifestDraft(draft), allowedIds);
+                  if (signIds.length < 3) {
+                    setStep('export');
+                    setCopyStatus('Choose three different realms as your Foretold Signposts before sealing.');
+                    window.setTimeout(() => setCopyStatus(''), 3200);
+                    return;
+                  }
                   const created = nowIso();
                   onSubmitResult({
                     module_id: 'mod_manifest_sod',
@@ -480,6 +548,7 @@ export function ManifestSodModule({ draft, onDraftChange, onSubmitResult }: Prop
                     realm_id: 'realm_archives_ascension',
                     status: 'completed',
                     score: completionPct,
+                    artifacts: { foretold_signpost_realm_ids: signIds },
                     unlocks: [],
                     completed_at_iso: created,
                   });

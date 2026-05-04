@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const mapPath = path.join(__dirname, 'Legendary_Horizon_Map.tmj');
-const outPath = path.join(__dirname, '..', 'frontend', 'public', 'assets', 'maps', 'Legendary_Horizon_Map.json');
+const outPath = path.join(__dirname, '../../world_map.json');
 
 console.log('Reading map data from:', mapPath);
 const mapData = JSON.parse(fs.readFileSync(mapPath, 'utf8'));

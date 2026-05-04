@@ -1,12 +1,52 @@
 [
   {
+    "quest_id": "mq_act1_manifest_support",
+    "title": "Manifest — begin your Career Map",
+    "tier": "main",
+    "act": 1,
+    "status": "active",
+    "objective_short": "Capture self-knowledge and build your copy-ready Career Map fields.",
+    "realm_ids": ["realm_archives_ascension"]
+  },
+  {
     "quest_id": "mq_act2_path_of_roots",
     "title": "Path of Roots",
     "tier": "main",
     "act": 2,
-    "status": "active",
+    "status": "locked",
     "objective_short": "Attune the grove shrine beneath the sentinel oak.",
-    "realm_ids": ["realm_aethelwood"]
+    "realm_ids": ["realm_aethelwood"],
+    "prerequisite_quest_ids": ["mq_act1_manifest_support"]
+  },
+  {
+    "quest_id": "mq_act2_oracle_of_fate",
+    "title": "Quest of Fate — consult the Oracle",
+    "tier": "main",
+    "act": 2,
+    "status": "locked",
+    "objective_short": "Receive a prophecy and record your Destiny Number.",
+    "realm_ids": ["realm_archives_ascension"],
+    "prerequisite_quest_ids": ["mq_act1_manifest_support"]
+  },
+  {
+    "quest_id": "mq_act2_vault_of_runes",
+    "title": "Quest of Fate — open the Vault of Runes",
+    "tier": "main",
+    "act": 2,
+    "status": "locked",
+    "objective_short": "Use your Destiny Number to open the correct research portal and begin evidence gathering.",
+    "realm_ids": ["realm_archives_ascension"],
+    "prerequisite_quest_ids": ["mq_act2_oracle_of_fate"]
+  },
+  {
+    "quest_id": "gq_act3_fog_of_unknown",
+    "title": "Fog of the Unknown — map the realms",
+    "tier": "guild",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "After the Vault, use the World Map ledger while you explore; if your Scroll lists three Foretold Signposts, save a comparison from each of those tiles first (then keep charting the full map).",
+    "realm_ids": ["realm_high_council_hall"],
+    "prerequisite_quest_ids": ["mq_act2_vault_of_runes"]
   },
   {
     "quest_id": "sq_gather_ledger_pages",
@@ -39,50 +79,14 @@
     "prerequisite_quest_ids": []
   },
   {
-    "quest_id": "mq_act1_manifest_support",
-    "title": "Manifest — begin your Career Map",
-    "tier": "main",
-    "act": 1,
-    "status": "available",
-    "objective_short": "Capture self-knowledge and build your copy-ready Career Map fields.",
-    "realm_ids": ["realm_archives_ascension"]
-  },
-  {
-    "quest_id": "mq_act2_oracle_of_fate",
-    "title": "Quest of Fate — consult the Oracle",
-    "tier": "main",
-    "act": 2,
-    "status": "available",
-    "objective_short": "Receive a prophecy and record your Destiny Number.",
-    "realm_ids": ["realm_archives_ascension"]
-  },
-  {
-    "quest_id": "mq_act2_vault_of_runes",
-    "title": "Quest of Fate — open the Vault of Runes",
-    "tier": "main",
-    "act": 2,
-    "status": "locked",
-    "objective_short": "Use your Destiny Number to open the correct research portal and begin evidence gathering.",
-    "realm_ids": ["realm_archives_ascension"],
-    "prerequisite_quest_ids": ["mq_act2_oracle_of_fate"]
-  },
-  {
-    "quest_id": "gq_act3_fog_of_unknown",
-    "title": "Fog of the Unknown — map the realms",
-    "tier": "guild",
-    "act": 3,
-    "status": "available",
-    "objective_short": "Use the World Map to track visited realms and notes as you explore.",
-    "realm_ids": ["realm_high_council_hall"]
-  },
-  {
     "quest_id": "gq_gt101_enrollment_rune",
     "title": "GT-101 — Complete the Enrollment Rune",
     "tier": "guild",
     "act": 4,
-    "status": "available",
+    "status": "locked",
     "objective_short": "Submit a formal application with professionalism and complete required fields.",
-    "realm_ids": ["realm_crossroads_haven"]
+    "realm_ids": ["realm_crossroads_haven"],
+    "prerequisite_quest_ids": ["gq_act3_fog_of_unknown"]
   },
   {
     "quest_id": "gq_gt102_trial_of_tongues",
@@ -93,5 +97,15 @@
     "objective_short": "Complete the interview trial and earn the Guild’s approval.",
     "realm_ids": ["realm_etheric_nexus"],
     "prerequisite_quest_ids": ["gq_gt101_enrollment_rune"]
+  },
+  {
+    "quest_id": "gq_guild_council_ledger_hold",
+    "title": "Council ledger — hold",
+    "tier": "guild",
+    "act": 4,
+    "status": "locked",
+    "objective_short": "Placeholder: further guild council steps and rewards will attach here in a later chapter.",
+    "realm_ids": ["realm_high_council_hall"],
+    "prerequisite_quest_ids": ["gq_gt102_trial_of_tongues"]
   }
 ]

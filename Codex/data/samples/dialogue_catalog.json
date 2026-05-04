@@ -8,9 +8,11 @@
         "conditions": [{ "kind": "act_gte", "act": 3 }]
       },
       {
-        "line_id": "resume_quest_blocked",
-        "text": "Brave Traveler {display_name}, the path tightens — your scroll shows a prerequisite still unwoven. Tend to the quests your facilitator grouped as prerequisites, then return to {realm_display_name}.\n\nThe directive reads: \"{required_next_action}\"",
-        "conditions": [{ "kind": "quest_status", "quest_id": "mq_act2_path_of_roots", "any_of": ["locked"] }]
+        "line_id": "resume_act_one_awakening",
+        "text": "Brave Traveler {display_name}, your last oath-mark was {last_completed_summary}\n\nThe Awakening is still open: \"{required_next_action}\" — finish the Manifest ritual from Pause before the Archives release the Divination quests.",
+        "conditions": [
+          { "kind": "quest_status", "quest_id": "mq_act1_manifest_support", "any_of": ["active", "available"] }
+        ]
       },
       {
         "line_id": "resume_default",
@@ -32,8 +34,8 @@
         "conditions": [
           {
             "kind": "quest_status",
-            "quest_id": "mq_act2_path_of_roots",
-            "any_of": ["active", "available", "completed"]
+            "quest_id": "mq_act1_manifest_support",
+            "any_of": ["active", "available", "completed", "turned_in"]
           }
         ]
       },

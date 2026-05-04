@@ -4,9 +4,14 @@ import type { ModuleResultPayload } from '../../types';
 import { runGt102Turn, type Gt102Turn } from '../../services/gt102Gateway';
 import { saveGt102Transcript } from '../../services/gt102TranscriptStore';
 
+/** Favor points withheld from passage threshold when the player opened GT-102 after the HQ return deadline. */
+const GT102_PUNCTUALITY_FAVOR_PENALTY = 12;
+
 type Props = {
   playerId: string;
   realmId: string;
+  /** Set when `interview_deadline_iso` has passed at module entry — interview still runs; passage is harder. */
+  interviewArrivalMissedDeadline?: boolean;
   draft: Record<string, string>;
   onDraftChange: (patch: Partial<Record<string, string>>) => void;
   onSubmitResult: (payload: ModuleResultPayload) => void;
@@ -79,7 +84,14 @@ function coerceDraftTranscript(draft: Record<string, string>): {
   return { transcriptId, turns, favor, finished, softSkillScore, nextSoftSkillIndex, npcId };
 }
 
-export function TrialOfTonguesModule({ playerId, realmId, draft, onDraftChange, onSubmitResult }: Props) {
+export function TrialOfTonguesModule({
+  playerId,
+  realmId,
+  interviewArrivalMissedDeadline = false,
+  draft,
+  onDraftChange,
+  onSubmitResult,
+}: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -156,14 +168,23 @@ export function TrialOfTonguesModule({ playerId, realmId, draft, onDraftChange, 
   };
 
   const passThreshold = 70;
-  const hasPassed = finished && favor >= passThreshold;
+  const punctualityPenalty = interviewArrivalMissedDeadline ? GT102_PUNCTUALITY_FAVOR_PENALTY : 0;
+  const effectiveFavorForPass = Math.max(0, favor - punctualityPenalty);
+  const hasPassed = finished && effectiveFavorForPass >= passThreshold;
 
   return (
     <div className="lh-world-map__layout">
       <section className="lh-world-map__realms" aria-label="Trial of Tongues chat">
         <h3 className="lh-heading-sm">The Trial of Tongues (GT-102)</h3>
         <p className="lh-world-map__hint">
-          Guild Favor: <strong>{favor}/100</strong> (pass at {passThreshold}+)
+          Guild Favor: <strong>{favor}/100</strong> (pass at {passThreshold}+ on effective favor)
+          {punctualityPenalty > 0 ? (
+            <>
+              {' '}
+              — <strong>late return to the hall</strong>: −{punctualityPenalty} for passage purposes (effective{' '}
+              <strong>{effectiveFavorForPass}</strong>)
+            </>
+          ) : null}
         </p>
 
         <div
@@ -261,6 +282,14 @@ export function TrialOfTonguesModule({ playerId, realmId, draft, onDraftChange, 
           <div className="lh-world-map__actions" style={{ marginTop: 12 }}>
             <p className="lh-world-map__meta">
               Result: <strong>{hasPassed ? 'Passed' : 'Failed'}</strong>
+              {punctualityPenalty > 0 ? (
+                <span>
+                  {' '}
+                  (punctuality: late — {punctualityPenalty} favor withheld from the passage bar; raw favor {favor})
+                </span>
+              ) : (
+                <span> (punctuality: on time)</span>
+              )}
             </p>
             <button
               type="button"
@@ -268,6 +297,8 @@ export function TrialOfTonguesModule({ playerId, realmId, draft, onDraftChange, 
               onClick={() => {
                 const createdIso = nowIso();
                 // Persist transcript locally for teacher review and for later artifacts.
+                const interviewPunctuality: 'on_time' | 'late' = interviewArrivalMissedDeadline ? 'late' : 'on_time';
+
                 saveGt102Transcript({
                   transcriptId: parsed.transcriptId,
                   playerId,
@@ -277,6 +308,7 @@ export function TrialOfTonguesModule({ playerId, realmId, draft, onDraftChange, 
                     turns,
                     favor,
                     finished: true,
+                    interview_punctuality: interviewPunctuality,
                     npc: {
                       npc_id: npcHeader?.npc_id ?? String(draft.npc_id ?? 'npc_guild_proctor'),
                       name: npcHeader?.name ?? 'Guild Proctor',
@@ -293,6 +325,7 @@ export function TrialOfTonguesModule({ playerId, realmId, draft, onDraftChange, 
                   status: hasPassed ? 'passed' : 'failed',
                   score: favor,
                   soft_skill_score: softSkillScore,
+                  interview_punctuality: interviewPunctuality,
                   artifacts: {
                     transcript: { transcript_id: parsed.transcriptId, storage: 'local', created_iso: createdIso },
                   },

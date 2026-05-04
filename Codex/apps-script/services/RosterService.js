@@ -61,3 +61,71 @@ function LhRoster_resolvePlayerId(spreadsheetId, tabNameOverride, identity) {
     return { ok: false, error: String(err) };
   }
 }
+
+/**
+ * Lists roster rows (optionally filtered by section_code / teacher_email).
+ *
+ * Returns only known schema columns (tolerates missing columns).
+ *
+ * @param {string} spreadsheetId
+ * @param {string | null} tabNameOverride
+ * @param {{ section_code?: string, teacher_email?: string, limit?: number }} filters
+ * @returns {{ ok: boolean, roster?: object[], error?: string }}
+ */
+function LhRoster_listRoster(spreadsheetId, tabNameOverride, filters) {
+  try {
+    var tab = tabNameOverride || LH_SCHEMA.ROSTER_TAB;
+    var sheet = lhSheetGetOrThrow_(spreadsheetId, tab);
+    var headerMap = lhSheetReadHeaderMap_(sheet);
+    var rows = lhSheetReadTable_(sheet);
+    if (!rows || rows.length < 2) {
+      return { ok: true, roster: [] };
+    }
+
+    var limit = filters && filters.limit ? Number(filters.limit) : 500;
+    if (!limit || limit < 1) limit = 500;
+    if (limit > 2000) limit = 2000;
+
+    var wantSection = filters && filters.section_code ? String(filters.section_code) : '';
+    var wantTeacher = filters && filters.teacher_email ? String(filters.teacher_email).trim().toLowerCase() : '';
+
+    var idxEmail = headerMap[LH_ROSTER_HEADERS.student_email];
+    var idxStudentId = headerMap[LH_ROSTER_HEADERS.student_id];
+    var idxDisplay = headerMap[LH_ROSTER_HEADERS.player_display_name];
+    var idxTeacher = headerMap[LH_ROSTER_HEADERS.teacher_email];
+    var idxCourse = headerMap[LH_ROSTER_HEADERS.course];
+    var idxSection = headerMap[LH_ROSTER_HEADERS.class_section];
+    var idxSectionCode = headerMap[LH_ROSTER_HEADERS.section_code];
+    var idxPlayerId = headerMap[LH_ROSTER_HEADERS.player_id];
+
+    var out = [];
+    for (var r = 1; r < rows.length; r++) {
+      if (out.length >= limit) break;
+      var row = rows[r] || [];
+
+      var sectionCode = idxSectionCode !== undefined ? String(row[idxSectionCode] || '') : '';
+      var teacherEmail =
+        idxTeacher !== undefined ? String(row[idxTeacher] || '').trim().toLowerCase() : '';
+
+      if (wantSection && sectionCode !== wantSection) continue;
+      if (wantTeacher && teacherEmail !== wantTeacher) continue;
+
+      out.push({
+        student_email: idxEmail !== undefined ? String(row[idxEmail] || '') : '',
+        student_id: idxStudentId !== undefined ? String(row[idxStudentId] || '') : '',
+        player_display_name: idxDisplay !== undefined ? String(row[idxDisplay] || '') : '',
+        teacher_email: teacherEmail,
+        course: idxCourse !== undefined ? String(row[idxCourse] || '') : '',
+        class_section: idxSection !== undefined ? String(row[idxSection] || '') : '',
+        section_code: sectionCode,
+        player_id: idxPlayerId !== undefined ? String(row[idxPlayerId] || '') : '',
+        roster_row: r + 1,
+      });
+    }
+
+    return { ok: true, roster: out };
+  } catch (err) {
+    Logger.log('LhRoster_listRoster failure: ' + err);
+    return { ok: false, error: String(err) };
+  }
+}

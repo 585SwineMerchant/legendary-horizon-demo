@@ -25,6 +25,7 @@ export type PlayerSave = {
   roster_email_hint?: string;
   email_hash?: string;
   current_act: number;
+  /** Active guild / HQ / narrative realm anchor — not which explorable tilemap file is loaded (primary world map is separate). */
   current_realm_id: string;
   required_next_action: string;
   active_main_quest_id: string;
@@ -57,6 +58,7 @@ export type QuestDefinition = {
 
 export type MediaAssetRecord = {
   asset_id: string;
+  /** Examples: `image`, `portrait`, `map_thumb`, `guild_hq` (guild hall hero), `banner`, `audio`. */
   kind: string;
   description: string;
   drive_file_id: string;
@@ -78,7 +80,7 @@ export type RealmDefinition = {
   lore_digest: string;
   /** Optional short lede shown above lore in atlas; falls back to lore_digest when absent. */
   intro_text?: string;
-  /** Populated once Tiled map ID is authoritative; nullable for Day 2 demo. */
+  /** Optional future per-realm Tiled slice; null is normal — primary gameplay uses the shared world map export. */
   map_tiled_export: string | null;
   tags: string[];
   /** Stable display order in realm atlas (GDD canon order). */
@@ -95,14 +97,32 @@ export type RealmExplorationProgressEntry = {
   learned_notes?: string;
 };
 
-/** Comparison ledger row (Milestone 7+) — persisted in `exploration_loop.ledger_entries`. */
+/**
+ * Comparison ledger row — persisted in `exploration_loop.ledger_entries`.
+ * v1: career_a / career_b / note only. v2 adds optional career-comparison columns (O*NET / spreadsheet shaped).
+ */
 export type ComparisonLedgerEntry = {
   id: string;
   realm_id: string;
+  /** Occupation or career title — column A. */
   career_a: string;
+  /** Occupation or career title — column B. */
   career_b: string;
+  /** Cross-cutting synthesis (contrast, fit, evidence). */
   note: string;
   created_iso: string;
+  /** Typical entry: high school, associate, bachelor’s, graduate study, etc. */
+  education_a?: string;
+  education_b?: string;
+  /** Median or range as written by the player (e.g. BLS / O*NET figures). */
+  salary_a?: string;
+  salary_b?: string;
+  /** Career cluster or Holland / RIASEC shorthand for each path. */
+  career_cluster_a?: string;
+  career_cluster_b?: string;
+  /** Postsecondary or training pathway notes per occupation. */
+  pathway_a?: string;
+  pathway_b?: string;
 };
 
 /** Milestone 11 — worksheet archetypes (GDD research / class artifacts). */
@@ -147,6 +167,29 @@ export type AcademicWorksheetTaskDef = {
   unlock_after_task_ids?: string[];
 };
 
+/** Outcome of the latest sealed guild interview attempt (GT-102 lane). */
+export type GuildEndgameInterviewOutcomeV1 = 'none' | 'passed' | 'failed';
+
+/**
+ * Guild endgame progression (application → breather → interview).
+ * Persisted under `exploration_loop.guild_endgame_v1` with manual/auto save.
+ */
+export type GuildEndgameV1 = {
+  /** FSM label — e.g. `unstarted`, `breather`, `interview_invited`, `interview_failed_pending_retry`, `guild_accepted_v1`. */
+  phase: string;
+  /** Player’s committed true-path guild `realm_id`, when set. */
+  true_path_realm_id: string | null;
+  /** In-person Guild Manager encounter at true-path HQ completed; GT-101 may open (when also at HQ). */
+  application_unlocked: boolean;
+  /** GT-101 application sealed (one-way; score does not force redo). */
+  application_sealed: boolean;
+  /** Manager has invited the player to the timed interview (GT-102 unlock gate). */
+  interview_invited: boolean;
+  /** ISO deadline for arriving at HQ for the interview; null until invited. */
+  interview_deadline_iso: string | null;
+  last_interview_outcome: GuildEndgameInterviewOutcomeV1;
+};
+
 /** Milestone 17 — append-only encounter audit trail (persisted under `exploration_loop`). */
 export type EncounterLogEntryV1 = {
   id: string;
@@ -170,6 +213,18 @@ export type ExplorationLoopState = {
   /** Milestone 17 — XP from encounters this session (resets when exploration loop is reset on new session bootstrap). */
   session_encounter_xp_awarded?: number;
   encounter_log?: EncounterLogEntryV1[];
+  /** Guild application / interview sequence (v1). */
+  guild_endgame_v1?: GuildEndgameV1;
+  /**
+   * Guild HQ `realm_id`s discovered in-world (manager desk, porter summons, etc.).
+   * Drives Realm Atlas fog — not quest unlocks or travel.
+   */
+  guild_hq_atlas_revealed_realm_ids?: string[];
+  /**
+   * Scroll of Destiny — up to three canon `realm_id`s inscribed when the Manifest is sealed (Foretold Signposts).
+   * Anchors Act II/III comparison and exploration guidance; empty until Act I manifest completion.
+   */
+  foretold_signpost_realm_ids?: string[];
 };
 
 /**
@@ -202,6 +257,14 @@ export type RitualDraftsV1 = {
   ledger_career_a?: string;
   ledger_career_b?: string;
   ledger_note?: string;
+  ledger_education_a?: string;
+  ledger_education_b?: string;
+  ledger_salary_a?: string;
+  ledger_salary_b?: string;
+  ledger_cluster_a?: string;
+  ledger_cluster_b?: string;
+  ledger_pathway_a?: string;
+  ledger_pathway_b?: string;
   exit_ticket_body?: string;
 };
 
@@ -220,7 +283,7 @@ export type RosterStudentRecord = {
 export type LhRuntimeFixture = {
   player: PlayerSave;
   quests: QuestDefinition[];
-  /** Active realm row (matches `player.current_realm_id` when possible). */
+  /** Active guild / HQ row (matches `player.current_realm_id` when possible); not the selector for the primary tilemap. */
   realm: RealmDefinition;
   /** Full canon registry — Milestone 6. */
   realms: RealmDefinition[];
@@ -232,8 +295,9 @@ export type LhRuntimeFixture = {
   npc_registry: LhNpcRegistryV1;
   /** Milestone 16 — conditional line banks + realm lore hooks. */
   dialogue_catalog: LhDialogueCatalogV1;
+  /** Primary explorable world map export path (fixture). */
   tiled_demo_map_relative_path: string;
-  /** Hydrated Codex-local Tiled export; omit when pulling remote-only payloads. */
+  /** Hydrated Codex-local Tiled export for the primary world map; omit when pulling remote-only payloads. */
   tiled_map_payload?: unknown;
 };
 
@@ -314,9 +378,13 @@ export type ModuleResultPayload = {
   status: 'passed' | 'failed' | 'submitted' | 'completed';
   score?: number;
   soft_skill_score?: number;
+  /** GT-102: return-to-HQ deadline vs wall-clock when the module was entered (professionalism lane). */
+  interview_punctuality?: 'on_time' | 'late';
   artifacts?: {
     transcript?: InterviewTranscriptRef;
     application?: ApplicationSubmissionRef;
+    /** Act I — Scroll of Destiny: three canon `realm_id`s chosen when sealing the Manifest (Foretold Signposts). */
+    foretold_signpost_realm_ids?: string[];
   };
   unlocks?: UnlockEvent[];
   completed_at_iso: string;
