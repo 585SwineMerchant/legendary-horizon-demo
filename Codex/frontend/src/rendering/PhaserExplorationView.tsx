@@ -38,6 +38,15 @@ const TILESET_IMAGES = [
   'Aethelwood Farmsteads',
 ] as const;
 
+const TRAVELER_DIRECTIONS = ['down', 'left', 'right', 'up'] as const;
+type TravelerDirection = (typeof TRAVELER_DIRECTIONS)[number];
+
+function publicAssetUrl(path: string): string {
+  const base = import.meta.env.BASE_URL ?? '/';
+  const withSlash = base.endsWith('/') ? base : `${base}/`;
+  return `${withSlash}${path.replace(/^\/+/, '')}`;
+}
+
 /**
  * Full-screen Phaser 4 world view for Legendary Horizon.
  * Uses Phaser's own loader (tilemapTiledJSON + image) in preload() so that
@@ -82,6 +91,10 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
       const _triggers = triggers;
       const _parsedMap = parsedMap;
       const _onActivate = onActivateHotspot;
+      const _mapUrl = publicAssetUrl('assets/maps/Legendary_Horizon_Map.json');
+      const _tilesetUrl = (name: string) => publicAssetUrl(`assets/maps/${name.replace(/ /g, '%20')}.png`);
+      const _travelerUrl = (sheet: string, dir: TravelerDirection) =>
+        publicAssetUrl(`assets/player/adventurer/${sheet}_${dir}.png`);
 
       class LhScene extends Phaser.Scene {
         private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -90,6 +103,7 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
         private fogStatics!: Phaser.Physics.Arcade.StaticGroup;
         private triggerBodies: Array<{ rect: Phaser.GameObjects.Rectangle; meta: TriggerRect }> = [];
         private debugText?: Phaser.GameObjects.Text;
+        private facing: TravelerDirection = 'down';
 
         preload() {
           // ── Diagnostics: surface loader failures immediately ──
@@ -106,11 +120,21 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
 
           // ── Let Phaser's loader handle the map JSON and all tileset images ──
           // Avoid a leading slash so Vite base paths / previews still work.
-          this.load.tilemapTiledJSON('lh_world', 'assets/maps/Legendary_Horizon_Map.json');
+          this.load.tilemapTiledJSON('lh_world', _mapUrl);
 
           for (const name of TILESET_IMAGES) {
-            const encodedName = name.replace(/ /g, '%20');
-            this.load.image(name, `assets/maps/${encodedName}.png`);
+            this.load.image(name, _tilesetUrl(name));
+          }
+
+          for (const dir of TRAVELER_DIRECTIONS) {
+            this.load.spritesheet(`lh_traveler_idle_${dir}`, _travelerUrl('idle', dir), {
+              frameWidth: 64,
+              frameHeight: 80,
+            });
+            this.load.spritesheet(`lh_traveler_run_${dir}`, _travelerUrl('run', dir), {
+              frameWidth: 64,
+              frameHeight: 80,
+            });
           }
         }
 
@@ -218,18 +242,42 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
             this.triggerBodies.push({ rect, meta: tr });
           });
 
-          // Player dot
-          const g = this.add.graphics();
-          g.fillStyle(0xe2e8f0, 1);
-          g.fillCircle(12, 12, 12);
-          g.generateTexture('lh_player_dot', 24, 24);
-          g.destroy();
+          const hasTraveler = this.textures.exists('lh_traveler_idle_down');
+          if (hasTraveler) for (const dir of TRAVELER_DIRECTIONS) {
+            this.anims.create({
+              key: `lh_traveler_idle_${dir}`,
+              frames: this.anims.generateFrameNumbers(`lh_traveler_idle_${dir}`, { start: 0, end: 11 }),
+              frameRate: 6,
+              repeat: -1,
+            });
+            this.anims.create({
+              key: `lh_traveler_run_${dir}`,
+              frames: this.anims.generateFrameNumbers(`lh_traveler_run_${dir}`, { start: 0, end: 11 }),
+              frameRate: 12,
+              repeat: -1,
+            });
+          }
 
-          this.player = this.physics.add.sprite(wpx / 2, hpx / 2, 'lh_player_dot');
+          if (!hasTraveler) {
+            const g = this.add.graphics();
+            g.fillStyle(0xe2e8f0, 1);
+            g.fillCircle(12, 12, 12);
+            g.generateTexture('lh_player_dot', 24, 24);
+            g.destroy();
+          }
+
+          this.player = this.physics.add.sprite(wpx / 2, hpx / 2, hasTraveler ? 'lh_traveler_idle_down' : 'lh_player_dot');
+          if (hasTraveler) {
+            this.player.play('lh_traveler_idle_down');
+            this.player.setScale(0.75);
+            this.player.setSize(22, 28);
+            this.player.setOffset(21, 46);
+          }
           this.player.setCollideWorldBounds(true);
           this.player.setDamping(true);
           this.player.setDrag(600, 600);
           this.player.setMaxVelocity(500, 500);
+          this.player.setDepth(50);
 
           this.physics.add.collider(this.player, this.fogStatics);
 
@@ -290,6 +338,18 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
           // Important: acceleration-based movement + damping will "coast".
           // For exploration, we want immediate stop on input release.
           if (ax === 0 && ay === 0) this.player.setVelocity(0, 0);
+
+          const moving = ax !== 0 || ay !== 0;
+          if (moving && this.textures.exists(`lh_traveler_run_${this.facing}`)) {
+            if (Math.abs(ax) > Math.abs(ay)) {
+              this.facing = ax < 0 ? 'left' : 'right';
+            } else {
+              this.facing = ay < 0 ? 'up' : 'down';
+            }
+            this.player.play(`lh_traveler_run_${this.facing}`, true);
+          } else if (this.textures.exists(`lh_traveler_idle_${this.facing}`)) {
+            this.player.play(`lh_traveler_idle_${this.facing}`, true);
+          }
 
           if (Phaser.Input.Keyboard.JustDown(this.keySpace)) {
             const px = this.player.x;

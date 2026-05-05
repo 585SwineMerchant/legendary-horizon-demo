@@ -4,6 +4,8 @@ Commit JSON (or optionally `.tmx` + JSON) snapshots exported from **Tiled** here
 
 Keep filenames aligned with **`realm_id`** or map registry IDs from spreadsheet metadata when that pipeline exists.
 
+For the current atlas-recreation direction, layer plan, traversal items, collision rules, and the first Aethelwood playable slice, read [`../docs/TILED_WORLD_MAP_BUILD_GUIDE.md`](../docs/TILED_WORLD_MAP_BUILD_GUIDE.md) before editing the world map.
+
 ## Current Codex sample
 
 `aethelwood_demo.json` ships an `objectgroup` named `lh_triggers` with custom properties (`lh_kind`, `lh_target_quest_id`, interaction copy). The Vite client imports it via the `@maps/*` alias (see `frontend/vite.config.ts`).

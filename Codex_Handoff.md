@@ -181,6 +181,12 @@ The world layer should support:
 - realm-specific triggers
 - Act III exploration without prematurely starting Act IV guild trial behavior
 
+### Tiled map art direction
+- The playable Tiled map should recreate the current in-game **World Atlas** image/layout as closely as practical.
+- Do not treat the Tiled map as a fresh world-layout invention unless the project owner explicitly revises this direction.
+- Gameplay layers such as collisions, triggers, fog regions, waypoints, NPC markers, spawn points, and realm markers should be added on top of that atlas-inspired layout.
+- Artistic tilework can be iterative, but the world geography, realm placement, and traversal feel should remain anchored to the atlas image already being used in the game.
+
 ### Teacher support / admin resilience
 The real classroom requires recovery tools.
 Expected support includes:

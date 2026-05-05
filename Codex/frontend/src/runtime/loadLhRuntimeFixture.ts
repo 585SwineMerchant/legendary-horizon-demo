@@ -5,7 +5,7 @@ import playerJson from '@samples/player_save.json';
 import questsJson from '@samples/quests.json';
 import rosterJson from '@samples/roster_entry.json';
 import assetsJson from '@samples/media_assets.json';
-import tiledMapJson from '@maps/aethelwood_demo.json';
+import tiledMapJson from '@maps/Legendary_Horizon_Map.json';
 
 import type {
   LhRuntimeFixture,
@@ -20,7 +20,7 @@ import { loadAcademicWorksheetCatalog } from '../academic/academicCatalog';
 import { loadQuestDefinitionsFromJson, reconcileQuestPrerequisites } from '../quests/questEngine';
 import { CANON_REALMS } from '../realm/canonRealms';
 import { resolveActiveRealm } from '../realm/realmRegistry';
-import { PRIMARY_WORLD_TILED_DEMO_RELATIVE_PATH } from './primaryWorldMap';
+import { PRIMARY_WORLD_TILED_MAP_RELATIVE_PATH } from './primaryWorldMap';
 
 /** Deep-clone JSON-backed shapes so downstream systems can mutate without aliasing fixtures. */
 function lhCloneFixture<T>(value: T): T {
@@ -46,7 +46,7 @@ export function loadLhRuntimeFixture(): LhRuntimeFixture {
     npc_registry: lhCloneFixture(npcRegistryJson as LhNpcRegistryV1),
     dialogue_catalog: lhCloneFixture(dialogueCatalogJson as LhDialogueCatalogV1),
     academic_worksheet_tasks: loadAcademicWorksheetCatalog(lhCloneFixture(academicTasksJson)),
-    tiled_demo_map_relative_path: PRIMARY_WORLD_TILED_DEMO_RELATIVE_PATH,
+    tiled_demo_map_relative_path: PRIMARY_WORLD_TILED_MAP_RELATIVE_PATH,
     tiled_map_payload: lhCloneFixture(tiledMapJson as unknown),
   };
 }
