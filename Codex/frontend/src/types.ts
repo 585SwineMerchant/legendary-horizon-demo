@@ -1,9 +1,20 @@
-export type Screen = 'title' | 'instructions' | 'resume' | 'explore';
+export type Screen =
+  | 'title'
+  | 'intro'
+  | 'instructions'
+  | 'maiaProfile'
+  | 'scrollReveal'
+  | 'resume'
+  | 'explore'
+  | 'demoClosing';
 
 export type NightOneNavigate = {
   beginDemo: () => Promise<void>;
   quitToTitle: () => void;
+  introToInstructions: () => void;
   proceedInstructions: () => void;
+  maiaProfileToResume: () => void;
+  scrollRevealToResume: () => void;
   resumeToExplore: () => void;
   openPause: () => void;
   closePause: () => void;
@@ -18,6 +29,7 @@ export type NightOneNavigate = {
   closeResearchWorksheets: () => void;
   openInventory: () => void;
   closeInventory: () => void;
+  openDemoClosing: () => void;
   openModule: (moduleId: string) => void;
   closeModule: () => void;
 };

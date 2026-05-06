@@ -21,7 +21,7 @@ export type ExplorationHotspot = {
 };
 
 type SaveFeedback =
-  | { tone: 'success'; text: string }
+  | { tone: 'success'; text: string; retryLabel?: string; onRetry?: () => void }
   | { tone: 'error'; text: string; retryLabel?: string; onRetry?: () => void };
 
 type Act3Strip = {
@@ -47,10 +47,15 @@ type Props = {
   parsedMap: ParsedLhMap;
   renderer?: 'hotspots' | 'phaser';
   saveFeedback: SaveFeedback | null;
+  maiaHandoffActive?: boolean;
+  maiaHandoffPromptActive?: boolean;
+  onOpenMaiaHandoff?: () => boolean;
+  onReturnFromMaiaHandoff?: () => void;
   onDismissSaveFeedback?: () => void;
   onPause: () => void;
   onOpenQuestLog: () => void;
   onOpenInventory?: () => void;
+  onOpenDemoClosing?: () => void;
   /** Milestone 7 — Act III exploration loop summary + world map entry. */
   act3?: Act3Strip | null;
   /** Milestone 4 — when set, shows collapsible parsed Tiled structures (dev / `VITE_LH_MAP_DEBUG`). */
@@ -81,10 +86,15 @@ export function ExplorationScreen({
   parsedMap,
   renderer = 'hotspots',
   saveFeedback,
+  maiaHandoffActive = false,
+  maiaHandoffPromptActive = false,
+  onOpenMaiaHandoff,
+  onReturnFromMaiaHandoff,
   onDismissSaveFeedback,
   onPause,
   onOpenQuestLog,
   onOpenInventory,
+  onOpenDemoClosing,
   act3,
   mapDebug,
   activeQuestDefinition,
@@ -135,6 +145,11 @@ export function ExplorationScreen({
               Inventory
             </button>
           ) : null}
+          {onOpenDemoClosing ? (
+            <button type="button" className="lh-button lh-button--secondary" onClick={onOpenDemoClosing}>
+              Return to Maia
+            </button>
+          ) : null}
           <button type="button" className="lh-button lh-button--primary" onClick={onPause}>
             Pause
           </button>
@@ -155,6 +170,46 @@ export function ExplorationScreen({
           hotspots={hotspots}
           onActivateHotspot={onActivateHotspot}
         />
+      ) : null}
+
+      {maiaHandoffActive ? (
+        <div className="lh-maia-handoff-lock" role="dialog" aria-modal="true" aria-live="polite">
+          <div className="lh-maia-handoff-lock__panel">
+            <p className="lh-exploration__eyebrow">Mirror of Maia</p>
+            <h3 className="lh-heading-md">Maia window open</h3>
+            <p>
+              Gameplay is paused while Maia is open. Close the Maia window to return through the Mirror and continue.
+            </p>
+            {onReturnFromMaiaHandoff ? (
+              <button type="button" className="lh-button lh-button--secondary" onClick={onReturnFromMaiaHandoff}>
+                I closed Maia — return to the game
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {maiaHandoffPromptActive && !maiaHandoffActive ? (
+        <div className="lh-maia-handoff-lock" role="dialog" aria-modal="true" aria-live="polite">
+          <div className="lh-maia-handoff-lock__panel">
+            <p className="lh-exploration__eyebrow">Mirror of Maia</p>
+            <h3 className="lh-heading-md">Step through to Maia</h3>
+            <p>
+              The portal has carried you to the edge of the real-world handoff. Open Maia in a separate window, then
+              close it to return through the Mirror.
+            </p>
+            {onOpenMaiaHandoff ? (
+              <button type="button" className="lh-button lh-button--primary" onClick={onOpenMaiaHandoff}>
+                Open Maia
+              </button>
+            ) : null}
+            {onReturnFromMaiaHandoff ? (
+              <button type="button" className="lh-button lh-button--secondary" onClick={onReturnFromMaiaHandoff}>
+                Return to the game
+              </button>
+            ) : null}
+          </div>
+        </div>
       ) : null}
 
       {!usePhaser ? <div className="lh-exploration__body">
@@ -296,7 +351,7 @@ export function ExplorationScreen({
             >
               <pre className="lh-toast__preformatted">{saveFeedback.text}</pre>
               <div className="lh-stack lh-stack--horizontal" style={{ justifyContent: 'flex-end', marginTop: 8 }}>
-                {saveFeedback.tone === 'error' && saveFeedback.onRetry ? (
+                {saveFeedback.onRetry ? (
                   <button
                     type="button"
                     className="lh-button lh-button--secondary lh-button--small"

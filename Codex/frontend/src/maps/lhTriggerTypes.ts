@@ -12,6 +12,7 @@ export const LH_TRIGGER_KINDS = [
   'guild_hq_research',
   'guild_manager_hq',
   'guild_interview_invite',
+  'maia_portal',
 ] as const;
 
 export type LhTriggerKind = (typeof LH_TRIGGER_KINDS)[number] | 'unknown';

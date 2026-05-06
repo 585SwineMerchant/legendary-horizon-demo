@@ -9,7 +9,7 @@ type Props = {
   onOpenTeacherDashboard?: () => void;
   bootstrapPhase?: 'idle' | 'loading' | 'error';
   bootstrapError?: string | null;
-  /** Milestone 14 — resolved from `LhMediaAssets` / fixture catalog (falls back to CSS default if blank). */
+  /** Milestone 14 - resolved from `LhMediaAssets` / fixture catalog (falls back to CSS default if blank). */
   backdropImageUrl?: string;
 };
 
@@ -37,10 +37,10 @@ export function TitleScreen({
         }
       />
       <div className="lh-stack lh-screen__panel lh-screen__panel--title">
-        <p className="lh-eyebrow">Codex prototype — Night One vertical slice</p>
+        <p className="lh-eyebrow">Leadership demo build - prepared for Corey</p>
         <h1 className="lh-heading-xl">Legendary Horizon</h1>
         <p className="lh-subtitle">
-          An educational RPG journey across career-aligned realms — local fixtures demo.
+          A guided look at how Maia Learning, Scroll of Destiny, and realm exploration support career planning.
         </p>
 
         {failed ? (
@@ -51,7 +51,7 @@ export function TitleScreen({
         ) : null}
 
         {loading ? (
-          <LoadingSpinner label="Loading your roster and save…" ariaLabel="Loading game session" />
+          <LoadingSpinner label="Loading your roster and save..." ariaLabel="Loading game session" />
         ) : null}
 
         <div className="lh-title-actions lh-stack lh-stack--horizontal">
@@ -61,7 +61,7 @@ export function TitleScreen({
             onClick={onContinue}
             disabled={loading}
           >
-            {loading ? 'Loading…' : 'Continue'}
+            {loading ? 'Loading...' : 'Begin leadership walkthrough'}
           </button>
           {showTeacher ? (
             <button type="button" className="lh-button lh-button--secondary" onClick={onOpenTeacherDashboard} disabled={loading}>
@@ -74,12 +74,12 @@ export function TitleScreen({
             onClick={() => setClassroomOpen((o) => !o)}
             aria-expanded={classroomOpen}
           >
-            Classroom info
+            Instructional frame
           </button>
         </div>
 
         {classroomOpen ? (
-          <StatusCallout tone="info" title="About this classroom build">
+          <StatusCallout tone="info" title="Maia stays at the center">
             <p>{classroomInfoPanelBody}</p>
             <p className="lh-status-callout__hint">{classroomInfoStubNotice}</p>
           </StatusCallout>

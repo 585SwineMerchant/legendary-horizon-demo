@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 import Phaser from 'phaser';
 
@@ -14,11 +14,11 @@ type Props = {
 
 type TriggerRect = {
   interactable_id: string;
+  kind: string;
   x: number;
   y: number;
   w: number;
   h: number;
-  completed: boolean;
 };
 
 /** Static list of all tileset image keys used by the map. */
@@ -40,6 +40,8 @@ const TILESET_IMAGES = [
 
 const TRAVELER_DIRECTIONS = ['down', 'left', 'right', 'up'] as const;
 type TravelerDirection = (typeof TRAVELER_DIRECTIONS)[number];
+const TRAVELER_VISIBLE_FRAME_INDICES = [1, 4, 7, 10, 13, 16, 19, 22] as const;
+const SOLID_TILE_LAYER_NAMES = new Set(['Hillside', 'Hillside 2', 'forest 4', 'forest layer 3', 'Guild HQs']);
 
 function publicAssetUrl(path: string): string {
   const base = import.meta.env.BASE_URL ?? '/';
@@ -56,21 +58,22 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
   const hostRef = useRef<HTMLDivElement | null>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
 
-  const triggers = useMemo((): TriggerRect[] => {
-    const byId = new Map(hotspots.map((h) => [h.interactable_id, h.completed]));
-    return parsedMap.triggers.map((t) => {
-      const interactable_id = `${realmId}:obj:${t.tiled_object_id}`;
-      const b = t.bounds;
-      return {
-        interactable_id,
-        x: b.x,
-        y: b.y,
-        w: Math.max(b.width, 1),
-        h: Math.max(b.height, 1),
-        completed: Boolean(byId.get(interactable_id)),
-      };
-    });
-  }, [hotspots, parsedMap.triggers, realmId]);
+  // Keep Phaser instance stable. Hotspot completion changes should NOT tear down/recreate the game.
+  const onActivateHotspotRef = useRef(onActivateHotspot);
+  const parsedMapRef = useRef(parsedMap);
+  const completionByIdRef = useRef<Map<string, boolean>>(new Map());
+
+  useEffect(() => {
+    onActivateHotspotRef.current = onActivateHotspot;
+  }, [onActivateHotspot]);
+
+  useEffect(() => {
+    parsedMapRef.current = parsedMap;
+  }, [parsedMap]);
+
+  useEffect(() => {
+    completionByIdRef.current = new Map(hotspots.map((h) => [h.interactable_id, h.completed]));
+  }, [hotspots]);
 
   useEffect(() => {
     let active = true;
@@ -88,20 +91,43 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
       }
 
       // Capture refs for use inside the scene class
-      const _triggers = triggers;
-      const _parsedMap = parsedMap;
-      const _onActivate = onActivateHotspot;
+      const _parsedMap = parsedMapRef.current;
+      const _completionById = completionByIdRef;
+      const _onActivate = (interactableId: string) => onActivateHotspotRef.current(interactableId);
+      const _triggers: TriggerRect[] = _parsedMap.triggers.map((t) => {
+        const interactable_id = `${realmId}:obj:${t.tiled_object_id}`;
+        const b = t.bounds;
+        return {
+          interactable_id,
+          kind: t.kind,
+          x: b.x,
+          y: b.y,
+          w: Math.max(b.width, 1),
+          h: Math.max(b.height, 1),
+        };
+      });
       const _mapUrl = publicAssetUrl('assets/maps/Legendary_Horizon_Map.json');
       const _tilesetUrl = (name: string) => publicAssetUrl(`assets/maps/${name.replace(/ /g, '%20')}.png`);
       const _travelerUrl = (sheet: string, dir: TravelerDirection) =>
         publicAssetUrl(`assets/player/adventurer/${sheet}_${dir}.png`);
+      const _travelerAttackUrl = (dir: TravelerDirection) =>
+        publicAssetUrl(`assets/player/adventurer/attack_${dir}.png`);
 
       class LhScene extends Phaser.Scene {
         private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
         private keySpace!: Phaser.Input.Keyboard.Key;
+        private keyAttack!: Phaser.Input.Keyboard.Key;
         private player!: Phaser.Physics.Arcade.Sprite;
         private fogStatics!: Phaser.Physics.Arcade.StaticGroup;
+        private solidStatics!: Phaser.Physics.Arcade.StaticGroup;
         private triggerBodies: Array<{ rect: Phaser.GameObjects.Rectangle; meta: TriggerRect }> = [];
+        private portalSprites = new Map<string, Phaser.GameObjects.Sprite>();
+        private portalActivating = new Set<string>();
+        private activatedInteractableIds = new Set<string>();
+        private portalCooldownUntil = new Map<string, number>();
+        private lastMaiaPortalId: string | null = null;
+        private maiaHandoffPaused = false;
+        private attackingUntil = 0;
         private debugText?: Phaser.GameObjects.Text;
         private facing: TravelerDirection = 'down';
 
@@ -128,14 +154,32 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
 
           for (const dir of TRAVELER_DIRECTIONS) {
             this.load.spritesheet(`lh_traveler_idle_${dir}`, _travelerUrl('idle', dir), {
-              frameWidth: 64,
+              frameWidth: 32,
               frameHeight: 80,
             });
             this.load.spritesheet(`lh_traveler_run_${dir}`, _travelerUrl('run', dir), {
-              frameWidth: 64,
+              frameWidth: 32,
+              frameHeight: 80,
+            });
+            // Optional: attack sheets (not required for runtime; will gracefully fallback if missing).
+            this.load.spritesheet(`lh_traveler_attack_${dir}`, _travelerAttackUrl(dir), {
+              frameWidth: 32,
               frameHeight: 80,
             });
           }
+
+          this.load.spritesheet('lh_maia_portal_idle', publicAssetUrl('assets/maps/portal-grassland-activated-loop.png'), {
+            frameWidth: 288,
+            frameHeight: 192,
+          });
+          this.load.spritesheet('lh_maia_portal_activate', publicAssetUrl('assets/maps/portal-grassland-activating.png'), {
+            frameWidth: 288,
+            frameHeight: 192,
+          });
+          this.load.spritesheet('lh_maia_portal_deactivate', publicAssetUrl('assets/maps/portal-grassland-deactivating.png'), {
+            frameWidth: 288,
+            frameHeight: 192,
+          });
         }
 
         create() {
@@ -184,6 +228,7 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
 
           // Render all tile layers
           const createdLayers: string[] = [];
+          const solidLayers: Array<Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer> = [];
           // Prefer dynamic creation (tolerates changes in the Tiled file).
           for (const layerData of map.layers ?? []) {
             const layerName = (layerData as unknown as { name?: string; type?: string })?.name;
@@ -195,6 +240,10 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
               if (!layer) {
                 console.warn(`[LhScene] Layer "${layerName}" returned null`);
                 continue;
+              }
+              if (SOLID_TILE_LAYER_NAMES.has(layerName)) {
+                layer.setCollisionByExclusion([-1], true);
+                solidLayers.push(layer);
               }
               createdLayers.push(layerName);
             } catch (e) {
@@ -209,7 +258,13 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
               try {
                 const layer = map.createLayer(layerName, tilesets, 0, 0);
                 if (!layer) console.warn(`[LhScene] Layer "${layerName}" returned null`);
-                else createdLayers.push(layerName);
+                else {
+                  if (SOLID_TILE_LAYER_NAMES.has(layerName)) {
+                    layer.setCollisionByExclusion([-1], true);
+                    solidLayers.push(layer);
+                  }
+                  createdLayers.push(layerName);
+                }
               } catch (e) {
                 console.warn(`[LhScene] Could not create layer "${layerName}":`, e);
               }
@@ -220,6 +275,7 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
 
           // Fog regions — dark blocking rectangles
           this.fogStatics = this.physics.add.staticGroup();
+          this.solidStatics = this.physics.add.staticGroup();
           _parsedMap.fog_regions.forEach((f) => {
             const b = f.bounds;
             const r = this.add.rectangle(
@@ -233,28 +289,89 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
 
           // Trigger zones
           _triggers.forEach((tr) => {
-            const color = tr.completed ? 0x334155 : 0x22c55e;
+            if (tr.kind === 'maia_portal' && this.textures.exists('lh_maia_portal_idle')) {
+              const portal = this.add.sprite(tr.x + tr.w / 2, tr.y + tr.h, 'lh_maia_portal_idle');
+              const scale = Phaser.Math.Clamp(Math.max(tr.h, 72) / 192, 0.48, 1.2);
+              portal.setScale(scale);
+              portal.setOrigin(0.5, 1);
+              portal.setDepth(42);
+              this.portalSprites.set(tr.interactable_id, portal);
+
+              const portalBlock = this.add.rectangle(
+                tr.x + tr.w / 2,
+                tr.y + tr.h * 0.38,
+                Math.max(tr.w * 2.2, 80),
+                Math.max(tr.h * 0.46, 28),
+                0x000000,
+                0,
+              );
+              this.physics.add.existing(portalBlock, true);
+              this.solidStatics.add(portalBlock);
+            }
+
+            const isPortal = tr.kind === 'maia_portal';
+            const completed = Boolean(_completionById.current.get(tr.interactable_id));
+            const color = completed ? 0x334155 : isPortal ? 0x38bdf8 : 0x22c55e;
+            const triggerWidth = isPortal ? Math.max(tr.w * 1.7, 62) : tr.w;
+            const triggerHeight = isPortal ? Math.max(tr.h * 0.7, 42) : tr.h;
+            const triggerCenterY = tr.y + tr.h / 2;
             const rect = this.add.rectangle(
-              tr.x + tr.w / 2, tr.y + tr.h / 2,
-              tr.w, tr.h, color, 0.22,
+              tr.x + tr.w / 2, triggerCenterY,
+              triggerWidth, triggerHeight, color, isPortal ? 0.03 : 0.22,
             );
-            rect.setStrokeStyle(1, color, 0.55);
+            rect.setStrokeStyle(1, color, isPortal ? 0.08 : 0.55);
             this.triggerBodies.push({ rect, meta: tr });
           });
 
           const hasTraveler = this.textures.exists('lh_traveler_idle_down');
-          if (hasTraveler) for (const dir of TRAVELER_DIRECTIONS) {
+          if (this.textures.exists('lh_maia_portal_idle')) {
             this.anims.create({
-              key: `lh_traveler_idle_${dir}`,
-              frames: this.anims.generateFrameNumbers(`lh_traveler_idle_${dir}`, { start: 0, end: 11 }),
-              frameRate: 6,
+              key: 'lh_maia_portal_idle',
+              frames: this.anims.generateFrameNumbers('lh_maia_portal_idle', { start: 0, end: 6 }),
+              frameRate: 9,
               repeat: -1,
             });
+            this.portalSprites.forEach((portal) => portal.play('lh_maia_portal_idle'));
+          }
+          if (this.textures.exists('lh_maia_portal_activate')) {
+            this.anims.create({
+              key: 'lh_maia_portal_activate',
+              frames: this.anims.generateFrameNumbers('lh_maia_portal_activate', { start: 0, end: 13 }),
+              frameRate: 10,
+              repeat: 0,
+            });
+          }
+          if (this.textures.exists('lh_maia_portal_deactivate')) {
+            this.anims.create({
+              key: 'lh_maia_portal_deactivate',
+              frames: this.anims.generateFrameNumbers('lh_maia_portal_deactivate', { start: 0, end: 5 }),
+              frameRate: 8,
+              repeat: 0,
+            });
+          }
+
+          if (hasTraveler) for (const dir of TRAVELER_DIRECTIONS) {
             this.anims.create({
               key: `lh_traveler_run_${dir}`,
-              frames: this.anims.generateFrameNumbers(`lh_traveler_run_${dir}`, { start: 0, end: 11 }),
+              frames: this.anims.generateFrameNumbers(`lh_traveler_run_${dir}`, {
+                frames: [...TRAVELER_VISIBLE_FRAME_INDICES],
+              }),
               frameRate: 12,
               repeat: -1,
+            });
+          }
+
+          if (hasTraveler) for (const dir of TRAVELER_DIRECTIONS) {
+            const sheetKey = `lh_traveler_attack_${dir}`;
+            if (!this.textures.exists(sheetKey)) continue;
+            const total = Math.max((this.textures.get(sheetKey)?.frameTotal ?? 0) - 1, 0);
+            // Only create if frames exist (frameTotal includes the base frame).
+            if (total < 1) continue;
+            this.anims.create({
+              key: `lh_traveler_attack_${dir}`,
+              frames: this.anims.generateFrameNumbers(sheetKey, { start: 0, end: total }),
+              frameRate: 14,
+              repeat: 0,
             });
           }
 
@@ -266,28 +383,43 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
             g.destroy();
           }
 
-          this.player = this.physics.add.sprite(wpx / 2, hpx / 2, hasTraveler ? 'lh_traveler_idle_down' : 'lh_player_dot');
+          const maiaPortal = _triggers.find((tr) => tr.kind === 'maia_portal');
+          const spawnX = maiaPortal
+            ? Phaser.Math.Clamp(maiaPortal.x + maiaPortal.w / 2, 24, wpx - 24)
+            : wpx / 2;
+          const spawnY = maiaPortal
+            ? Phaser.Math.Clamp(maiaPortal.y + maiaPortal.h + 150, 24, hpx - 24)
+            : hpx / 2;
+
+          this.player = this.physics.add.sprite(spawnX, spawnY, hasTraveler ? 'lh_traveler_idle_down' : 'lh_player_dot');
           if (hasTraveler) {
-            this.player.play('lh_traveler_idle_down');
+            this.player.setTexture('lh_traveler_idle_down', TRAVELER_VISIBLE_FRAME_INDICES[0]);
             this.player.setScale(0.75);
-            this.player.setSize(22, 28);
-            this.player.setOffset(21, 46);
+            this.player.setSize(14, 28);
+            this.player.setOffset(9, 46);
           }
           this.player.setCollideWorldBounds(true);
           this.player.setDamping(true);
           this.player.setDrag(600, 600);
-          this.player.setMaxVelocity(500, 500);
+          this.player.setMaxVelocity(175, 175);
           this.player.setDepth(50);
 
           this.physics.add.collider(this.player, this.fogStatics);
+          this.physics.add.collider(this.player, this.solidStatics);
+          solidLayers.forEach((layer) => {
+            this.physics.add.collider(this.player, layer);
+          });
 
           this.cursors = this.input.keyboard?.createCursorKeys() as Phaser.Types.Input.Keyboard.CursorKeys;
           this.keySpace = this.input.keyboard?.addKey(
             Phaser.Input.Keyboard.KeyCodes.SPACE,
           ) as Phaser.Input.Keyboard.Key;
+          this.keyAttack = this.input.keyboard?.addKey(
+            Phaser.Input.Keyboard.KeyCodes.A,
+          ) as Phaser.Input.Keyboard.Key;
 
           this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
-          this.cameras.main.setZoom(1.5);
+          this.cameras.main.setZoom(1.85);
 
           // ── Temporary on-screen debug overlay ──
           this.debugText = this.add
@@ -303,7 +435,7 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
             .setAlpha(0.95);
 
           this.add
-            .text(12, 10, '⬆⬇⬅➡ Move  ·  SPACE Interact', {
+            .text(12, 10, '⬆⬇⬅➡ Move  ·  SPACE Interact  ·  A Attack', {
               fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial',
               fontSize: '13px',
               color: '#94a3b8',
@@ -311,10 +443,137 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
             .setScrollFactor(0)
             .setDepth(999)
             .setAlpha(0.92);
+
+          window.addEventListener('lh:maia-handoff-opened', this.handleMaiaOpened);
+          window.addEventListener('lh:maia-handoff-closed', this.handleMaiaClosed);
+          this.events.once('shutdown', () => {
+            window.removeEventListener('lh:maia-handoff-opened', this.handleMaiaOpened);
+            window.removeEventListener('lh:maia-handoff-closed', this.handleMaiaClosed);
+          });
+        }
+
+        private handleMaiaOpened = () => {
+          if (import.meta.env.DEV || import.meta.env.VITE_LH_MAIA_DEBUG === 'true') {
+            // eslint-disable-next-line no-console
+            console.log('[MaiaHandoff Phaser]', 'handleMaiaOpened → pause gameplay');
+          }
+          this.maiaHandoffPaused = true;
+          this.player.setAcceleration(0, 0);
+          this.player.setVelocity(0, 0);
+        };
+
+        private handleMaiaClosed = () => {
+          if (import.meta.env.DEV || import.meta.env.VITE_LH_MAIA_DEBUG === 'true') {
+            // eslint-disable-next-line no-console
+            console.log('[MaiaHandoff Phaser]', 'handleMaiaClosed → resume gameplay & re-enter');
+          }
+          this.maiaHandoffPaused = false;
+          const portalId = this.lastMaiaPortalId;
+          if (!portalId) return;
+          const meta = this.triggerBodies.find((row) => row.meta.interactable_id === portalId)?.meta;
+          if (!meta) return;
+
+          const portal = this.portalSprites.get(portalId);
+          portal?.setAlpha(0.42);
+          if (portal && this.anims.exists('lh_maia_portal_deactivate')) {
+            portal.play('lh_maia_portal_deactivate');
+            portal.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+              portal.setFrame(0);
+            });
+          } else if (portal) {
+            portal.setFrame(0);
+          }
+
+          this.portalCooldownUntil.set(portalId, this.time.now + 60000);
+          this.time.delayedCall(60000, () => {
+            this.portalCooldownUntil.delete(portalId);
+            this.activatedInteractableIds.delete(portalId);
+            const cooledPortal = this.portalSprites.get(portalId);
+            if (!cooledPortal) return;
+            cooledPortal.setAlpha(1);
+            if (this.anims.exists('lh_maia_portal_idle')) {
+              cooledPortal.play('lh_maia_portal_idle');
+            }
+          });
+          this.player.setPosition(meta.x + meta.w / 2, meta.y + meta.h + 24);
+          this.player.setAlpha(0);
+          this.player.setScale(0.45);
+          this.player.setTexture('lh_traveler_idle_down', TRAVELER_VISIBLE_FRAME_INDICES[0]);
+          this.tweens.add({
+            targets: this.player,
+            alpha: 1,
+            y: meta.y + meta.h + 135,
+            scale: 0.75,
+            duration: 700,
+            ease: 'Sine.easeOut',
+          });
+        };
+
+        private activateTrigger(hit: TriggerRect) {
+          const isPortal = hit.kind === 'maia_portal';
+          const completed = Boolean(_completionById.current.get(hit.interactable_id));
+          if ((!isPortal && completed) || this.activatedInteractableIds.has(hit.interactable_id)) return;
+
+          if (!isPortal) {
+            this.activatedInteractableIds.add(hit.interactable_id);
+            _onActivate(hit.interactable_id);
+            return;
+          }
+
+          if (this.portalActivating.has(hit.interactable_id)) return;
+          if ((this.portalCooldownUntil.get(hit.interactable_id) ?? 0) > this.time.now) return;
+          this.portalActivating.add(hit.interactable_id);
+          this.activatedInteractableIds.add(hit.interactable_id);
+          this.lastMaiaPortalId = hit.interactable_id;
+
+          this.player.setAcceleration(0, 0);
+          this.player.setVelocity(0, 0);
+          this.player.anims.stop();
+          if (this.textures.exists('lh_traveler_idle_up')) {
+            this.player.setTexture('lh_traveler_idle_up', TRAVELER_VISIBLE_FRAME_INDICES[0]);
+          }
+
+          const portal = this.portalSprites.get(hit.interactable_id);
+          if (portal && this.anims.exists('lh_maia_portal_activate')) {
+            portal.play('lh_maia_portal_activate');
+            portal.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+              portal.play('lh_maia_portal_idle');
+            });
+          }
+
+          this.tweens.add({
+            targets: this.player,
+            alpha: 0,
+            // Subtle "step into the mirror" glide (less distance, slower ease).
+            y: this.player.y - 18,
+            scale: this.player.scale * 0.86,
+            duration: 1150,
+            ease: 'Sine.easeInOut',
+            onComplete: () => {
+              // Freeze gameplay while the Maia handoff prompt is visible.
+              this.maiaHandoffPaused = true;
+              this.player.setAcceleration(0, 0);
+              this.player.setVelocity(0, 0);
+              _onActivate(hit.interactable_id);
+              this.portalActivating.delete(hit.interactable_id);
+            },
+          });
         }
 
         update() {
-          const accel = 1400;
+          if (this.maiaHandoffPaused) {
+            this.player?.setAcceleration(0, 0);
+            this.player?.setVelocity(0, 0);
+            return;
+          }
+
+          if (this.attackingUntil > this.time.now) {
+            this.player?.setAcceleration(0, 0);
+            this.player?.setVelocity(0, 0);
+            return;
+          }
+
+          const accel = 490;
           const body = this.player?.body as Phaser.Physics.Arcade.Body | undefined;
           if (!body) return;
 
@@ -347,30 +606,74 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
               this.facing = ay < 0 ? 'up' : 'down';
             }
             this.player.play(`lh_traveler_run_${this.facing}`, true);
-          } else if (this.textures.exists(`lh_traveler_idle_${this.facing}`)) {
-            this.player.play(`lh_traveler_idle_${this.facing}`, true);
+          } else {
+            const idleKey = `lh_traveler_idle_${this.facing}`;
+            if (this.textures.exists(idleKey)) {
+              this.player.anims.stop();
+              this.player.setTexture(idleKey, TRAVELER_VISIBLE_FRAME_INDICES[0]);
+            }
+          }
+
+          if (Phaser.Input.Keyboard.JustDown(this.keyAttack)) {
+            // Attack locks movement briefly. If attack sheets exist, play the animation.
+            this.player.setAcceleration(0, 0);
+            this.player.setVelocity(0, 0);
+            const atkKey = `lh_traveler_attack_${this.facing}`;
+            if (this.anims.exists(atkKey)) {
+              this.attackingUntil = this.time.now + 420;
+              this.player.play(atkKey, true);
+              this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+                this.attackingUntil = 0;
+              });
+            } else {
+              // Fallback: tiny lunge + flash so input is testable even before the attack sheet lands.
+              this.attackingUntil = this.time.now + 260;
+              this.tweens.add({
+                targets: this.player,
+                alpha: 0.65,
+                duration: 90,
+                yoyo: true,
+                repeat: 1,
+              });
+            }
+            return;
+          }
+
+          const px = this.player.x;
+          const py = this.player.y;
+          const overlaps = this.triggerBodies
+            .filter(({ rect }) =>
+              Phaser.Geom.Intersects.RectangleToRectangle(
+                this.player.getBounds(), rect.getBounds(),
+              ),
+            )
+            .map((row) => ({
+              ...row,
+              d: (row.rect.x - px) ** 2 + (row.rect.y - py) ** 2,
+            }))
+            .sort((a, b) => {
+              const aDone = Boolean(_completionById.current.get(a.meta.interactable_id));
+              const bDone = Boolean(_completionById.current.get(b.meta.interactable_id));
+              if (aDone !== bDone) return aDone ? 1 : -1;
+              return a.d - b.d;
+            });
+
+          const portalHit = overlaps.find((row) => row.meta.kind === 'maia_portal')?.meta;
+          const enteringPortalFromBottom = Boolean(
+            portalHit &&
+              moving &&
+              ay < 0 &&
+              this.player.y > portalHit.y + portalHit.h * 0.92,
+          );
+          if (portalHit && enteringPortalFromBottom) {
+            this.activateTrigger(portalHit);
+            return;
           }
 
           if (Phaser.Input.Keyboard.JustDown(this.keySpace)) {
-            const px = this.player.x;
-            const py = this.player.y;
-            const overlaps = this.triggerBodies
-              .filter(({ rect }) =>
-                Phaser.Geom.Intersects.RectangleToRectangle(
-                  this.player.getBounds(), rect.getBounds(),
-                ),
-              )
-              .map((row) => ({
-                ...row,
-                d: (row.rect.x - px) ** 2 + (row.rect.y - py) ** 2,
-              }))
-              .sort((a, b) => {
-                if (a.meta.completed !== b.meta.completed) return a.meta.completed ? 1 : -1;
-                return a.d - b.d;
-              });
-
             const hit = overlaps[0]?.meta;
-            if (hit && !hit.completed) _onActivate(hit.interactable_id);
+            const done = hit ? Boolean(_completionById.current.get(hit.interactable_id)) : false;
+            if (hit && !done) this.activateTrigger(hit);
           }
         }
       }
@@ -418,7 +721,7 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
         gameRef.current = null;
       }
     };
-  }, [onActivateHotspot, parsedMap, realmId, triggers]);
+  }, [realmId]);
 
   return (
     <div

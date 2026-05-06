@@ -1,10 +1,10 @@
-/** Product copy surfaced in Night One scaffolding (replace with CMS / Sheets later). */
+/** Product copy surfaced in the leadership demo shell (replace with CMS / Sheets later). */
 export const classroomInfoStubNotice =
-  'Settings / roster binding lives with Apps Script + Sheets integration (planned).';
+  'Live Maia integration is intentionally not a blocker for this demo. Teacher-reviewed values can be bridged into the save record as processed inputs.';
 
-/** Shown in the title-screen “Classroom info” panel (Milestone 12). */
+/** Shown in the title-screen classroom info panel (Milestone 12). */
 export const classroomInfoPanelBody =
-  'Your facilitator links this build to a class roster in Google Workspace. Student saves, exit tickets, and roster hints sync through the Codex Web App when those URLs are configured in the build. Until then, you are on the local demonstration save — progress still persists in your browser for the same device.';
+  'This leadership build shows how Legendary Horizon wraps Maia Learning, Scroll of Destiny planning, realm exploration, and progress tracking into one student-facing flow. Maia remains the source of key career-planning work; the game turns those results into motivation, structure, and clearer choices.';
 
-export const mentorSpeakerLabel = 'Mentor Kael · Guild Archivist';
+export const mentorSpeakerLabel = 'Mentor Kael - Guild Archivist';
 export const resumeDialogTitle = 'Echoes Since Your Last Breath';

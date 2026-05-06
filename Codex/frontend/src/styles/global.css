@@ -721,6 +721,37 @@ code.lh-code-inline {
   align-self: flex-start;
 }
 
+.lh-maia-handoff-lock {
+  position: absolute;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background: rgba(3, 6, 12, 0.72);
+  backdrop-filter: blur(2px);
+  pointer-events: auto;
+}
+
+.lh-maia-handoff-lock__panel {
+  width: min(460px, 92vw);
+  border: 1px solid rgba(244, 185, 66, 0.42);
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  background: rgba(9, 14, 24, 0.94);
+  box-shadow: var(--lh-accent-glow);
+}
+
+.lh-maia-handoff-lock__panel p:last-child {
+  margin-bottom: 0;
+  color: var(--lh-muted);
+  line-height: 1.5;
+}
+
+.lh-maia-handoff-lock__panel .lh-button {
+  margin-top: 0.9rem;
+}
+
 .lh-map-debug {
   margin-top: 0.75rem;
   align-self: flex-start;
@@ -2022,6 +2053,259 @@ button:focus-visible {
 
 .lh-title-actions {
   flex-wrap: wrap;
+}
+
+/* Intro cinematic */
+.lh-screen--intro-cinematic {
+  position: relative;
+  overflow: hidden;
+  place-items: end center;
+  padding: 2rem 1rem 5vh;
+  isolation: isolate;
+}
+
+.lh-intro-cinematic__backdrop,
+.lh-intro-cinematic__fallback {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+}
+
+.lh-intro-cinematic__backdrop {
+  background-color: #06070b;
+  background-position: center;
+  background-size: cover;
+  transform: scale(1.02);
+  transition: background-image 0.5s ease;
+}
+
+.lh-intro-cinematic__fallback {
+  z-index: -3;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(244, 185, 66, 0.16), transparent 28%),
+    linear-gradient(135deg, #090b12 0%, #141824 48%, #05060a 100%);
+}
+
+.lh-screen--intro-cinematic::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(circle at 50% 30%, transparent 0%, rgba(5, 6, 10, 0.58) 58%, rgba(5, 6, 10, 0.92) 100%);
+  pointer-events: none;
+}
+
+.lh-intro-cinematic__content {
+  width: min(860px, 94vw);
+  padding: 1.25rem 1.35rem;
+  border: 1px solid rgba(244, 185, 66, 0.5);
+  border-radius: 10px;
+  background: rgba(9, 12, 20, 0.78);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.42), inset 0 0 22px rgba(244, 185, 66, 0.06);
+  backdrop-filter: blur(10px);
+}
+
+.lh-intro-cinematic__title {
+  margin: 0 0 0.85rem;
+  font-family: var(--lh-guild-display);
+  font-size: clamp(1.7rem, 4vw, 2.65rem);
+  line-height: 1.05;
+  color: var(--lh-text);
+  letter-spacing: 0.02em;
+}
+
+.lh-intro-cinematic__dialogue {
+  min-height: 7.25rem;
+  padding: 1rem 1.1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(244, 185, 66, 0.28);
+  background: rgba(8, 12, 20, 0.72);
+}
+
+.lh-intro-cinematic__dialogue p {
+  margin: 0;
+  color: #fef3c7;
+  font-size: clamp(0.98rem, 2vw, 1.14rem);
+  line-height: 1.62;
+}
+
+.lh-intro-cinematic__meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  color: var(--lh-muted);
+  font-size: 0.78rem;
+}
+
+.lh-intro-cinematic__actions {
+  margin-top: 1rem;
+}
+
+/* Scroll of Destiny reveal */
+.lh-screen--scroll-reveal {
+  position: relative;
+  overflow: auto;
+  padding: 2rem 1rem 2.5rem;
+  background:
+    linear-gradient(180deg, rgba(5, 6, 10, 0.55), rgba(5, 6, 10, 0.96)),
+    url('/assets/intro/scene_4_dagger_sword_1775784333493.png') center / cover no-repeat;
+}
+
+.lh-scroll-reveal {
+  position: relative;
+  width: min(900px, 96vw);
+  padding: clamp(1.15rem, 3vw, 2rem);
+  border: 1px solid rgba(244, 185, 66, 0.46);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(32, 22, 12, 0.92), rgba(12, 15, 23, 0.94)),
+    rgba(13, 16, 24, 0.92);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55), inset 0 0 30px rgba(244, 185, 66, 0.07);
+}
+
+.lh-scroll-reveal__header {
+  max-width: 64ch;
+}
+
+.lh-scroll-reveal__title {
+  margin: 0;
+  font-family: var(--lh-guild-display);
+  font-size: clamp(1.85rem, 4vw, 3rem);
+  line-height: 1.05;
+}
+
+.lh-scroll-reveal__lede {
+  margin: 0.75rem 0 0;
+  color: #e7d4aa;
+  line-height: 1.6;
+}
+
+.lh-scroll-reveal__seal {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  display: grid;
+  place-items: center;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(244, 185, 66, 0.54);
+  color: var(--lh-amber);
+  font-family: var(--lh-guild-display);
+  font-weight: 700;
+  background: rgba(5, 6, 10, 0.5);
+}
+
+.lh-scroll-reveal__panel {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(244, 185, 66, 0.24);
+  background: rgba(5, 6, 10, 0.35);
+}
+
+.lh-scroll-reveal__section-title {
+  margin: 0 0 0.75rem;
+  color: #fef3c7;
+}
+
+.lh-scroll-reveal__stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.lh-scroll-reveal__stat {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.lh-scroll-reveal__stat-label {
+  color: var(--lh-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.lh-scroll-reveal__stat-value {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: var(--lh-amber);
+}
+
+.lh-scroll-reveal__stat-bar {
+  height: 0.42rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(154, 168, 196, 0.2);
+}
+
+.lh-scroll-reveal__stat-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--lh-amber), #fef3c7);
+}
+
+.lh-scroll-reveal__signposts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.lh-scroll-reveal__signpost {
+  min-width: 0;
+  padding: 0.9rem;
+  border-radius: 8px;
+  border: 1px solid rgba(147, 197, 253, 0.22);
+  background: rgba(15, 23, 42, 0.58);
+}
+
+.lh-scroll-reveal__signpost-index {
+  color: var(--lh-amber);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.lh-scroll-reveal__signpost h4 {
+  margin: 0.3rem 0 0.35rem;
+  font-size: 1rem;
+}
+
+.lh-scroll-reveal__signpost p {
+  margin: 0;
+  color: var(--lh-muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.lh-scroll-reveal__mentor {
+  margin-top: 1.25rem;
+  padding: 0.85rem 1rem;
+  border-left: 3px solid var(--lh-amber);
+  color: #fef3c7;
+  line-height: 1.55;
+  background: rgba(244, 185, 66, 0.08);
+}
+
+.lh-scroll-reveal__actions {
+  margin-top: 1.25rem;
+}
+
+@media (max-width: 760px) {
+  .lh-scroll-reveal__seal {
+    position: static;
+    margin: 1rem 0 0;
+  }
+
+  .lh-scroll-reveal__stats,
+  .lh-scroll-reveal__signposts {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Instructions */

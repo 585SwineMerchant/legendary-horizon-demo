@@ -10,9 +10,13 @@ import { QuestLogShell } from './components/QuestLogShell';
 import { ModuleHostOverlay } from './components/ModuleHostOverlay';
 import { useLhAccessibilityPrefs } from './hooks/useLhAccessibilityPrefs';
 import { useNightOneFlow } from './hooks/useNightOneFlow';
+import { DemoClosingScreen } from './screens/DemoClosingScreen';
 import { ExplorationScreen } from './screens/ExplorationScreen';
 import { InstructionsScreen } from './screens/InstructionsScreen';
+import { IntroCinematicScreen } from './screens/IntroCinematicScreen';
+import { MaiaProfileBridgeScreen } from './screens/MaiaProfileBridgeScreen';
 import { ResumeDialogScreen } from './screens/ResumeDialogScreen';
+import { ScrollRevealScreen } from './screens/ScrollRevealScreen';
 import { TitleScreen } from './screens/TitleScreen';
 import { TeacherDashboardScreen } from './screens/TeacherDashboardScreen';
 import { isTerminalQuestStatus } from './quests/questEngine';
@@ -46,6 +50,10 @@ export function App() {
     pauseOpen,
     questLogOpen,
     saveFeedback,
+    maiaHandoffActive,
+    maiaHandoffPromptActive,
+    openMaiaHandoffWindow,
+    forceReturnFromMaia,
     explorationHotspots,
     hotspotControls,
     navigate,
@@ -162,6 +170,28 @@ export function App() {
         />
       ) : null}
 
+      {!teacherDashboardOpen && screen === 'intro' ? (
+        <IntroCinematicScreen
+          onSkip={navigate.introToInstructions}
+          onComplete={navigate.introToInstructions}
+        />
+      ) : null}
+
+      {!teacherDashboardOpen && screen === 'maiaProfile' ? (
+        <MaiaProfileBridgeScreen
+          onBack={navigate.quitToTitle}
+          onContinue={navigate.maiaProfileToResume}
+          classroomTools={classroomTools}
+        />
+      ) : null}
+
+      {!teacherDashboardOpen && screen === 'scrollReveal' ? (
+        <ScrollRevealScreen
+          onBack={navigate.proceedInstructions}
+          onContinue={navigate.scrollRevealToResume}
+        />
+      ) : null}
+
       {!teacherDashboardOpen && screen === 'resume' && player ? (
         <ResumeDialogScreen
           portraitUrl={mentorPortrait}
@@ -181,10 +211,15 @@ export function App() {
           parsedMap={parsedMap}
           renderer="phaser"
           saveFeedback={saveFeedback}
+          maiaHandoffActive={maiaHandoffActive}
+          maiaHandoffPromptActive={maiaHandoffPromptActive}
+          onOpenMaiaHandoff={openMaiaHandoffWindow}
+          onReturnFromMaiaHandoff={forceReturnFromMaia}
           onDismissSaveFeedback={saveFeedback ? navigate.dismissSaveFeedback : undefined}
           onPause={navigate.openPause}
           onOpenQuestLog={navigate.openQuestLog}
           onOpenInventory={navigate.openInventory}
+          onOpenDemoClosing={navigate.openDemoClosing}
           act3={{
             activeWaypointLabel: act3.activeWaypointLabel,
             fogCleared: act3.fogCleared,
@@ -209,6 +244,14 @@ export function App() {
               : null
           }
           signpostStrip={explorationSignpostStrip}
+        />
+      ) : null}
+
+      {!teacherDashboardOpen && screen === 'demoClosing' ? (
+        <DemoClosingScreen
+          onBackToExplore={navigate.resumeToExplore}
+          onQuitToTitle={navigate.quitToTitle}
+          classroomTools={classroomTools}
         />
       ) : null}
 

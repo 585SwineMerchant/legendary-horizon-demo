@@ -1,5 +1,5 @@
 /**
- * Single bundled overworld Tiled export for the current vertical slice.
+ * Single bundled overworld Tiled export for the current leadership demo slice.
  * Intentionally independent of `PlayerSave.current_realm_id`, which tracks
  * active guild / HQ / narrative context — not which tilemap file to load.
  */

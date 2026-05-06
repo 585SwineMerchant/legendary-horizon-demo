@@ -8,7 +8,7 @@ export const directiveAfterDemoShrine =
 type Outcome = { nextPlayer: PlayerSave; nextQuests: QuestDefinition[] };
 
 /**
- * Applies the Night One quest delta when the grove shrine activates.
+ * Applies the leadership demo quest delta when the grove shrine activates.
  * Keeps branching logic centralized for future Tiled-trigger parity.
  */
 export function completeDemoShrineVisit(

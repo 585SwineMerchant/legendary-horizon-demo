@@ -38,6 +38,7 @@ import {
   buildGoogleClassroomLaunchUrl,
   buildMaiaLaunchUrl,
   buildOnetLaunchUrl,
+  openUrlInPopupWindowSafe,
   buildQuizletLaunchUrl,
   openUrlInNewTabSafe,
   type ClassroomToolHandlers,
@@ -161,6 +162,8 @@ if (!TILED_LOAD.ok && typeof console !== 'undefined') {
 }
 
 export function useNightOneFlow() {
+  const maiaDebug =
+    import.meta.env.DEV || import.meta.env.VITE_LH_MAIA_DEBUG === 'true' || import.meta.env.VITE_LH_MAIA_DEBUG === true;
   const titleBackdropUrl = useMemo(
     () => resolveAssetDeliveryUrl(LH_MEDIA_ASSET_ID_TITLE_BACKDROP, BLUEPRINT.media_assets),
     [],
@@ -198,6 +201,12 @@ export function useNightOneFlow() {
       }
     | null
   >(null);
+  const [maiaHandoffActive, setMaiaHandoffActive] = useState(false);
+  const [maiaHandoffPromptActive, setMaiaHandoffPromptActive] = useState(false);
+  const maiaHandoffPollRef = useRef<number | null>(null);
+  const maiaHandoffWindowRef = useRef<Window | null>(null);
+  const maiaHandoffOpenedAtRef = useRef<number>(0);
+  const maiaHandoffClosedOnceRef = useRef(false);
   const [realmAtlasOpen, setRealmAtlasOpen] = useState(false);
   const [worldMapOpen, setWorldMapOpen] = useState(false);
   /** Inline message when travel is blocked (shown inside World Map overlay). */
@@ -242,6 +251,67 @@ export function useNightOneFlow() {
     }
   }, [screen, player?.current_realm_id]);
 
+  useEffect(() => {
+    return () => {
+      if (maiaHandoffPollRef.current !== null) {
+        window.clearInterval(maiaHandoffPollRef.current);
+        maiaHandoffPollRef.current = null;
+      }
+      maiaHandoffWindowRef.current = null;
+    };
+  }, []);
+
+  const finalizeMaiaHandoffClosed = useCallback(() => {
+    if (maiaHandoffClosedOnceRef.current) return;
+    maiaHandoffClosedOnceRef.current = true;
+    if (maiaDebug && typeof console !== 'undefined') {
+      console.log('[MaiaHandoff]', 'finalizeMaiaHandoffClosed dispatching lh:maia-handoff-closed');
+    }
+    if (maiaHandoffPollRef.current !== null) {
+      window.clearInterval(maiaHandoffPollRef.current);
+      maiaHandoffPollRef.current = null;
+    }
+    maiaHandoffWindowRef.current = null;
+    setMaiaHandoffActive(false);
+    setMaiaHandoffPromptActive(false);
+    window.dispatchEvent(new CustomEvent('lh:maia-handoff-closed'));
+    setSaveFeedback({
+      tone: 'success',
+      text: 'Returned from Maia. The Mirror is cooling down for one minute while your path continues.',
+    });
+  }, []);
+
+  const forceReturnFromMaia = useCallback(() => {
+    // Manual return should always be able to fire, even if a prior handoff already closed.
+    maiaHandoffClosedOnceRef.current = false;
+    finalizeMaiaHandoffClosed();
+  }, [finalizeMaiaHandoffClosed]);
+
+  const checkForMaiaWindowClosed = useCallback(() => {
+    const w = maiaHandoffWindowRef.current;
+    if (!w) return;
+    // Avoid firing a "closed" reaction during the initial open jitter.
+    if (Date.now() - maiaHandoffOpenedAtRef.current < 1500) return;
+    let closed = false;
+    try {
+      closed = w.closed;
+    } catch {
+      // Some browsers may throw when accessing `closed` on cross-origin tabs — treat as closed in that case.
+      closed = true;
+    }
+    if (maiaDebug && typeof console !== 'undefined') {
+      let href = '';
+      try {
+        href = String(w.location?.href ?? '');
+      } catch {
+        href = '[unreadable-location]';
+      }
+      console.log('[MaiaHandoff]', 'poll check', { name: w.name, closed, href });
+    }
+    if (!closed) return;
+    finalizeMaiaHandoffClosed();
+  }, [finalizeMaiaHandoffClosed]);
+
   const resumeDialogBody = useMemo(() => {
     if (!player) return '';
     return buildResumeDialogBody(player, realm, quests, BLUEPRINT.dialogue_catalog);
@@ -256,6 +326,73 @@ export function useNightOneFlow() {
     if (!wp) return null;
     return wp.name?.trim() || wp.waypoint_key || `Waypoint ${wp.tiled_object_id}`;
   }, [exploration.waypoint_keys_visited]);
+
+  const launchMaiaHandoffWindow = useCallback((): boolean => {
+    const maiaUrl = buildMaiaLaunchUrl();
+    // Stable name so the returned window handle reliably matches the visible Maia tab.
+    const w = openUrlInPopupWindowSafe(maiaUrl, 'lh_maia_handoff_window');
+    if (!w) {
+      setSaveFeedback({
+        tone: 'error',
+        text: 'Your browser blocked the Maia window. Allow popups for this demo, then try opening Maia again.',
+        retryLabel: 'Open Maia',
+        onRetry: launchMaiaHandoffWindow,
+      });
+      return false;
+    }
+
+    maiaHandoffClosedOnceRef.current = false;
+    maiaHandoffWindowRef.current = w;
+    maiaHandoffOpenedAtRef.current = Date.now();
+    if (maiaDebug && typeof console !== 'undefined') {
+      console.log('[MaiaHandoff]', 'maia window opened; starting close poll', { url: maiaUrl });
+    }
+
+    setMaiaHandoffActive(true);
+    setMaiaHandoffPromptActive(false);
+    setPauseOpen(false);
+    window.dispatchEvent(new CustomEvent('lh:maia-handoff-opened'));
+    setSaveFeedback({
+      tone: 'success',
+      text: 'Maia is open in a separate window. Gameplay is paused until that Maia window is closed.',
+    });
+
+    if (maiaHandoffPollRef.current !== null) {
+      window.clearInterval(maiaHandoffPollRef.current);
+    }
+    maiaHandoffPollRef.current = window.setInterval(() => {
+      checkForMaiaWindowClosed();
+    }, 750);
+    return true;
+  }, [checkForMaiaWindowClosed]);
+
+  useEffect(() => {
+    if (!maiaHandoffActive) return;
+    const maybeFinalizeOnReturn = () => {
+      // When the player comes back to the game tab after spending a bit of time in Maia,
+      // assume the handoff is complete even if `w.closed` was not observable.
+      if (Date.now() - maiaHandoffOpenedAtRef.current < 4000) return;
+      if (!maiaHandoffClosedOnceRef.current) {
+        finalizeMaiaHandoffClosed();
+      }
+    };
+    const onFocus = () => {
+      checkForMaiaWindowClosed();
+      if (!maiaHandoffClosedOnceRef.current) maybeFinalizeOnReturn();
+    };
+    const onVis = () => {
+      if (document.visibilityState === 'visible') {
+        checkForMaiaWindowClosed();
+        if (!maiaHandoffClosedOnceRef.current) maybeFinalizeOnReturn();
+      }
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [maiaHandoffActive, checkForMaiaWindowClosed, finalizeMaiaHandoffClosed]);
 
   /** Production-shaped: show GT-101 on Pause only after in-map manager unlock + HQ context. */
   const pauseCanOpenGt101 = useMemo(() => {
@@ -489,7 +626,7 @@ export function useNightOneFlow() {
     setInventoryOpen(false);
     setExploration(explorationInit);
     setLedgerDraft(emptyLedgerDraft());
-    setScreen('instructions');
+    setScreen('intro');
     setPauseOpen(false);
     setQuestLogOpen(false);
     setSaveFeedback(null);
@@ -582,6 +719,61 @@ export function useNightOneFlow() {
       if (!player) return;
 
       const kind = normaliseLhTriggerKind(String(triggerMeta.kind ?? ''));
+      if (kind === 'maia_portal') {
+        // Manual "Return to game" must be able to fire each time.
+        maiaHandoffClosedOnceRef.current = false;
+        const nextVisited = visitedInteractableIds.includes(interactableId)
+          ? visitedInteractableIds
+          : [...visitedInteractableIds, interactableId];
+        const nextPlayer: PlayerSave = {
+          ...player,
+          required_next_action:
+            'Mirror of Maia handoff complete. Teacher-reviewed Maia insights are ready to shape your Scroll of Destiny.',
+        };
+        const nextRealmProgress = setRealmLearnedNotes(
+          realmProgress,
+          player.current_realm_id,
+          'Mirror of Maia handoff demonstrated with teacher-reviewed Interest Profiler-style data.',
+        );
+
+        setPlayer(nextPlayer);
+        setRealmProgress(nextRealmProgress);
+        setVisitedInteractableIds(nextVisited);
+        setMaiaHandoffPromptActive(true);
+        // Do NOT pause Phaser here; Phaser pauses itself when the portal handoff animation completes.
+
+        void (async () => {
+          const envelope = buildManualSaveEnvelope({
+            player: nextPlayer,
+            questsSnapshot: quests,
+            realmId: realm.realm_id,
+            visitedTriggerInteractableIds: nextVisited,
+            exploration_loop: exploration,
+            realm_progress: nextRealmProgress,
+            ritual_drafts: ritualDraftsFromLedgerDraft(ledgerDraft),
+            save_kind: 'manual',
+          });
+          const persist = await persistManualSaveEnvelope(envelope);
+          if (!persist.ok) {
+            setSaveFeedback({
+              tone: 'error',
+              text: `Mirror of Maia handoff worked, but the save did not complete: ${persist.message}`,
+              retryLabel: 'Open Maia anyway',
+              onRetry: launchMaiaHandoffWindow,
+            });
+            return;
+          }
+          setSaveFeedback({
+            tone: 'success',
+            text: 'Mirror of Maia handoff ready. Progress saved. Open Maia, then close that window to return through the portal.',
+            retryLabel: 'Open Maia',
+            onRetry: launchMaiaHandoffWindow,
+          });
+          tryPlayCatalogAudioAsset(LH_MEDIA_ASSET_ID_SAVE_CHIME, BLUEPRINT.media_assets);
+        })();
+        return;
+      }
+
       if (kind === 'guild_interview_invite') {
         if (visitedInteractableIds.includes(interactableId)) return;
 
@@ -800,7 +992,7 @@ export function useNightOneFlow() {
         setVisitedInteractableIds((curr) => (curr.includes(interactableId) ? curr : [...curr, interactableId]));
       }
     },
-    [player, quests, visitedInteractableIds, realm, exploration.guild_endgame_v1],
+    [player, quests, visitedInteractableIds, realm, exploration, realmProgress, ledgerDraft, launchMaiaHandoffWindow],
   );
 
   const explorationHotspots: ExplorationHotspot[] = useMemo(() => {
@@ -820,7 +1012,8 @@ export function useNightOneFlow() {
         hit.kind === 'combat_encounter' ||
         hit.kind === 'vocab_battle' ||
         hit.kind === 'guild_manager_hq' ||
-        hit.kind === 'guild_interview_invite',
+        hit.kind === 'guild_interview_invite' ||
+        hit.kind === 'maia_portal',
     );
 
     return relevant.map((trigger) => {
@@ -1506,7 +1699,10 @@ export function useNightOneFlow() {
   const navigate: NightOneNavigate = {
     beginDemo,
     quitToTitle,
-    proceedInstructions: () => setScreen('resume'),
+    introToInstructions: () => setScreen('instructions'),
+    proceedInstructions: () => setScreen('maiaProfile'),
+    maiaProfileToResume: () => setScreen('scrollReveal'),
+    scrollRevealToResume: () => setScreen('resume'),
     resumeToExplore: () => setScreen('explore'),
     openPause: () => setPauseOpen(true),
     closePause: () => setPauseOpen(false),
@@ -1534,6 +1730,10 @@ export function useNightOneFlow() {
       setInventoryOpen(true);
     },
     closeInventory: () => setInventoryOpen(false),
+    openDemoClosing: () => {
+      setPauseOpen(false);
+      setScreen('demoClosing');
+    },
     openModule: (moduleId: string) => {
       const devBypass = import.meta.env.DEV || import.meta.env.VITE_LH_PAUSE_MODULE_SHORTCUTS === 'true';
       if (moduleId === 'mod_gt101_enrollment_rune' && player && !devBypass) {
@@ -1608,6 +1808,11 @@ export function useNightOneFlow() {
     pauseOpen,
     questLogOpen,
     saveFeedback,
+    maiaHandoffActive,
+    maiaHandoffPromptActive,
+    maiaHandoffUrl: buildMaiaLaunchUrl(),
+    openMaiaHandoffWindow: launchMaiaHandoffWindow,
+    forceReturnFromMaia,
     explorationHotspots,
     pauseCanOpenGt101,
     pauseCanOpenGt102,

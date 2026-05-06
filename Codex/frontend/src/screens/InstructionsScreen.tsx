@@ -9,20 +9,24 @@ type Props = {
 
 const STEPS = [
   {
-    title: 'Load your traveler',
-    body: 'Continue pulls your roster match and the latest save (Google Sheets Web App when configured, otherwise the local demo save and browser cache).',
+    title: 'Mirror of Maia',
+    body: 'Students begin with Maia Learning: the Interest Profiler, career recommendations, and saved favorites provide the first real-world signal for the journey.',
   },
   {
-    title: 'Hear the recap',
-    body: 'Mentor Kael summarizes where you left off — that text comes from your save row, not hard-coded prose.',
+    title: 'Teacher-reviewed bridge',
+    body: 'For the demo, processed Maia-style fields stand in for the long-term teacher/backend layer that translates results into game-ready values.',
   },
   {
-    title: 'Explore & progress',
-    body: 'Use the schematic map for quest triggers, Pause for the world map and worksheets, and Quest Log for objectives. Saves and exit tickets use the same flow your class will ship.',
+    title: 'Stats and signposts',
+    body: 'The Scroll of Destiny reveals base stats, a student manifest, and three foretold realm signposts that make the opening path feel personal.',
   },
   {
-    title: 'Save before you go',
-    body: 'Pause → Save Game (or End session) persists exploration, quests, and worksheets. If pop-ups are blocked, your facilitator can still read the same fields from Sheets.',
+    title: 'Explore, research, compare',
+    body: 'A realm beat and a research beat show how the game motivates career exploration without replacing the planning tools schools already trust.',
+  },
+  {
+    title: 'Return to Maia',
+    body: 'The slice closes by pointing students back to Maia and the NYS Career Plan with stronger context for choosing, comparing, and completing the plan.',
   },
 ] as const;
 
@@ -31,10 +35,11 @@ export function InstructionsScreen({ onBack, onStartSession, classroomTools }: P
     <section className="lh-screen lh-screen--instructions">
       <div className="lh-panel lh-panel--sheet lh-panel--instructions">
         <header className="lh-instructions__header">
-          <p className="lh-eyebrow">Before you play</p>
-          <h2 className="lh-heading-lg">How this session works</h2>
+          <p className="lh-eyebrow">Corey leadership walkthrough</p>
+          <h2 className="lh-heading-lg">What this demo proves</h2>
           <p className="lh-instructions__lede">
-            Everything below is real UI wired to data — you should not need a narrator standing next to you.
+            Maia remains a core part of the instructional system. Legendary Horizon is the motivating layer that helps
+            students understand their results, explore options, and return to the plan with better choices.
           </p>
         </header>
         <ol className="lh-instructions__steps">
@@ -54,7 +59,7 @@ export function InstructionsScreen({ onBack, onStartSession, classroomTools }: P
           <section className="lh-instructions__classroom-tools" aria-label="Classroom tool shortcuts">
             <h3 className="lh-heading-sm lh-instructions__tools-title">Classroom shortcuts</h3>
             <p className="lh-instructions__tools-hint">
-              Same links as Pause → Classroom tools. Use when your facilitator assigns work in these apps.
+              Maia and the classroom tools stay available during the walkthrough so the handoff is visible, not implied.
             </p>
             <ClassroomToolsButtonRow handlers={classroomTools} layout="instructions" />
           </section>
@@ -64,7 +69,7 @@ export function InstructionsScreen({ onBack, onStartSession, classroomTools }: P
             Back to title
           </button>
           <button type="button" className="lh-button lh-button--primary" onClick={onStartSession}>
-            I’m ready — open recap
+            Open guided recap
           </button>
         </div>
       </div>

@@ -10,6 +10,8 @@ export type ParsedLhTrigger = {
   /** Guild HQ desk / manager gate — `lh_realm_id` on the Tiled object. */
   target_realm_id?: string;
   target_quest_id?: string;
+  /** Optional key for configured external handoff destinations, such as Maia. */
+  external_url_key?: string;
   bounds: {
     x: number;
     y: number;
@@ -124,6 +126,7 @@ function normaliseTriggers(objects: TiledObject[], layerName: string): ParsedLhT
       npc_id: tileProperty(props, 'lh_npc_id'),
       target_realm_id: tileProperty(props, 'lh_realm_id'),
       target_quest_id: tileProperty(props, 'lh_target_quest_id'),
+      external_url_key: tileProperty(props, 'lh_external_url_key'),
       bounds: objectBounds(obj),
       interaction_label_active:
         tileProperty(props, 'lh_interaction_copy_active') ?? obj.name ?? `Interact #${obj.id}`,
