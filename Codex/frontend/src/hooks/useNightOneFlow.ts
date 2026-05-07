@@ -38,7 +38,6 @@ import {
   buildGoogleClassroomLaunchUrl,
   buildMaiaLaunchUrl,
   buildOnetLaunchUrl,
-  openUrlInPopupWindowSafe,
   buildQuizletLaunchUrl,
   openUrlInNewTabSafe,
   type ClassroomToolHandlers,
@@ -208,6 +207,19 @@ export function useNightOneFlow() {
   const maiaHandoffOpenedAtRef = useRef<number>(0);
   const maiaHandoffClosedOnceRef = useRef(false);
   const [realmAtlasOpen, setRealmAtlasOpen] = useState(false);
+  /** Pause → World Atlas entry: optional guild sheet first + fog lift after close (guild HQ research trigger). */
+  const [realmAtlasEntryIntent, setRealmAtlasEntryIntent] = useState<{
+    initialGuildRealmId: string | null;
+    fogRevealRealmId: string | null;
+  }>({ initialGuildRealmId: null, fogRevealRealmId: null });
+
+  const consumeRealmAtlasInitialGuildIntent = useCallback(() => {
+    setRealmAtlasEntryIntent((prev) => ({ ...prev, initialGuildRealmId: null }));
+  }, []);
+
+  const consumeRealmAtlasFogRevealIntent = useCallback(() => {
+    setRealmAtlasEntryIntent((prev) => ({ ...prev, fogRevealRealmId: null }));
+  }, []);
   const [worldMapOpen, setWorldMapOpen] = useState(false);
   /** Inline message when travel is blocked (shown inside World Map overlay). */
   const [realmTravelNotice, setRealmTravelNotice] = useState<string | null>(null);
@@ -275,10 +287,6 @@ export function useNightOneFlow() {
     setMaiaHandoffActive(false);
     setMaiaHandoffPromptActive(false);
     window.dispatchEvent(new CustomEvent('lh:maia-handoff-closed'));
-    setSaveFeedback({
-      tone: 'success',
-      text: 'Returned from Maia. The Mirror is cooling down for one minute while your path continues.',
-    });
   }, []);
 
   const forceReturnFromMaia = useCallback(() => {
@@ -329,15 +337,17 @@ export function useNightOneFlow() {
 
   const launchMaiaHandoffWindow = useCallback((): boolean => {
     const maiaUrl = buildMaiaLaunchUrl();
-    // Stable name so the returned window handle reliably matches the visible Maia tab.
-    const w = openUrlInPopupWindowSafe(maiaUrl, 'lh_maia_handoff_window');
+    // Single new tab only (named popups + _blank fallback caused duplicate tabs in Chrome).
+    let w: Window | null = null;
+    try {
+      w = window.open(maiaUrl, '_blank', 'noopener,noreferrer');
+    } catch {
+      w = null;
+    }
     if (!w) {
-      setSaveFeedback({
-        tone: 'error',
-        text: 'Your browser blocked the Maia window. Allow popups for this demo, then try opening Maia again.',
-        retryLabel: 'Open Maia',
-        onRetry: launchMaiaHandoffWindow,
-      });
+      if (typeof console !== 'undefined') {
+        console.warn('[MaiaHandoff] window.open blocked — allow popups and tap Open Maia again.');
+      }
       return false;
     }
 
@@ -352,10 +362,6 @@ export function useNightOneFlow() {
     setMaiaHandoffPromptActive(false);
     setPauseOpen(false);
     window.dispatchEvent(new CustomEvent('lh:maia-handoff-opened'));
-    setSaveFeedback({
-      tone: 'success',
-      text: 'Maia is open in a separate window. Gameplay is paused until that Maia window is closed.',
-    });
 
     if (maiaHandoffPollRef.current !== null) {
       window.clearInterval(maiaHandoffPollRef.current);
@@ -755,22 +761,44 @@ export function useNightOneFlow() {
           });
           const persist = await persistManualSaveEnvelope(envelope);
           if (!persist.ok) {
-            setSaveFeedback({
-              tone: 'error',
-              text: `Mirror of Maia handoff worked, but the save did not complete: ${persist.message}`,
-              retryLabel: 'Open Maia anyway',
-              onRetry: launchMaiaHandoffWindow,
-            });
+            if (typeof console !== 'undefined') {
+              console.warn('[MaiaHandoff] Save after portal did not complete:', persist.message);
+            }
             return;
           }
-          setSaveFeedback({
-            tone: 'success',
-            text: 'Mirror of Maia handoff ready. Progress saved. Open Maia, then close that window to return through the portal.',
-            retryLabel: 'Open Maia',
-            onRetry: launchMaiaHandoffWindow,
-          });
           tryPlayCatalogAudioAsset(LH_MEDIA_ASSET_ID_SAVE_CHIME, BLUEPRINT.media_assets);
         })();
+        return;
+      }
+
+      if (kind === 'guild_hq_research') {
+        const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+        const triggerRealm = String(triggerMeta.target_realm_id ?? '').trim() || player.current_realm_id;
+
+        if (!ge.true_path_realm_id) {
+          setSaveFeedback({
+            tone: 'error',
+            text: 'Chart your guild headquarters on the world map before opening this hall’s research atlas.',
+          });
+          return;
+        }
+        if (ge.true_path_realm_id !== triggerRealm) {
+          setSaveFeedback({
+            tone: 'error',
+            text: 'This lectern belongs to another guild — travel to your chartered headquarters hall.',
+          });
+          return;
+        }
+        // Shared overworld: physical trigger zone is authoritative — do not require `current_realm_id`
+        // to match (that field tracks narrative/UI focus and may lag while exploring the big map).
+
+        setExploration((e) => mergeGuildHqAtlasRevealed(e, triggerRealm));
+        setRealmAtlasEntryIntent({
+          initialGuildRealmId: triggerRealm,
+          fogRevealRealmId: triggerRealm,
+        });
+        setPauseOpen(false);
+        setRealmAtlasOpen(true);
         return;
       }
 
@@ -1012,6 +1040,7 @@ export function useNightOneFlow() {
         hit.kind === 'combat_encounter' ||
         hit.kind === 'vocab_battle' ||
         hit.kind === 'guild_manager_hq' ||
+        hit.kind === 'guild_hq_research' ||
         hit.kind === 'guild_interview_invite' ||
         hit.kind === 'maia_portal',
     );
@@ -1699,7 +1728,18 @@ export function useNightOneFlow() {
   const navigate: NightOneNavigate = {
     beginDemo,
     quitToTitle,
-    introToInstructions: () => setScreen('instructions'),
+    introToInstructions: () => setScreen('gameTitle'),
+    gameTitleStart: () => {
+      setSaveFeedback(null);
+      setScreen('explore');
+    },
+    gameTitleResume: () => {
+      setSaveFeedback({
+        tone: 'success',
+        text: 'Save data loaded. The Traveler returns to the world.',
+      });
+      setScreen('explore');
+    },
     proceedInstructions: () => setScreen('maiaProfile'),
     maiaProfileToResume: () => setScreen('scrollReveal'),
     scrollRevealToResume: () => setScreen('resume'),
@@ -1711,9 +1751,13 @@ export function useNightOneFlow() {
     dismissSaveFeedback,
     openRealmAtlas: () => {
       setPauseOpen(false);
+      setRealmAtlasEntryIntent({ initialGuildRealmId: null, fogRevealRealmId: null });
       setRealmAtlasOpen(true);
     },
-    closeRealmAtlas: () => setRealmAtlasOpen(false),
+    closeRealmAtlas: () => {
+      setRealmAtlasOpen(false);
+      setRealmAtlasEntryIntent({ initialGuildRealmId: null, fogRevealRealmId: null });
+    },
     openWorldMap: () => {
       setPauseOpen(false);
       setRealmTravelNotice(null);
@@ -1810,7 +1854,6 @@ export function useNightOneFlow() {
     saveFeedback,
     maiaHandoffActive,
     maiaHandoffPromptActive,
-    maiaHandoffUrl: buildMaiaLaunchUrl(),
     openMaiaHandoffWindow: launchMaiaHandoffWindow,
     forceReturnFromMaia,
     explorationHotspots,
@@ -1823,6 +1866,10 @@ export function useNightOneFlow() {
     navigate,
 
     realmAtlasOpen,
+    realmAtlasInitialGuildRealmId: realmAtlasEntryIntent.initialGuildRealmId,
+    realmAtlasFogRevealRealmId: realmAtlasEntryIntent.fogRevealRealmId,
+    consumeRealmAtlasInitialGuildIntent,
+    consumeRealmAtlasFogRevealIntent,
     worldMapOpen,
     realmTravelNotice,
     academicWorksheetsOpen,

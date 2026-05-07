@@ -172,13 +172,44 @@ export function ExplorationScreen({
         />
       ) : null}
 
+      {usePhaser && saveFeedback ? (
+        <div
+          className={`lh-toast lh-toast--${saveFeedback.tone === 'success' ? 'success' : 'error'} lh-exploration__phaser-toast`}
+          style={{ position: 'relative', zIndex: 20, margin: '0 1rem 1rem' }}
+          role={saveFeedback.tone === 'error' ? 'alert' : 'status'}
+        >
+          <pre className="lh-toast__preformatted">{saveFeedback.text}</pre>
+          <div className="lh-stack lh-stack--horizontal" style={{ justifyContent: 'flex-end', marginTop: 8 }}>
+            {saveFeedback.onRetry ? (
+              <button
+                type="button"
+                className="lh-button lh-button--secondary lh-button--small"
+                onClick={saveFeedback.onRetry}
+              >
+                {saveFeedback.retryLabel ?? 'Retry'}
+              </button>
+            ) : null}
+            {onDismissSaveFeedback ? (
+              <button
+                type="button"
+                className="lh-button lh-button--ghost lh-toast__dismiss"
+                onClick={onDismissSaveFeedback}
+              >
+                Dismiss
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       {maiaHandoffActive ? (
         <div className="lh-maia-handoff-lock" role="dialog" aria-modal="true" aria-live="polite">
           <div className="lh-maia-handoff-lock__panel">
             <p className="lh-exploration__eyebrow">Mirror of Maia</p>
-            <h3 className="lh-heading-md">Maia window open</h3>
+            <h3 className="lh-heading-md">Maia handoff in progress</h3>
             <p>
-              Gameplay is paused while Maia is open. Close the Maia window to return through the Mirror and continue.
+              Gameplay is paused while the student completes the Maia step. Close the Maia window, or use the demo
+              return when presenting in a browser that blocks new windows.
             </p>
             {onReturnFromMaiaHandoff ? (
               <button type="button" className="lh-button lh-button--secondary" onClick={onReturnFromMaiaHandoff}>
@@ -195,19 +226,21 @@ export function ExplorationScreen({
             <p className="lh-exploration__eyebrow">Mirror of Maia</p>
             <h3 className="lh-heading-md">Step through to Maia</h3>
             <p>
-              The portal has carried you to the edge of the real-world handoff. Open Maia in a separate window, then
-              close it to return through the Mirror.
+              Tap <strong>Open Maia</strong> to sign in (one new tab). If the tab does not appear, allow popups for this
+              site and try again.
             </p>
-            {onOpenMaiaHandoff ? (
-              <button type="button" className="lh-button lh-button--primary" onClick={onOpenMaiaHandoff}>
-                Open Maia
-              </button>
-            ) : null}
-            {onReturnFromMaiaHandoff ? (
-              <button type="button" className="lh-button lh-button--secondary" onClick={onReturnFromMaiaHandoff}>
-                Return to the game
-              </button>
-            ) : null}
+            <div className="lh-maia-handoff-lock__actions">
+              {onOpenMaiaHandoff ? (
+                <button type="button" className="lh-button lh-button--primary" onClick={() => onOpenMaiaHandoff()}>
+                  Open Maia
+                </button>
+              ) : null}
+              {onReturnFromMaiaHandoff ? (
+                <button type="button" className="lh-button lh-button--secondary" onClick={onReturnFromMaiaHandoff}>
+                  Return to game
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
       ) : null}

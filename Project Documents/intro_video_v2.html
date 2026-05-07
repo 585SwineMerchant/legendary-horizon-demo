@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legendary Horizon - Quest for the Horizon</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@400;600&display=swap');
+
+        :root {
+            --bg-deep: #0a0c10;
+            --amber: #f59e0b;
+            --amber-dim: rgba(245, 158, 11, 0.1);
+            --amber-light: #fef3c7;
+            --text-bright: #f1f5f9;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--bg-deep);
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            color: var(--text-bright);
+        }
+
+        #video-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .bg-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            opacity: 0;
+            transition: opacity 2s ease-in-out, transform 15s ease-out;
+            transform: scale(1.05);
+            z-index: 1;
+        }
+
+        .bg-layer.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Vignette effect */
+        .vignette {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, transparent 20%, rgba(10, 12, 16, 0.9) 100%);
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .ui-layer {
+            position: absolute;
+            bottom: 5vh;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            width: 95%;
+            max-width: 1400px;
+        }
+
+        .scene-title {
+            display: none;
+            font-family: 'Cinzel', serif;
+            font-size: 2.2rem;
+            color: transparent;
+            background-clip: text;
+            -webkit-background-clip: text;
+            background-image: linear-gradient(to bottom, #fde68a, #d97706);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            font-weight: 900;
+            text-align: center;
+            margin-bottom: 1rem;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 1s ease 1s, transform 1s ease 1s;
+        }
+
+        .scene-title.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .dialogue-box {
+            background-color: rgba(15, 23, 42, 0.7);
+            border: 2px solid var(--amber);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.2), inset 0 0 10px rgba(245, 158, 11, 0.1);
+            min-height: 60px;
+            position: relative;
+        }
+
+        .speaker-name {
+            position: absolute;
+            top: -12px;
+            left: 20px;
+            background-color: var(--amber);
+            color: #000;
+            font-family: 'Cinzel', serif;
+            font-weight: 900;
+            padding: 0.1rem 0.8rem;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-size: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.5);
+        }
+
+        .dialogue-text {
+            font-family: 'Inter', sans-serif;
+            font-size: 1.15rem;
+            line-height: 1.5;
+            color: var(--amber-light);
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 1.4rem;
+            background-color: var(--amber);
+            vertical-align: middle;
+            animation: blink 1s step-end infinite;
+            margin-left: 5px;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+
+        /* Controls */
+        #title-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-deep);
+            background-image: url('assets/lh_title_logo.png');
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 12vh;
+            z-index: 100;
+        }
+
+        #start-btn {
+            background-color: var(--amber);
+            color: #000;
+            font-family: 'Cinzel', serif;
+            font-size: 1.8rem;
+            padding: 1rem 3.5rem;
+            border: none;
+            cursor: pointer;
+            border-radius: 8px;
+            font-weight: 900;
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        #start-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(245, 158, 11, 0.7);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="title-screen">
+        <button id="start-btn">Begin Quest</button>
+    </div>
+
+    <div id="video-container" style="display:none;">
+        <div id="bg0" class="bg-layer active"></div>
+        <div id="bg1" class="bg-layer"></div>
+        <div class="vignette"></div>
+
+        <div class="ui-layer">
+            <div class="scene-title" id="scene-title"></div>
+            <div class="dialogue-box">
+                <div class="speaker-name">The Master Scribe</div>
+                <div class="dialogue-text" id="dialogue-text"><span class="cursor"></span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const scenes = [
+            {
+                image: "assets/scene_1_void.png",
+                audio: "assets/opening_video_scene_1_narration.mp3",
+                title: "PHASE 1: THE VOID",
+                text: "They say the future is a map already drawn. But across the realms all maps have faded. The paths are overgrown with the Fog of the Unknown"
+            },
+            {
+                image: "assets/scene_2_traveler_wide.png",
+                audio: "assets/opening_video_scene_2_narration.mp3",
+                title: "PHASE 2: THE CALL TO ACTION",
+                text: "A Traveler arrives with no Guild, no Gear, and no Direction. To the world, you are a mystery. To yourself... you are a question waiting for an answer"
+            },
+            {
+                image: [
+                    "assets/scene_3_mirror.png",
+                    "assets/scene_2_base_stats_1775784306257.png"
+                ],
+                audio: "assets/opening_video_scene_3_narration.mp3",
+                title: "PHASE 3: THE RITUALS OF SELF",
+                text: "Through the Mirror of Maia, a traveler awakens their foretold destiny. Your interests, skills, and hobbies—they are the 'Runes' that unlock your scroll and reveal your stats"
+            },
+            {
+                image: [
+                    "assets/LH%20Map%20Final.png",
+                    "assets/Aethelwood%20Farmsteads.png",
+                    "assets/Etheric%20Nexus.png",
+                    "assets/Monolith%20of%20Masonry.png",
+                    "assets/Alchemical%20Observatory.png",
+                    "assets/Odysee%27s%20Harbor.png"
+                ],
+                audio: "assets/opening_video_scene_4_narration.mp3",
+                title: "PHASE 4: THE 16 REALMS",
+                text: "Sixteen Great Realms await. But you cannot simply walk through the gates. You must face Knowledge Combat. You must prove your Professionalism in the Trial of Tongues. You must earn your place in the Guilds"
+            },
+            {
+                image: [
+                    "assets/scene_5_comparison_new.png",
+                    "assets/scene_6_call_new.png"
+                ],
+                audio: "assets/opening_video_scene_5_narration.mp3",
+                title: "PHASE 5: THE MANIFEST",
+                text: "Your choices here aren't just for the game. They are the blueprint for your life in the world beyond the horizon. This is your journey. This is your Legend"
+            },
+            {
+                image: "assets/scene_6_hook.png",
+                audio: "assets/opening_video_scene_6_narration.mp3",
+                title: "PHASE 6: THE HOOK",
+                text: "Wake up, Traveler. The Horizon is waiting"
+            }
+        ];
+
+        let currentSceneIndex = 0;
+        const bg0 = document.getElementById('bg0');
+        const bg1 = document.getElementById('bg1');
+        const titleEl = document.getElementById('scene-title');
+        const textEl = document.getElementById('dialogue-text');
+        
+        let typingTimeout;
+        let sceneTimeout;
+        let currentAudio = null;
+        let montageInterval = null;
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('title-screen').style.display = 'none';
+            document.getElementById('video-container').style.display = 'flex';
+            
+            // Allow browser subagent to know it started
+            window.videoStarted = true;
+            playScene(0);
+        });
+
+        // Initialize first bg
+        const firstImages = Array.isArray(scenes[0].image) ? scenes[0].image : [scenes[0].image];
+        bg0.style.backgroundImage = `url('${firstImages[0]}')`;
+
+        function playScene(index) {
+            clearTimeout(sceneTimeout);
+            clearTimeout(typingTimeout);
+            if (montageInterval) clearInterval(montageInterval);
+            
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+            }
+
+            if (index >= scenes.length) {
+                // Done
+                window.videoFinished = true;
+                textEl.innerHTML = "Quest Complete.<br>Your future awaits.";
+                titleEl.textContent = "THE END";
+                return;
+            }
+
+            const scene = scenes[index];
+            const images = Array.isArray(scene.image) ? scene.image : [scene.image];
+            
+            let nextBg = index % 2 === 0 ? bg0 : bg1;
+            let currentBg = index % 2 === 0 ? bg1 : bg0;
+
+            // Set images and crossfade
+            nextBg.style.backgroundImage = `url('${images[0]}')`;
+            nextBg.classList.add('active');
+            currentBg.classList.remove('active');
+
+            // Set title
+            titleEl.classList.remove('active');
+            setTimeout(() => {
+                titleEl.textContent = scene.title || "";
+                if(scene.title) titleEl.classList.add('active');
+            }, 1000);
+
+            // Typewriter effect
+            textEl.innerHTML = '<span class="cursor"></span>';
+            const textToType = scene.text;
+            let charIndex = 0;
+            
+            function typeWriter(speed) {
+                if (charIndex < textToType.length) {
+                    textEl.innerHTML = textToType.substring(0, charIndex + 1) + '<span class="cursor"></span>';
+                    charIndex++;
+                    typingTimeout = setTimeout(() => typeWriter(speed), speed);
+                }
+            }
+
+            function startMontage(durationMs) {
+                if (images.length > 1) {
+                    let currentImageIndex = 0;
+                    const timePerImage = durationMs / images.length;
+                    
+                    montageInterval = setInterval(() => {
+                        currentImageIndex++;
+                        if (currentImageIndex < images.length) {
+                            const newNextBg = nextBg.classList.contains('active') ? currentBg : nextBg;
+                            const newCurrentBg = nextBg.classList.contains('active') ? nextBg : currentBg;
+                            
+                            newNextBg.style.backgroundImage = `url('${images[currentImageIndex]}')`;
+                            newNextBg.classList.add('active');
+                            newCurrentBg.classList.remove('active');
+                        }
+                    }, timePerImage);
+                }
+            }
+
+            if (scene.audio) {
+                currentAudio = new Audio(scene.audio);
+                currentAudio.onloadedmetadata = () => {
+                    const durationMs = currentAudio.duration * 1000;
+                    
+                    startMontage(durationMs);
+
+                    // Calculate typing speed so it finishes about 1.5 seconds before audio ends
+                    const timeForTyping = Math.max(durationMs - 2000, 2000); 
+                    const typingSpeed = Math.floor(timeForTyping / textToType.length);
+                    
+                    // Wait 1.5s before typing (to match the visual fade-in delay)
+                    setTimeout(() => typeWriter(typingSpeed), 1500);
+                };
+                
+                // Fallback in case metadata doesn't load
+                currentAudio.onerror = () => {
+                    const typingSpeed = Math.floor(12000 / textToType.length);
+                    setTimeout(() => typeWriter(typingSpeed), 1500);
+                    startMontage(25000);
+                };
+
+                currentAudio.play().catch(e => console.log("Audio play prevented", e));
+                
+                currentAudio.onended = () => {
+                    if (montageInterval) clearInterval(montageInterval);
+                    // Wait a moment after narration before continuing
+                    sceneTimeout = setTimeout(() => {
+                        currentSceneIndex++;
+                        playScene(currentSceneIndex);
+                    }, 2500);
+                };
+            } else {
+                // Fallback to 25s static timing if no audio provided
+                const typingSpeed = Math.floor(12000 / textToType.length);
+                setTimeout(() => typeWriter(typingSpeed), 1500);
+                startMontage(25000);
+                
+                sceneTimeout = setTimeout(() => {
+                    currentSceneIndex++;
+                    playScene(currentSceneIndex);
+                }, 25000);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -4,6 +4,9 @@ export const LH_MEDIA_ASSET_ID_TITLE_BACKDROP = 'bg_title_dusk_forge_placeholder
 
 export const LH_MEDIA_ASSET_ID_SAVE_CHIME = 'sfx_save_chime_placeholder';
 
+/** World Atlas fog lift after Guild Research hub closes (falls back to oscillator stub if unset). */
+export const LH_MEDIA_ASSET_ID_ATLAS_FOG_REVEAL = 'sfx_atlas_fog_reveal_placeholder';
+
 export const LH_MEDIA_ASSET_ID_MENTOR_PORTRAIT = 'portrait_mentor_kael_placeholder';
 
 /** Matches `npc_id` on catalog rows (Sheets `LhMediaAssets.npc_id`). */

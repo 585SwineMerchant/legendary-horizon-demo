@@ -1,6 +1,7 @@
 export type Screen =
   | 'title'
   | 'intro'
+  | 'gameTitle'
   | 'instructions'
   | 'maiaProfile'
   | 'scrollReveal'
@@ -12,6 +13,8 @@ export type NightOneNavigate = {
   beginDemo: () => Promise<void>;
   quitToTitle: () => void;
   introToInstructions: () => void;
+  gameTitleStart: () => void;
+  gameTitleResume: () => void;
   proceedInstructions: () => void;
   maiaProfileToResume: () => void;
   scrollRevealToResume: () => void;

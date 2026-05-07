@@ -21,6 +21,13 @@
     "delivery_url_placeholder": "https://example.invalid/mock-audio/save-chime.mp3"
   },
   {
+    "asset_id": "sfx_atlas_fog_reveal_placeholder",
+    "kind": "sfx",
+    "description": "World atlas waypoint fog lift (placeholder).",
+    "drive_file_id": "",
+    "delivery_url_placeholder": "https://example.invalid/mock-audio/atlas-fog-reveal.mp3"
+  },
+  {
     "asset_id": "media_image_missing_placeholder",
     "kind": "image",
     "description": "Fallback when a catalog image URL is missing or fails to load.",

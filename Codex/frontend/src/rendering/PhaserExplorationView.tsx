@@ -15,6 +15,8 @@ type Props = {
 type TriggerRect = {
   interactable_id: string;
   kind: string;
+  activation_mode?: 'interaction' | 'overlap_auto' | 'overlap_auto_bottom';
+  rotation_deg?: number;
   x: number;
   y: number;
   w: number;
@@ -41,7 +43,20 @@ const TILESET_IMAGES = [
 const TRAVELER_DIRECTIONS = ['down', 'left', 'right', 'up'] as const;
 type TravelerDirection = (typeof TRAVELER_DIRECTIONS)[number];
 const TRAVELER_VISIBLE_FRAME_INDICES = [1, 4, 7, 10, 13, 16, 19, 22] as const;
-const SOLID_TILE_LAYER_NAMES = new Set(['Hillside', 'Hillside 2', 'forest 4', 'forest layer 3', 'Guild HQs']);
+const SOLID_TILE_LAYER_NAMES = new Set(['Hillside', 'Hillside 2', 'forest 4', 'forest layer 3']);
+
+/**
+ * Grounded top-down movement: constant-speed vector (no accel slide). Input is normalized so diagonals
+ * match cardinals. Tune FPS vs speed together — ~8 visible stride frames per full cycle.
+ */
+const TRAVELER_MOVE_SPEED_PX = 128;
+const TRAVELER_RUN_ANIM_FPS = 12;
+
+/** Sprint (hold R while moving). Fuel drains only during sprint movement; cooldown starts when fuel hits 0. */
+const TRAVELER_SPRINT_SPEED_PX = 188;
+const SPRINT_FUEL_MAX_MS = 2400;
+const SPRINT_COOLDOWN_MS = 5200;
+const SPRINT_RUN_ANIM_TIME_SCALE = 1.22;
 
 function publicAssetUrl(path: string): string {
   const base = import.meta.env.BASE_URL ?? '/';
@@ -100,6 +115,8 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
         return {
           interactable_id,
           kind: t.kind,
+          activation_mode: t.activation_mode,
+          rotation_deg: t.rotation_deg,
           x: b.x,
           y: b.y,
           w: Math.max(b.width, 1),
@@ -117,6 +134,7 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
         private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
         private keySpace!: Phaser.Input.Keyboard.Key;
         private keyAttack!: Phaser.Input.Keyboard.Key;
+        private keySprint!: Phaser.Input.Keyboard.Key;
         private player!: Phaser.Physics.Arcade.Sprite;
         private fogStatics!: Phaser.Physics.Arcade.StaticGroup;
         private solidStatics!: Phaser.Physics.Arcade.StaticGroup;
@@ -127,7 +145,12 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
         private portalCooldownUntil = new Map<string, number>();
         private lastMaiaPortalId: string | null = null;
         private maiaHandoffPaused = false;
+        private triggerTransitionLocked = false;
         private attackingUntil = 0;
+        /** Milliseconds of sprint remaining this burst (refills after cooldown when R released). */
+        private sprintFuelMs = SPRINT_FUEL_MAX_MS;
+        /** Scene time (ms) until sprint can drain/refuel again. */
+        private sprintCooldownUntil = 0;
         private debugText?: Phaser.GameObjects.Text;
         private facing: TravelerDirection = 'down';
 
@@ -356,7 +379,7 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
               frames: this.anims.generateFrameNumbers(`lh_traveler_run_${dir}`, {
                 frames: [...TRAVELER_VISIBLE_FRAME_INDICES],
               }),
-              frameRate: 12,
+              frameRate: TRAVELER_RUN_ANIM_FPS,
               repeat: -1,
             });
           }
@@ -399,9 +422,12 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
             this.player.setOffset(9, 46);
           }
           this.player.setCollideWorldBounds(true);
-          this.player.setDamping(true);
-          this.player.setDrag(600, 600);
-          this.player.setMaxVelocity(175, 175);
+          // Direct velocity each frame — no damping/acceleration inertia (feels grounded).
+          this.player.setDamping(false);
+          this.player.setDrag(0, 0);
+          this.player.setAcceleration(0, 0);
+          const maxSpd = Math.max(TRAVELER_MOVE_SPEED_PX, TRAVELER_SPRINT_SPEED_PX) * 1.1;
+          this.player.setMaxVelocity(maxSpd, maxSpd);
           this.player.setDepth(50);
 
           this.physics.add.collider(this.player, this.fogStatics);
@@ -416,6 +442,9 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
           ) as Phaser.Input.Keyboard.Key;
           this.keyAttack = this.input.keyboard?.addKey(
             Phaser.Input.Keyboard.KeyCodes.A,
+          ) as Phaser.Input.Keyboard.Key;
+          this.keySprint = this.input.keyboard?.addKey(
+            Phaser.Input.Keyboard.KeyCodes.R,
           ) as Phaser.Input.Keyboard.Key;
 
           this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
@@ -435,7 +464,7 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
             .setAlpha(0.95);
 
           this.add
-            .text(12, 10, '⬆⬇⬅➡ Move  ·  SPACE Interact  ·  A Attack', {
+            .text(12, 10, '⬆⬇⬅➡ Move  ·  SPACE Interact  ·  A Attack  ·  R Sprint', {
               fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial',
               fontSize: '13px',
               color: '#94a3b8',
@@ -498,23 +527,68 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
           this.player.setPosition(meta.x + meta.w / 2, meta.y + meta.h + 24);
           this.player.setAlpha(0);
           this.player.setScale(0.45);
+          this.facing = 'down';
+          this.player.anims.stop();
           this.player.setTexture('lh_traveler_idle_down', TRAVELER_VISIBLE_FRAME_INDICES[0]);
           this.tweens.add({
             targets: this.player,
             alpha: 1,
             y: meta.y + meta.h + 135,
             scale: 0.75,
-            duration: 700,
+            duration: 1700,
             ease: 'Sine.easeOut',
+            onComplete: () => {
+              this.facing = 'down';
+              this.player.anims.stop();
+              this.player.setTexture('lh_traveler_idle_down', TRAVELER_VISIBLE_FRAME_INDICES[0]);
+            },
           });
         };
 
         private activateTrigger(hit: TriggerRect) {
           const isPortal = hit.kind === 'maia_portal';
+          const isGuildResearchPortal = hit.kind === 'guild_hq_research';
           const completed = Boolean(_completionById.current.get(hit.interactable_id));
-          if ((!isPortal && completed) || this.activatedInteractableIds.has(hit.interactable_id)) return;
+          const blockedBySession =
+            !isPortal && this.activatedInteractableIds.has(hit.interactable_id);
+          if ((!isPortal && completed) || blockedBySession) return;
 
           if (!isPortal) {
+            // Portal-like guild research trigger: short transition + input lock, then open UI.
+            if (isGuildResearchPortal) {
+              this.activatedInteractableIds.add(hit.interactable_id);
+              this.triggerTransitionLocked = true;
+              this.player.setAcceleration(0, 0);
+              this.player.setVelocity(0, 0);
+              this.player.anims.stop();
+
+              const startScale = this.player.scale;
+              this.tweens.add({
+                targets: this.player,
+                alpha: 0,
+                y: this.player.y - 14,
+                scale: startScale * 0.9,
+                duration: 650,
+                ease: 'Sine.easeInOut',
+                onComplete: () => {
+                  _onActivate(hit.interactable_id);
+                  // Restore the traveler so closing overlays returns to play.
+                  this.tweens.add({
+                    targets: this.player,
+                    alpha: 1,
+                    y: this.player.y + 14,
+                    scale: startScale,
+                    duration: 420,
+                    ease: 'Sine.easeOut',
+                    onComplete: () => {
+                      this.triggerTransitionLocked = false;
+                    },
+                  });
+                },
+              });
+              return;
+            }
+
             this.activatedInteractableIds.add(hit.interactable_id);
             _onActivate(hit.interactable_id);
             return;
@@ -567,13 +641,18 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
             return;
           }
 
+          if (this.triggerTransitionLocked) {
+            this.player?.setAcceleration(0, 0);
+            this.player?.setVelocity(0, 0);
+            return;
+          }
+
           if (this.attackingUntil > this.time.now) {
             this.player?.setAcceleration(0, 0);
             this.player?.setVelocity(0, 0);
             return;
           }
 
-          const accel = 490;
           const body = this.player?.body as Phaser.Physics.Arcade.Body | undefined;
           if (!body) return;
 
@@ -588,34 +667,75 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
             ]);
           }
 
-          let ax = 0, ay = 0;
-          if (this.cursors.left?.isDown)  ax -= accel;
-          if (this.cursors.right?.isDown) ax += accel;
-          if (this.cursors.up?.isDown)    ay -= accel;
-          if (this.cursors.down?.isDown)  ay += accel;
-          this.player.setAcceleration(ax, ay);
-          // Important: acceleration-based movement + damping will "coast".
-          // For exploration, we want immediate stop on input release.
-          if (ax === 0 && ay === 0) this.player.setVelocity(0, 0);
+          let ix = 0;
+          let iy = 0;
+          if (this.cursors.left?.isDown) ix -= 1;
+          if (this.cursors.right?.isDown) ix += 1;
+          if (this.cursors.up?.isDown) iy -= 1;
+          if (this.cursors.down?.isDown) iy += 1;
+          const inputLen = Math.hypot(ix, iy);
+          const now = this.time.now;
+          const sprintCooldownReady = now >= this.sprintCooldownUntil;
+          if (sprintCooldownReady && !this.keySprint.isDown) {
+            this.sprintFuelMs = SPRINT_FUEL_MAX_MS;
+          }
 
-          const moving = ax !== 0 || ay !== 0;
-          if (moving && this.textures.exists(`lh_traveler_run_${this.facing}`)) {
-            if (Math.abs(ax) > Math.abs(ay)) {
-              this.facing = ax < 0 ? 'left' : 'right';
-            } else {
-              this.facing = ay < 0 ? 'up' : 'down';
+          let moveSpeed = TRAVELER_MOVE_SPEED_PX;
+          let sprintingMove = false;
+          if (
+            sprintCooldownReady &&
+            this.keySprint.isDown &&
+            this.sprintFuelMs > 0 &&
+            inputLen > 0
+          ) {
+            moveSpeed = TRAVELER_SPRINT_SPEED_PX;
+            sprintingMove = true;
+            const dt = Math.min(this.game.loop.delta, 64);
+            this.sprintFuelMs -= dt;
+            if (this.sprintFuelMs <= 0) {
+              this.sprintFuelMs = 0;
+              this.sprintCooldownUntil = now + SPRINT_COOLDOWN_MS;
             }
-            this.player.play(`lh_traveler_run_${this.facing}`, true);
+          }
+
+          if (inputLen > 0) {
+            ix /= inputLen;
+            iy /= inputLen;
+            this.player.setVelocity(ix * moveSpeed, iy * moveSpeed);
           } else {
+            this.player.setVelocity(0, 0);
+          }
+
+          const moving = inputLen > 0;
+          if (moving && this.textures.exists(`lh_traveler_run_${this.facing}`)) {
+            this.player.anims.timeScale = sprintingMove ? SPRINT_RUN_ANIM_TIME_SCALE : 1;
+            // Dominant axis → 4-way facing (clean idle/run transitions).
+            if (Math.abs(ix) > Math.abs(iy)) {
+              this.facing = ix < 0 ? 'left' : 'right';
+            } else if (iy !== 0) {
+              this.facing = iy < 0 ? 'up' : 'down';
+            }
+            const runKey = `lh_traveler_run_${this.facing}`;
+            const cur = this.player.anims.currentAnim?.key;
+            if (cur !== runKey) {
+              this.player.play(runKey);
+            } else if (!this.player.anims.isPlaying) {
+              this.player.play(runKey);
+            }
+          } else {
+            this.player.anims.timeScale = 1;
             const idleKey = `lh_traveler_idle_${this.facing}`;
             if (this.textures.exists(idleKey)) {
-              this.player.anims.stop();
+              if (this.player.anims.isPlaying) {
+                this.player.anims.stop();
+              }
               this.player.setTexture(idleKey, TRAVELER_VISIBLE_FRAME_INDICES[0]);
             }
           }
 
           if (Phaser.Input.Keyboard.JustDown(this.keyAttack)) {
             // Attack locks movement briefly. If attack sheets exist, play the animation.
+            this.player.anims.timeScale = 1;
             this.player.setAcceleration(0, 0);
             this.player.setVelocity(0, 0);
             const atkKey = `lh_traveler_attack_${this.facing}`;
@@ -662,11 +782,48 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
           const enteringPortalFromBottom = Boolean(
             portalHit &&
               moving &&
-              ay < 0 &&
+              iy < 0 &&
               this.player.y > portalHit.y + portalHit.h * 0.92,
           );
           if (portalHit && enteringPortalFromBottom) {
             this.activateTrigger(portalHit);
+            return;
+          }
+
+          // Portal-like auto triggers (e.g. Guild HQ research). Defaults come from `activation_mode`.
+          const autoHitRow = overlaps.find((row) => {
+            const m = row.meta;
+            if (m.kind === 'maia_portal') return false;
+            const mode = m.activation_mode ?? 'interaction';
+            if (mode === 'overlap_auto') return true;
+            if (mode === 'overlap_auto_bottom') {
+              return Boolean(moving && iy < 0 && this.player.y > m.y + m.h * 0.92);
+            }
+            return false;
+          });
+          const autoHit = autoHitRow?.meta;
+
+          // ── Temporary debug output (collision-vs-trigger diagnosis) ──
+          // Shows trigger kind, mode, overlap count, and bottom-entry pass/fail.
+          if (this.debugText) {
+            const top = overlaps[0]?.meta;
+            const topMode = top?.activation_mode ?? 'interaction';
+            const bottomPass = top
+              ? Boolean(moving && iy < 0 && this.player.y > top.y + top.h * 0.92)
+              : false;
+            this.debugText.setText([
+              `player: x=${Math.round(this.player.x)} y=${Math.round(this.player.y)}`,
+              `overlaps: ${overlaps.length}`,
+              top
+                ? `top: ${top.kind} mode=${topMode} rot=${(top.rotation_deg ?? 0).toFixed(3)} bottomPass=${bottomPass}`
+                : 'top: (none)',
+              top ? `topBounds: x=${top.x.toFixed(1)} y=${top.y.toFixed(1)} w=${top.w.toFixed(1)} h=${top.h.toFixed(1)}` : '',
+              autoHit ? `AUTO: ${autoHit.kind} mode=${autoHit.activation_mode ?? 'interaction'}` : 'AUTO: (none)',
+            ]);
+          }
+
+          if (autoHit) {
+            this.activateTrigger(autoHit);
             return;
           }
 

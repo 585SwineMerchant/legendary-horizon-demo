@@ -752,6 +752,29 @@ code.lh-code-inline {
   margin-top: 0.9rem;
 }
 
+.lh-maia-handoff-lock__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.95rem;
+}
+
+.lh-maia-handoff-lock__actions .lh-button {
+  margin-top: 0;
+}
+
+.lh-maia-handoff-lock__url,
+.lh-maia-handoff-lock__status {
+  margin-top: 0.75rem;
+  overflow-wrap: anywhere;
+  color: var(--lh-muted);
+  font-size: 0.78rem;
+}
+
+.lh-maia-handoff-lock__status {
+  color: #fef3c7;
+}
+
 .lh-map-debug {
   margin-top: 0.75rem;
   align-self: flex-start;
@@ -923,6 +946,42 @@ code.lh-code-inline {
   border-radius: inherit;
   box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.28);
   background: radial-gradient(ellipse 90% 75% at 50% 50%, transparent 40%, rgba(10, 12, 16, 0.12) 100%);
+}
+
+/* Full-plate fog until Guild Research closes; radial lift toward pin (Fog of the Unknown parity). */
+.lh-atlas__map-fog-shroud {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse 130% 115% at var(--atlas-fog-x, 50%) var(--atlas-fog-y, 50%), rgba(9, 11, 18, 0.08) 0%, rgba(6, 8, 14, 0.94) 62%, rgba(4, 6, 11, 0.97) 100%),
+    rgba(5, 7, 12, 0.88);
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
+}
+
+.lh-atlas__map-fog-shroud--lifting {
+  animation: lh-atlas-fog-lift 1.15s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes lh-atlas-fog-lift {
+  from {
+    opacity: 1;
+    -webkit-mask-image: radial-gradient(circle at var(--atlas-fog-x, 50%) var(--atlas-fog-y, 50%), transparent 0%, black 0.35%);
+    -webkit-mask-size: 100% 100%;
+    mask-image: radial-gradient(circle at var(--atlas-fog-x, 50%) var(--atlas-fog-y, 50%), transparent 0%, black 0.35%);
+    mask-size: 100% 100%;
+  }
+
+  to {
+    opacity: 0;
+    -webkit-mask-image: radial-gradient(circle at var(--atlas-fog-x, 50%) var(--atlas-fog-y, 50%), transparent 165%, black 166%);
+    -webkit-mask-size: 100% 100%;
+    mask-image: radial-gradient(circle at var(--atlas-fog-x, 50%) var(--atlas-fog-y, 50%), transparent 165%, black 166%);
+    mask-size: 100% 100%;
+  }
 }
 
 .lh-atlas__map-empty-hint {
@@ -2053,6 +2112,157 @@ button:focus-visible {
 
 .lh-title-actions {
   flex-wrap: wrap;
+}
+
+.lh-screen--game-title {
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(244, 185, 66, 0.22), transparent 32rem),
+    linear-gradient(180deg, #05070c 0%, #101522 54%, #05070c 100%);
+}
+
+.lh-screen--game-title::before {
+  content: '';
+  position: absolute;
+  inset: -20%;
+  background:
+    radial-gradient(circle at 30% 28%, rgba(56, 189, 248, 0.13), transparent 18rem),
+    radial-gradient(circle at 70% 72%, rgba(244, 185, 66, 0.11), transparent 20rem);
+  animation: lh-game-title-aura 8s ease-in-out infinite alternate;
+}
+
+.lh-game-title__veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 46%, transparent 0%, rgba(3, 6, 12, 0.56) 70%);
+}
+
+.lh-game-title__content {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  width: min(1180px, 98vw);
+  min-height: 100vh;
+  padding: min(5vh, 2rem) 1rem;
+  animation: lh-game-title-arrive 2.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.lh-game-title__logo {
+  width: min(1080px, 96vw);
+  max-height: 76vh;
+  object-fit: contain;
+  filter:
+    drop-shadow(0 0 28px rgba(244, 185, 66, 0.28))
+    drop-shadow(0 28px 56px rgba(0, 0, 0, 0.56));
+}
+
+.lh-game-title__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.9rem;
+  margin-top: clamp(-5.8rem, -7vw, -3.1rem);
+  z-index: 2;
+  animation: lh-game-title-actions 1.15s ease 1.75s both;
+}
+
+.lh-game-title__actions .lh-button {
+  min-width: 9.5rem;
+  justify-content: center;
+  border-color: rgba(244, 185, 66, 0.56);
+  background:
+    linear-gradient(180deg, rgba(23, 28, 40, 0.96), rgba(4, 7, 13, 0.98));
+  color: #fbbf24;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow:
+    0 0 22px rgba(244, 185, 66, 0.2),
+    inset 0 0 18px rgba(244, 185, 66, 0.08),
+    0 14px 32px rgba(0, 0, 0, 0.55);
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.55);
+}
+
+.lh-game-title__actions .lh-button:hover {
+  border-color: rgba(254, 243, 199, 0.72);
+  color: #fde68a;
+  box-shadow:
+    0 0 30px rgba(244, 185, 66, 0.28),
+    inset 0 0 22px rgba(244, 185, 66, 0.12),
+    0 16px 34px rgba(0, 0, 0, 0.58);
+}
+
+.lh-screen--game-title-exit .lh-game-title__content {
+  animation: lh-game-title-depart 0.9s ease both;
+}
+
+.lh-screen--game-title-exit .lh-game-title__veil {
+  animation: lh-game-title-fadeout 0.9s ease both;
+}
+
+@keyframes lh-game-title-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem) scale(0.92);
+    filter: blur(12px);
+  }
+  58% {
+    opacity: 1;
+    filter: blur(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes lh-game-title-actions {
+  from {
+    opacity: 0;
+    transform: translateY(0.7rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lh-game-title-depart {
+  from {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.05);
+    filter: blur(10px);
+  }
+}
+
+@keyframes lh-game-title-fadeout {
+  from {
+    background: radial-gradient(circle at 50% 46%, transparent 0%, rgba(3, 6, 12, 0.56) 70%);
+  }
+  to {
+    background: rgba(3, 6, 12, 1);
+  }
+}
+
+@keyframes lh-game-title-aura {
+  from {
+    transform: translate3d(-1.5%, -1%, 0) scale(1);
+    opacity: 0.75;
+  }
+  to {
+    transform: translate3d(1.5%, 1%, 0) scale(1.04);
+    opacity: 1;
+  }
 }
 
 /* Intro cinematic */

@@ -1,8 +1,5 @@
-import { useState } from 'react';
-
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { StatusCallout } from '../components/StatusCallout';
-import { classroomInfoPanelBody, classroomInfoStubNotice } from '../lib/demoCopy';
 
 type Props = {
   onContinue: () => void;
@@ -20,7 +17,6 @@ export function TitleScreen({
   bootstrapError = null,
   backdropImageUrl,
 }: Props) {
-  const [classroomOpen, setClassroomOpen] = useState(false);
   const loading = bootstrapPhase === 'loading';
   const failed = bootstrapPhase === 'error';
   const showTeacher = Boolean(onOpenTeacherDashboard) && (import.meta.env.DEV || import.meta.env.VITE_LH_TEACHER_DASHBOARD === 'true');
@@ -39,9 +35,6 @@ export function TitleScreen({
       <div className="lh-stack lh-screen__panel lh-screen__panel--title">
         <p className="lh-eyebrow">Leadership demo build - prepared for Corey</p>
         <h1 className="lh-heading-xl">Legendary Horizon</h1>
-        <p className="lh-subtitle">
-          A guided look at how Maia Learning, Scroll of Destiny, and realm exploration support career planning.
-        </p>
 
         {failed ? (
           <StatusCallout tone="error" title="Could not finish loading your session">
@@ -61,29 +54,14 @@ export function TitleScreen({
             onClick={onContinue}
             disabled={loading}
           >
-            {loading ? 'Loading...' : 'Begin leadership walkthrough'}
+            {loading ? 'Loading...' : 'Begin Demo'}
           </button>
           {showTeacher ? (
             <button type="button" className="lh-button lh-button--secondary" onClick={onOpenTeacherDashboard} disabled={loading}>
               Teacher dashboard
             </button>
           ) : null}
-          <button
-            type="button"
-            className="lh-button lh-button--secondary"
-            onClick={() => setClassroomOpen((o) => !o)}
-            aria-expanded={classroomOpen}
-          >
-            Instructional frame
-          </button>
         </div>
-
-        {classroomOpen ? (
-          <StatusCallout tone="info" title="Maia stays at the center">
-            <p>{classroomInfoPanelBody}</p>
-            <p className="lh-status-callout__hint">{classroomInfoStubNotice}</p>
-          </StatusCallout>
-        ) : null}
       </div>
     </section>
   );

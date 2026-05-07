@@ -1,7 +1,17 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type AnimationEvent,
+  type CSSProperties,
+} from 'react';
 
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { GuildRealmInfoOverlay } from './GuildRealmInfoOverlay';
+import { LH_MEDIA_ASSET_ID_ATLAS_FOG_REVEAL } from '../lib/mediaConstants';
+import { tryPlayCatalogAudioAsset } from '../lib/lhCatalogAudio';
 import type { ClassroomToolHandlers } from '../services/classroomToolLaunches';
 import type { MediaAssetRecord, QuestDefinition, RealmDefinition } from '../types';
 import { buildRealmAtlasImageSrcCandidates, getAtlasPinPlacementForRealm } from '../realm/atlasWorldMap';
@@ -28,6 +38,9 @@ type Props = {
    */
   initialGuildInfoRealmId?: string | null;
   onInitialGuildInfoConsumed?: () => void;
+  /** After Guild Research closes, lift atlas fog from this hall’s waypoint while audio plays. */
+  fogRevealRealmId?: string | null;
+  onFogRevealConsumed?: () => void;
 };
 
 function truncateLabel(name: string, max = 22): string {
@@ -49,6 +62,8 @@ export function RealmAtlasOverlay({
   classroomTools,
   initialGuildInfoRealmId = null,
   onInitialGuildInfoConsumed,
+  fogRevealRealmId = null,
+  onFogRevealConsumed,
 }: Props) {
   const ordered = useMemo(() => sortRealmsCanon(realms), [realms]);
   const revealedSet = useMemo(
@@ -60,14 +75,48 @@ export function RealmAtlasOverlay({
     [foretoldSignpostRealmIds],
   );
   const [guildInfoRealmId, setGuildInfoRealmId] = useState<string | null>(null);
+  const [fogLiftFinished, setFogLiftFinished] = useState(false);
+  const [fogLiftAnimating, setFogLiftAnimating] = useState(false);
   const initialGuildInfoHandledRef = useRef(false);
   const atlasSrcCandidates = useMemo(() => buildRealmAtlasImageSrcCandidates(), []);
   const [atlasSrcIndex, setAtlasSrcIndex] = useState(0);
+
+  const frId = String(fogRevealRealmId ?? '').trim();
+
+  const fogPinPlacement = useMemo(() => {
+    const total = ordered.length || 1;
+    if (!frId || !revealedSet.has(frId)) return { leftPct: 50, topPct: 50 };
+    const idx = ordered.findIndex((r) => r.realm_id === frId);
+    const i = idx >= 0 ? idx : 0;
+    return getAtlasPinPlacementForRealm(frId, i, total);
+  }, [frId, revealedSet, ordered]);
+
+  const handleFogLiftEnd = useCallback(
+    (e: AnimationEvent<HTMLDivElement>) => {
+      if (e.target !== e.currentTarget) return;
+      if (e.animationName !== 'lh-atlas-fog-lift') return;
+      setFogLiftAnimating(false);
+      setFogLiftFinished(true);
+      onFogRevealConsumed?.();
+    },
+    [onFogRevealConsumed],
+  );
+
+  const handleGuildInfoClose = useCallback(() => {
+    const closing = guildInfoRealmId;
+    setGuildInfoRealmId(null);
+    if (!closing || !frId || closing !== frId) return;
+    if (!revealedSet.has(frId) || fogLiftFinished || fogLiftAnimating) return;
+    tryPlayCatalogAudioAsset(LH_MEDIA_ASSET_ID_ATLAS_FOG_REVEAL, mediaCatalog);
+    setFogLiftAnimating(true);
+  }, [guildInfoRealmId, frId, revealedSet, fogLiftFinished, fogLiftAnimating, mediaCatalog]);
 
   useEffect(() => {
     if (!open) {
       initialGuildInfoHandledRef.current = false;
       setGuildInfoRealmId(null);
+      setFogLiftFinished(false);
+      setFogLiftAnimating(false);
       return;
     }
     if (initialGuildInfoHandledRef.current) return;
@@ -98,7 +147,7 @@ export function RealmAtlasOverlay({
   }, [ordered, guildInfoRealmId]);
 
   useEscapeToClose(open && !guildInfoRealmId, onClose);
-  useEscapeToClose(open && Boolean(guildInfoRealmId), () => setGuildInfoRealmId(null));
+  useEscapeToClose(open && Boolean(guildInfoRealmId), handleGuildInfoClose);
 
   if (!open) return null;
 
@@ -157,6 +206,19 @@ export function RealmAtlasOverlay({
               }}
             />
             <div className="lh-atlas__map-plate__veil" aria-hidden="true" />
+            {open && frId && revealedSet.has(frId) && !fogLiftFinished ? (
+              <div
+                className={`lh-atlas__map-fog-shroud ${fogLiftAnimating ? 'lh-atlas__map-fog-shroud--lifting' : ''}`}
+                style={
+                  {
+                    '--atlas-fog-x': `${fogPinPlacement.leftPct}%`,
+                    '--atlas-fog-y': `${fogPinPlacement.topPct}%`,
+                  } as CSSProperties
+                }
+                aria-hidden="true"
+                onAnimationEnd={handleFogLiftEnd}
+              />
+            ) : null}
             {revealedCount === 0 ? (
               <div className="lh-atlas__map-empty-hint">
                 <p className="lh-atlas__map-empty-title">No halls charted yet</p>
@@ -217,7 +279,7 @@ export function RealmAtlasOverlay({
       <GuildRealmInfoOverlay
         open={Boolean(guildInfoRealm)}
         realm={guildInfoRealm}
-        onClose={() => setGuildInfoRealmId(null)}
+        onClose={handleGuildInfoClose}
         quests={quests}
         mediaCatalog={mediaCatalog}
         realmProgress={realmProgress}

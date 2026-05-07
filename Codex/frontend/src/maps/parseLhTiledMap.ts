@@ -5,8 +5,19 @@ export type ParsedLhTrigger = {
   tiled_name?: string;
   layer_name?: string;
   kind: string;
+  /**
+   * Phaser activation routing:
+   * - `interaction`: requires SPACE interact
+   * - `overlap_auto`: activates as soon as the player overlaps
+   * - `overlap_auto_bottom`: activates on overlap while entering upward from below (portal-like)
+   *
+   * Comes from optional Tiled prop `lh_activation_mode`, with sane defaults by `lh_kind`.
+   */
+  activation_mode?: 'interaction' | 'overlap_auto' | 'overlap_auto_bottom';
   /** Present when `lh_kind` is `npc_dialogue` (Milestone 16). */
   npc_id?: string;
+  /** Raw Tiled rotation degrees (clockwise, origin at object x/y). */
+  rotation_deg?: number;
   /** Guild HQ desk / manager gate — `lh_realm_id` on the Tiled object. */
   target_realm_id?: string;
   target_quest_id?: string;
@@ -97,16 +108,42 @@ export function tileProperty(dict: TiledProperty[] | undefined, key: string): st
   return String(hit.value);
 }
 
-function objectBounds(obj: TiledObject): ParsedLhTrigger['bounds'] {
-  return {
-    x: obj.x,
-    y: obj.y,
-    width: obj.width ?? 0,
-    height: obj.height ?? 0,
-  };
+function objectBounds(obj: TiledObject, warnings?: string[]): ParsedLhTrigger['bounds'] {
+  const w = obj.width ?? 0;
+  const h = obj.height ?? 0;
+  const rotDeg = typeof obj.rotation === 'number' ? obj.rotation : 0;
+  const rot = ((rotDeg % 360) + 360) % 360;
+  // Treat ~360° as 0° (Tiled sometimes emits tiny float noise like 359.778).
+  const nearZero = rot < 0.5 || rot > 359.5;
+  if (!rotDeg || nearZero || w === 0 || h === 0) {
+    return { x: obj.x, y: obj.y, width: w, height: h };
+  }
+
+  // Tiled object rotation is around the object's x/y (top-left origin for rectangles).
+  // We normalize by computing the axis-aligned bounding box of the rotated rectangle.
+  const rad = (rotDeg * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const pts = [
+    { x: 0, y: 0 },
+    { x: w, y: 0 },
+    { x: w, y: h },
+    { x: 0, y: h },
+  ].map((p) => ({
+    x: obj.x + p.x * cos - p.y * sin,
+    y: obj.y + p.x * sin + p.y * cos,
+  }));
+  const xs = pts.map((p) => p.x);
+  const ys = pts.map((p) => p.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  warnings?.push(`rotated_object_aabb:${obj.id}:${rotDeg.toFixed(3)}`);
+  return { x: minX, y: minY, width: Math.max(maxX - minX, 0), height: Math.max(maxY - minY, 0) };
 }
 
-function normaliseTriggers(objects: TiledObject[], layerName: string): ParsedLhTrigger[] {
+function normaliseTriggers(objects: TiledObject[], layerName: string, warnings: string[]): ParsedLhTrigger[] {
   const out: ParsedLhTrigger[] = [];
   objects.forEach((obj) => {
     const props = obj.properties ?? [];
@@ -118,16 +155,27 @@ function normaliseTriggers(objects: TiledObject[], layerName: string): ParsedLhT
     if (kind === 'waypoint' || kind === 'fog_region') {
       return;
     }
+    const modeRaw = String(tileProperty(props, 'lh_activation_mode') ?? '').trim();
+    const activation_mode: ParsedLhTrigger['activation_mode'] =
+      modeRaw === 'overlap_auto' || modeRaw === 'overlap_auto_bottom' || modeRaw === 'interaction'
+        ? (modeRaw as ParsedLhTrigger['activation_mode'])
+        : kind === 'maia_portal'
+          ? 'overlap_auto_bottom'
+          : kind === 'guild_hq_research'
+            ? 'overlap_auto'
+          : 'interaction';
     out.push({
       tiled_object_id: obj.id,
       tiled_name: obj.name,
       layer_name: layerName,
       kind,
+      activation_mode,
       npc_id: tileProperty(props, 'lh_npc_id'),
+      rotation_deg: typeof obj.rotation === 'number' ? obj.rotation : undefined,
       target_realm_id: tileProperty(props, 'lh_realm_id'),
       target_quest_id: tileProperty(props, 'lh_target_quest_id'),
       external_url_key: tileProperty(props, 'lh_external_url_key'),
-      bounds: objectBounds(obj),
+      bounds: objectBounds(obj, warnings),
       interaction_label_active:
         tileProperty(props, 'lh_interaction_copy_active') ?? obj.name ?? `Interact #${obj.id}`,
       interaction_label_complete:
@@ -293,7 +341,7 @@ export function parseLhTiledMap(payload: unknown): ParsedLhMap {
   (raw.layers ?? []).forEach((layer: TiledLayer) => {
     if ('type' in layer && layer.type === 'objectgroup' && layer.objects?.length) {
       const layerName = layer.name ?? '';
-      triggers.push(...normaliseTriggers(layer.objects, layerName));
+      triggers.push(...normaliseTriggers(layer.objects, layerName, warnings));
       waypoints.push(...normaliseWaypoints(layer.objects, layerName));
       fog_regions.push(...normaliseFog(layer.objects, layerName));
       npc_markers.push(...normaliseNpcs(layer.objects, layerName));

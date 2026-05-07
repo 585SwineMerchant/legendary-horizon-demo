@@ -720114,6 +720114,35 @@
               "value": "maia_portal"
             }
           ]
+        },
+        {
+          "height": 82.6666666666665,
+          "id": 4,
+          "name": "aethelwood_research_trigger",
+          "rotation": 0,
+          "type": "lh_trigger_zone",
+          "visible": true,
+          "width": 422.666666666667,
+          "x": 1361.33333333333,
+          "y": 2190.66666666667,
+          "properties": [
+            {
+              "name": "lh_kind",
+              "value": "guild_hq_research"
+            },
+            {
+              "name": "lh_realm_id",
+              "value": "realm_aethelwood"
+            },
+            {
+              "name": "lh_interaction_copy_active",
+              "value": "Open guild research"
+            },
+            {
+              "name": "lh_interaction_copy_complete",
+              "value": "Research hub visited"
+            }
+          ]
         }
       ],
       "opacity": 1,
@@ -720124,7 +720153,7 @@
     }
   ],
   "nextlayerid": 7,
-  "nextobjectid": 4,
+  "nextobjectid": 5,
   "orientation": "orthogonal",
   "renderorder": "right-down",
   "tiledversion": "1.12.1",

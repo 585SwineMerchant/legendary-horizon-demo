@@ -1,0 +1,40 @@
+import { useState } from 'react';
+
+type Props = {
+  onStart: () => void;
+  onResume: () => void;
+};
+
+export function GameTitleScreen({ onStart, onResume }: Props) {
+  const [exiting, setExiting] = useState<'start' | 'resume' | null>(null);
+
+  const choose = (mode: 'start' | 'resume') => {
+    if (exiting) return;
+    setExiting(mode);
+    window.setTimeout(() => {
+      if (mode === 'start') onStart();
+      else onResume();
+    }, 760);
+  };
+
+  return (
+    <section className={`lh-screen lh-screen--game-title${exiting ? ' lh-screen--game-title-exit' : ''}`}>
+      <div className="lh-game-title__veil" aria-hidden />
+      <div className="lh-game-title__content">
+        <img
+          className="lh-game-title__logo"
+          src="/assets/ui/lh_title_logo.png"
+          alt="Legendary Horizon"
+        />
+        <div className="lh-game-title__actions" aria-label="Game title actions">
+          <button type="button" className="lh-button lh-button--primary" onClick={() => choose('start')}>
+            Start
+          </button>
+          <button type="button" className="lh-button lh-button--secondary" onClick={() => choose('resume')}>
+            Resume
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}

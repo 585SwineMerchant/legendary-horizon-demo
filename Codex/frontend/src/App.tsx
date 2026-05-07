@@ -12,11 +12,8 @@ import { useLhAccessibilityPrefs } from './hooks/useLhAccessibilityPrefs';
 import { useNightOneFlow } from './hooks/useNightOneFlow';
 import { DemoClosingScreen } from './screens/DemoClosingScreen';
 import { ExplorationScreen } from './screens/ExplorationScreen';
-import { InstructionsScreen } from './screens/InstructionsScreen';
+import { GameTitleScreen } from './screens/GameTitleScreen';
 import { IntroCinematicScreen } from './screens/IntroCinematicScreen';
-import { MaiaProfileBridgeScreen } from './screens/MaiaProfileBridgeScreen';
-import { ResumeDialogScreen } from './screens/ResumeDialogScreen';
-import { ScrollRevealScreen } from './screens/ScrollRevealScreen';
 import { TitleScreen } from './screens/TitleScreen';
 import { TeacherDashboardScreen } from './screens/TeacherDashboardScreen';
 import { isTerminalQuestStatus } from './quests/questEngine';
@@ -37,8 +34,6 @@ export function App() {
     quests,
     activeQuestDefinition,
     showQuestDebug,
-    mentorPortrait,
-    resumeMentorSpeakerLabel,
     npcDialogue,
     dismissNpcDialogue,
     activeEncounter,
@@ -46,7 +41,6 @@ export function App() {
     onEncounterRetreat,
     titleBackdropUrl,
     classroomTools,
-    resumeDialogBody,
     pauseOpen,
     questLogOpen,
     saveFeedback,
@@ -63,6 +57,10 @@ export function App() {
     setLedgerDraft,
     tiledMapDebug,
     realmAtlasOpen,
+    realmAtlasInitialGuildRealmId,
+    realmAtlasFogRevealRealmId,
+    consumeRealmAtlasInitialGuildIntent,
+    consumeRealmAtlasFogRevealIntent,
     worldMapOpen,
     realmTravelNotice,
     allRealms,
@@ -162,14 +160,6 @@ export function App() {
         />
       ) : null}
 
-      {!teacherDashboardOpen && screen === 'instructions' ? (
-        <InstructionsScreen
-          onBack={navigate.quitToTitle}
-          onStartSession={navigate.proceedInstructions}
-          classroomTools={classroomTools}
-        />
-      ) : null}
-
       {!teacherDashboardOpen && screen === 'intro' ? (
         <IntroCinematicScreen
           onSkip={navigate.introToInstructions}
@@ -177,27 +167,10 @@ export function App() {
         />
       ) : null}
 
-      {!teacherDashboardOpen && screen === 'maiaProfile' ? (
-        <MaiaProfileBridgeScreen
-          onBack={navigate.quitToTitle}
-          onContinue={navigate.maiaProfileToResume}
-          classroomTools={classroomTools}
-        />
-      ) : null}
-
-      {!teacherDashboardOpen && screen === 'scrollReveal' ? (
-        <ScrollRevealScreen
-          onBack={navigate.proceedInstructions}
-          onContinue={navigate.scrollRevealToResume}
-        />
-      ) : null}
-
-      {!teacherDashboardOpen && screen === 'resume' && player ? (
-        <ResumeDialogScreen
-          portraitUrl={mentorPortrait}
-          speakerLabel={resumeMentorSpeakerLabel}
-          dialogueBody={resumeDialogBody}
-          onContinue={navigate.resumeToExplore}
+      {!teacherDashboardOpen && screen === 'gameTitle' ? (
+        <GameTitleScreen
+          onStart={navigate.gameTitleStart}
+          onResume={navigate.gameTitleResume}
         />
       ) : null}
 
@@ -344,6 +317,10 @@ export function App() {
           guildHqAtlasRevealedRealmIds={exploration.guild_hq_atlas_revealed_realm_ids ?? []}
           foretoldSignpostRealmIds={exploration.foretold_signpost_realm_ids ?? []}
           classroomTools={classroomTools}
+          initialGuildInfoRealmId={realmAtlasInitialGuildRealmId}
+          onInitialGuildInfoConsumed={consumeRealmAtlasInitialGuildIntent}
+          fogRevealRealmId={realmAtlasFogRevealRealmId}
+          onFogRevealConsumed={consumeRealmAtlasFogRevealIntent}
         />
       ) : null}
 
