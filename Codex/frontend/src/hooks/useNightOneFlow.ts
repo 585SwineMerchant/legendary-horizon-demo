@@ -117,6 +117,10 @@ import { findNpcEntry, formatNpcSpeakerLabel } from '../dialogue/npcRegistry';
 import type { LhNpcDialogueOverlayModel } from '../dialogue/npcDialogueOverlayModel';
 import { deepClone } from '../lib/clone';
 import {
+  LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT,
+  LH_WINDOW_PHASER_GUILD_RESEARCH_EXIT,
+} from '../lib/lhPhaserGuildResearchBridge';
+import {
   markResearchComplete,
   setRealmLearnedNotes,
   touchRealmEntered,
@@ -212,6 +216,8 @@ export function useNightOneFlow() {
     initialGuildRealmId: string | null;
     fogRevealRealmId: string | null;
   }>({ initialGuildRealmId: null, fogRevealRealmId: null });
+  /** Phaser guild HQ enter tween completed; fire exit walk when this atlas closes (see `closeRealmAtlas`). */
+  const phaserGuildResearchExitWhenAtlasClosedRef = useRef<string | null>(null);
 
   const consumeRealmAtlasInitialGuildIntent = useCallback(() => {
     setRealmAtlasEntryIntent((prev) => ({ ...prev, initialGuildRealmId: null }));
@@ -256,10 +262,6 @@ export function useNightOneFlow() {
     if (screen === 'explore' && player) {
       const rid = player.current_realm_id;
       setRealmProgress((p) => touchRealmEntered(p, rid));
-      // World Atlas charting: charter focus while exploring reveals this hall on the atlas immediately today.
-      // Future: first HQ visit may show Guild Info first, then open atlas + reveal animation; keep merge here or
-      // defer to that flow via a pending-reveal queue — see `RealmAtlasOverlay` initialGuildInfoRealmId props.
-      setExploration((e) => mergeGuildHqAtlasRevealed(e, rid));
     }
   }, [screen, player?.current_realm_id]);
 
@@ -618,6 +620,18 @@ export function useNightOneFlow() {
       }
     }
 
+    // Demo bootstrap normalization: always start with Aethelwood *not* pre-visited, even if a cached save exists.
+    // (Players should earn the first guild HQ reveal via the walk-in trigger.)
+    realmProgressInit = Object.fromEntries(
+      Object.entries(realmProgressInit).filter(([rid]) => String(rid || '').trim() !== 'realm_aethelwood'),
+    ) as RealmProgressMap;
+    explorationInit = {
+      ...explorationInit,
+      guild_hq_atlas_revealed_realm_ids: (explorationInit.guild_hq_atlas_revealed_realm_ids ?? []).filter(
+        (id) => String(id || '').trim() !== 'realm_aethelwood',
+      ),
+    };
+
     explorationInit = ensureAcademicTasksSeeded(BLUEPRINT.academic_worksheet_tasks, explorationInit);
     explorationInit = syncGuildTruePathFromPlayerIfUnset(explorationInit, nextPlayer.current_realm_id);
     explorationInit = mergeGuildHqAtlasRevealedFromRealmProgress(explorationInit, realmProgressInit);
@@ -722,7 +736,12 @@ export function useNightOneFlow() {
 
   const handleTriggerActivation = useCallback(
     (interactableId: string, triggerMeta: ParsedLhTrigger) => {
-      if (!player) return;
+      if (!player) {
+        window.dispatchEvent(
+          new CustomEvent(LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT, { detail: { interactableId } }),
+        );
+        return;
+      }
 
       const kind = normaliseLhTriggerKind(String(triggerMeta.kind ?? ''));
       if (kind === 'maia_portal') {
@@ -772,21 +791,41 @@ export function useNightOneFlow() {
       }
 
       if (kind === 'guild_hq_research') {
-        const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
         const triggerRealm = String(triggerMeta.target_realm_id ?? '').trim() || player.current_realm_id;
+        const revealed = new Set((exploration.guild_hq_atlas_revealed_realm_ids ?? []).map((id) => String(id || '').trim()).filter(Boolean));
 
-        if (!ge.true_path_realm_id) {
+        if (typeof console !== 'undefined') {
+          console.info('[LhTrigger Hook]', 'guild_hq_research dispatch', {
+            interactableId,
+            tiled_object_id: triggerMeta.tiled_object_id,
+            tiled_name: triggerMeta.tiled_name,
+            lh_kind: triggerMeta.kind,
+            target_realm_id: triggerMeta.target_realm_id,
+            resolved_trigger_realm: triggerRealm,
+          });
+        }
+
+        if (triggerRealm !== 'realm_aethelwood') {
           setSaveFeedback({
             tone: 'error',
-            text: 'Chart your guild headquarters on the world map before opening this hall’s research atlas.',
+            text: `This guild research trigger is pointing at ${triggerRealm || 'no realm'} instead of Aethelwood. Check the Tiled lh_realm_id property.`,
           });
+          window.dispatchEvent(
+            new CustomEvent(LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT, { detail: { interactableId } }),
+          );
           return;
         }
-        if (ge.true_path_realm_id !== triggerRealm) {
+
+        // After the first discovery, the physical HQ trigger is no longer usable in the demo flow.
+        // Guild research remains accessible from the World Atlas pins.
+        if (revealed.has(triggerRealm)) {
           setSaveFeedback({
             tone: 'error',
-            text: 'This lectern belongs to another guild — travel to your chartered headquarters hall.',
+            text: 'The guild hall doors are closed. Return after choosing your True Path — the Guild Manager will receive you then.',
           });
+          window.dispatchEvent(
+            new CustomEvent(LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT, { detail: { interactableId, mode: 'blocked' } }),
+          );
           return;
         }
         // Shared overworld: physical trigger zone is authoritative — do not require `current_realm_id`
@@ -797,6 +836,7 @@ export function useNightOneFlow() {
           initialGuildRealmId: triggerRealm,
           fogRevealRealmId: triggerRealm,
         });
+        phaserGuildResearchExitWhenAtlasClosedRef.current = interactableId;
         setPauseOpen(false);
         setRealmAtlasOpen(true);
         return;
@@ -1751,10 +1791,20 @@ export function useNightOneFlow() {
     dismissSaveFeedback,
     openRealmAtlas: () => {
       setPauseOpen(false);
+      phaserGuildResearchExitWhenAtlasClosedRef.current = null;
       setRealmAtlasEntryIntent({ initialGuildRealmId: null, fogRevealRealmId: null });
       setRealmAtlasOpen(true);
     },
     closeRealmAtlas: () => {
+      const phaserGuildExitId = phaserGuildResearchExitWhenAtlasClosedRef.current;
+      phaserGuildResearchExitWhenAtlasClosedRef.current = null;
+      if (phaserGuildExitId) {
+        window.dispatchEvent(
+          new CustomEvent(LH_WINDOW_PHASER_GUILD_RESEARCH_EXIT, {
+            detail: { interactableId: phaserGuildExitId },
+          }),
+        );
+      }
       setRealmAtlasOpen(false);
       setRealmAtlasEntryIntent({ initialGuildRealmId: null, fogRevealRealmId: null });
     },
@@ -1905,7 +1955,19 @@ export function useNightOneFlow() {
     hotspotControls: {
       activate: (interactableId: string) => {
         const triggerMeta = hotspotIndex.get(interactableId);
-        if (!triggerMeta) return;
+        if (!triggerMeta) {
+          if (import.meta.env.DEV && typeof console !== 'undefined') {
+            // eslint-disable-next-line no-console
+            console.warn(
+              '[LhHotspot] No ParsedLhTrigger for interactableId (realm prefix must match PRIMARY_WORLD_TRIGGER_REALM_ID).',
+              { interactableId, expectedRealmPrefix: PRIMARY_WORLD_TRIGGER_REALM_ID },
+            );
+          }
+          window.dispatchEvent(
+            new CustomEvent(LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT, { detail: { interactableId } }),
+          );
+          return;
+        }
         handleTriggerActivation(interactableId, triggerMeta);
       },
     },

@@ -172,7 +172,7 @@ function normaliseTriggers(objects: TiledObject[], layerName: string, warnings: 
       activation_mode,
       npc_id: tileProperty(props, 'lh_npc_id'),
       rotation_deg: typeof obj.rotation === 'number' ? obj.rotation : undefined,
-      target_realm_id: tileProperty(props, 'lh_realm_id'),
+      target_realm_id: tileProperty(props, 'lh_target_realm_id') ?? tileProperty(props, 'lh_realm_id'),
       target_quest_id: tileProperty(props, 'lh_target_quest_id'),
       external_url_key: tileProperty(props, 'lh_external_url_key'),
       bounds: objectBounds(obj, warnings),
@@ -322,6 +322,24 @@ export function parseLhTiledMap(payload: unknown): ParsedLhMap {
   if (raw.infinite) {
     warnings.push('infinite_maps_not_supported');
   }
+
+  (raw.tilesets ?? []).forEach((ts) => {
+    const t = ts as { source?: string; image?: string };
+    const src = typeof t.source === 'string' ? t.source.trim() : '';
+    if (src) {
+      warnings.push(`external_tileset_ref:${src} — Embed tilesets before export (Phaser cannot fetch .tsx from disk)`);
+    }
+    const img = typeof t.image === 'string' ? t.image : '';
+    if (
+      img &&
+      !img.replace(/\\/g, '/').includes('assets/maps/') &&
+      (img.includes('..') || img.includes('Game Map') || /^[A-Za-z]:/.test(img))
+    ) {
+      warnings.push(
+        `tileset_image_not_served:${img.slice(0, 96)} — Use paths like assets/maps/Sheet.png next to the JSON (see TILED_WORLD_MAP_BUILD_GUIDE)`,
+      );
+    }
+  });
 
   const tw = Math.max(raw.tilewidth ?? 16, 1);
   const th = Math.max(raw.tileheight ?? 16, 1);

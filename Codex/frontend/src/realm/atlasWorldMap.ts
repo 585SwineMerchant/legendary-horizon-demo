@@ -25,14 +25,14 @@ function dedupeUrls(urls: readonly string[]): string[] {
 
 /**
  * Ordered candidates for `<img src>` (first loadable wins via `onError` chain in the overlay).
- * 1. Env override · 2. Googleusercontent (stable for this file) · 3. Optional `public/assets/maps/realm-atlas-world.png` · 4. Drive thumbnail last resort
+ * 1. Env override · 2. Local `public/assets/maps/realm-atlas-world.png` · 3. Googleusercontent · 4. Drive thumbnail last resort
  */
 export function buildRealmAtlasImageSrcCandidates(): readonly string[] {
   const env = import.meta.env.VITE_LH_REALM_ATLAS_IMAGE_URL?.trim();
   const base = import.meta.env.BASE_URL ?? '/';
   const withSlash = base.endsWith('/') ? base : `${base}/`;
   const local = `${withSlash}assets/maps/realm-atlas-world.png`;
-  return dedupeUrls([...(env ? [env] : []), DEFAULT_REALM_ATLAS_IMAGE_URL, local, DRIVE_THUMBNAIL_FALLBACK]);
+  return dedupeUrls([...(env ? [env] : []), local, DEFAULT_REALM_ATLAS_IMAGE_URL, DRIVE_THUMBNAIL_FALLBACK]);
 }
 
 /** @deprecated Prefer `buildRealmAtlasImageSrcCandidates` + `<img>`; kept for callers that need a single string. */

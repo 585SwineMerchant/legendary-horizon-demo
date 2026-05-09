@@ -104,7 +104,6 @@ export function ExplorationScreen({
   activeEncounter,
   onEncounterWin,
   onEncounterRetreat,
-  guildBreatherBanner,
   signpostStrip,
 }: Props) {
   useEscapeToClose(Boolean(npcDialogue), onDismissNpcDialogue ?? (() => undefined));
@@ -115,7 +114,7 @@ export function ExplorationScreen({
 
   return (
     <section className="lh-exploration" style={{ position: 'relative' }}>
-      <header className="lh-exploration__topbar" style={usePhaser ? { position: 'relative', zIndex: 10 } : undefined}>
+      {!usePhaser ? <header className="lh-exploration__topbar">
         <div>
           <p className="lh-exploration__eyebrow">Guild focus — {realm.display_name}</p>
           {signpostStrip?.labels?.length ? (
@@ -123,13 +122,7 @@ export function ExplorationScreen({
               <strong>Scroll signposts:</strong> {signpostStrip.labels.join(' · ')}
             </p>
           ) : null}
-          {usePhaser && act3?.scrollLedgerMilestone ? (
-            <p className="lh-exploration__scroll-ledger-line" role="status">
-              <strong>Scroll ledger:</strong> {act3.scrollLedgerMilestone.covered} / {act3.scrollLedgerMilestone.total}{' '}
-              signpost realms documented (world map ledger). Other realms stay explorable.
-            </p>
-          ) : null}
-          <h2 className="lh-heading-lg">{usePhaser ? 'Legendary Horizon' : 'Exploration • Tiled trigger slice'}</h2>
+          <h2 className="lh-heading-lg">Exploration • Tiled trigger slice</h2>
         </div>
         <div className="lh-stack lh-stack--horizontal lh-exploration__actions">
           {act3 ? (
@@ -154,14 +147,7 @@ export function ExplorationScreen({
             Pause
           </button>
         </div>
-      </header>
-
-      {usePhaser && guildBreatherBanner ? (
-        <aside className="lh-exploration__breather-strip" role="status" aria-live="polite">
-          <p className="lh-exploration__breather-strip-title">{guildBreatherBanner.title}</p>
-          <p className="lh-exploration__breather-strip-body">{guildBreatherBanner.body}</p>
-        </aside>
-      ) : null}
+      </header> : null}
 
       {usePhaser ? (
         <PhaserExplorationView
@@ -169,6 +155,7 @@ export function ExplorationScreen({
           parsedMap={parsedMap}
           hotspots={hotspots}
           onActivateHotspot={onActivateHotspot}
+          onPause={onPause}
         />
       ) : null}
 

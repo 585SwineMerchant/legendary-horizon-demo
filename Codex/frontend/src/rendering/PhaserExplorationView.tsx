@@ -4,12 +4,18 @@ import Phaser from 'phaser';
 
 import type { ExplorationHotspot } from '../screens/ExplorationScreen';
 import type { ParsedLhMap } from '../maps/parseLhTiledMap';
+import {
+  LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT,
+  LH_WINDOW_PHASER_GUILD_RESEARCH_EXIT,
+  type LhPhaserGuildResearchBridgeDetail,
+} from '../lib/lhPhaserGuildResearchBridge';
 
 type Props = {
   realmId: string;
   parsedMap: ParsedLhMap;
   hotspots: ExplorationHotspot[];
   onActivateHotspot: (interactableId: string) => void;
+  onPause: () => void;
 };
 
 type TriggerRect = {
@@ -17,13 +23,14 @@ type TriggerRect = {
   kind: string;
   activation_mode?: 'interaction' | 'overlap_auto' | 'overlap_auto_bottom';
   rotation_deg?: number;
+  target_realm_id?: string;
   x: number;
   y: number;
   w: number;
   h: number;
 };
 
-/** Static list of all tileset image keys used by the map. */
+/** Static list of all tileset image keys used by the map (must match Tiled tileset names). */
 const TILESET_IMAGES = [
   'water to grass - river orientation-spritesheet',
   'Tileset-Terrain-new grass',
@@ -39,6 +46,8 @@ const TILESET_IMAGES = [
   'cabin',
   'Aethelwood Farmsteads',
 ] as const;
+
+const PRELOAD_TILESET_KEYS = new Set<string>(TILESET_IMAGES);
 
 const TRAVELER_DIRECTIONS = ['down', 'left', 'right', 'up'] as const;
 type TravelerDirection = (typeof TRAVELER_DIRECTIONS)[number];
@@ -58,6 +67,24 @@ const SPRINT_FUEL_MAX_MS = 2400;
 const SPRINT_COOLDOWN_MS = 5200;
 const SPRINT_RUN_ANIM_TIME_SCALE = 1.22;
 
+/** Demo: hold R to sprint without fuel drain or cooldown. */
+const DEMO_UNLIMITED_SPRINT = true;
+
+/** After guild research portal animation, block `overlap_auto` re-fires while the player is still inside the zone. */
+const GUILD_RESEARCH_REACTIVATE_COOLDOWN_MS = 4200;
+/**
+ * Min pixels below the Tiled trigger bottom for the return tween. Must clear `guildResearchNearRow`’s inflated hull
+ * (72px) plus the traveler foot AABB — small values loop large HQ rects (e.g. Aethelwood ~423×189).
+ */
+const GUILD_RESEARCH_EXIT_STAND_BELOW_MIN_PX = 132;
+/** Extra stand-off scaled by trigger height so wide/tall guild HQ zones do not immediately re-fire `overlap_auto`. */
+const GUILD_RESEARCH_EXIT_STAND_BELOW_HEIGHT_FACTOR = 0.28;
+
+function guildResearchExitStandY(hit: { y: number; h: number }): number {
+  const extra = Math.round(Math.max(0, hit.h) * GUILD_RESEARCH_EXIT_STAND_BELOW_HEIGHT_FACTOR);
+  return hit.y + hit.h + GUILD_RESEARCH_EXIT_STAND_BELOW_MIN_PX + extra;
+}
+
 function publicAssetUrl(path: string): string {
   const base = import.meta.env.BASE_URL ?? '/';
   const withSlash = base.endsWith('/') ? base : `${base}/`;
@@ -69,18 +96,23 @@ function publicAssetUrl(path: string): string {
  * Uses Phaser's own loader (tilemapTiledJSON + image) in preload() so that
  * the engine handles all async loading before create() is called.
  */
-export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivateHotspot }: Props) {
+export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivateHotspot, onPause }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
 
   // Keep Phaser instance stable. Hotspot completion changes should NOT tear down/recreate the game.
   const onActivateHotspotRef = useRef(onActivateHotspot);
+  const onPauseRef = useRef<() => void>(() => undefined);
   const parsedMapRef = useRef(parsedMap);
   const completionByIdRef = useRef<Map<string, boolean>>(new Map());
 
   useEffect(() => {
     onActivateHotspotRef.current = onActivateHotspot;
   }, [onActivateHotspot]);
+
+  useEffect(() => {
+    onPauseRef.current = () => onPause();
+  }, [onPause]);
 
   useEffect(() => {
     parsedMapRef.current = parsedMap;
@@ -117,12 +149,15 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
           kind: t.kind,
           activation_mode: t.activation_mode,
           rotation_deg: t.rotation_deg,
+          target_realm_id: t.target_realm_id,
           x: b.x,
           y: b.y,
           w: Math.max(b.width, 1),
           h: Math.max(b.height, 1),
         };
       });
+      // Must match `loadLhRuntimeFixture` / `@maps` (same file). After Tiled export, hard-refresh the dev page
+      // so the bundled JSON parse and Phaser both pick up changes (avoid partial stale cache).
       const _mapUrl = publicAssetUrl('assets/maps/Legendary_Horizon_Map.json');
       const _tilesetUrl = (name: string) => publicAssetUrl(`assets/maps/${name.replace(/ /g, '%20')}.png`);
       const _travelerUrl = (sheet: string, dir: TravelerDirection) =>
@@ -132,7 +167,8 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
 
       class LhScene extends Phaser.Scene {
         private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-        private keySpace!: Phaser.Input.Keyboard.Key;
+        private keyPause!: Phaser.Input.Keyboard.Key;
+        private keyInteract!: Phaser.Input.Keyboard.Key;
         private keyAttack!: Phaser.Input.Keyboard.Key;
         private keySprint!: Phaser.Input.Keyboard.Key;
         private player!: Phaser.Physics.Arcade.Sprite;
@@ -143,6 +179,8 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
         private portalActivating = new Set<string>();
         private activatedInteractableIds = new Set<string>();
         private portalCooldownUntil = new Map<string, number>();
+        /** Prevents `guild_hq_research` overlap_auto from looping when the return tween leaves the player inside the rect. */
+        private guildResearchCooldownUntil = new Map<string, number>();
         private lastMaiaPortalId: string | null = null;
         private maiaHandoffPaused = false;
         private triggerTransitionLocked = false;
@@ -151,8 +189,40 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
         private sprintFuelMs = SPRINT_FUEL_MAX_MS;
         /** Scene time (ms) until sprint can drain/refuel again. */
         private sprintCooldownUntil = 0;
-        private debugText?: Phaser.GameObjects.Text;
+        /**
+         * After guild enter tween + React opens Guild Info / Atlas, wait for atlas close before exit walk.
+         * If React rejects the trigger, `lh:phaser-guild-research-abort` restores `preEnter`.
+         */
+        private guildResearchPendingExit: null | {
+          interactableId: string;
+          hit: TriggerRect;
+          preEnter: { x: number; y: number; alpha: number; scale: number };
+        } = null;
         private facing: TravelerDirection = 'down';
+        /** Reused for trigger overlap tests (Tiled top-left x,y + size — matches parser / React). */
+        private scratchPlayerGeom = new Phaser.Geom.Rectangle(0, 0, 0, 0);
+        private scratchTriggerGeom = new Phaser.Geom.Rectangle(0, 0, 0, 0);
+        private bodyBoundsScratch: Phaser.Types.Physics.Arcade.ArcadeBodyBounds = {
+          x: 0,
+          y: 0,
+          right: 0,
+          bottom: 0,
+        };
+
+        /** Foot / collision hitbox — matches what tile colliders use (sprite bounds can be much taller). */
+        private getPlayerBodyGeomRect(out: Phaser.Geom.Rectangle): Phaser.Geom.Rectangle {
+          const body = this.player.body as Phaser.Physics.Arcade.Body;
+          const b = body.getBounds(this.bodyBoundsScratch);
+          return out.setTo(b.x, b.y, b.right - b.x, b.bottom - b.y);
+        }
+
+        private triggerMetaToGeom(m: TriggerRect, out: Phaser.Geom.Rectangle): Phaser.Geom.Rectangle {
+          return out.setTo(m.x, m.y, m.w, m.h);
+        }
+
+        private isGuildResearchCooling(interactableId: string): boolean {
+          return (this.guildResearchCooldownUntil.get(interactableId) ?? 0) > this.time.now;
+        }
 
         preload() {
           // ── Diagnostics: surface loader failures immediately ──
@@ -243,6 +313,15 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
             }
           }
 
+          // Tiled may embed multiple tilesets with the same `name` (duplicate embeds). Phaser's
+          // `addTilesetImage` only binds textures to the first matching name — bind the rest here.
+          for (const ts of map.tilesets ?? []) {
+            const name = ts.name;
+            if (!PRELOAD_TILESET_KEYS.has(name)) continue;
+            if (!this.textures.exists(name)) continue;
+            ts.setImage(this.textures.get(name));
+          }
+
           console.log(
             `[LhScene] Map loaded. tilesetsAdded=${tilesets.length}/${TILESET_IMAGES.length} ` +
             `mapTilesets=[${discoveredTilesetNames.join(', ')}] layers=[${discoveredLayerNames.join(', ')}] ` +
@@ -296,6 +375,27 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
 
           console.log(`[LhScene] Layers created: ${createdLayers.length ? createdLayers.join(', ') : '(none)'}`);
 
+          if (tilesets.length === 0 || createdLayers.length === 0) {
+            const cam = this.cameras.main;
+            const why =
+              tilesets.length === 0
+                ? 'Phaser linked 0 tilesets. Your Tiled export must use image paths the browser can load, e.g. "assets/maps/YourSheet.png" under public/assets/maps — not ../../../../Game Map/...'
+                : '0 tile layers were created. Layer names may have changed, or tile GIDs do not match loaded tilesets.';
+            this.add
+              .text(cam.centerX, cam.centerY, ['MAP DID NOT RENDER', '', why, '', 'Restored template: Codex/docs/TILED_WORLD_MAP_BUILD_GUIDE.md'].join('\n'), {
+                fontFamily: 'system-ui, Segoe UI, sans-serif',
+                fontSize: '14px',
+                color: '#fecaca',
+                align: 'center',
+                backgroundColor: '#1c1917ee',
+                padding: { x: 16, y: 14 },
+                wordWrap: { width: Math.min(520, cam.width - 32) },
+              })
+              .setOrigin(0.5)
+              .setScrollFactor(0)
+              .setDepth(20000);
+          }
+
           // Fog regions — dark blocking rectangles
           this.fogStatics = this.physics.add.staticGroup();
           this.solidStatics = this.physics.add.staticGroup();
@@ -333,18 +433,34 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
             }
 
             const isPortal = tr.kind === 'maia_portal';
-            const completed = Boolean(_completionById.current.get(tr.interactable_id));
-            const color = completed ? 0x334155 : isPortal ? 0x38bdf8 : 0x22c55e;
             const triggerWidth = isPortal ? Math.max(tr.w * 1.7, 62) : tr.w;
             const triggerHeight = isPortal ? Math.max(tr.h * 0.7, 42) : tr.h;
             const triggerCenterY = tr.y + tr.h / 2;
             const rect = this.add.rectangle(
-              tr.x + tr.w / 2, triggerCenterY,
-              triggerWidth, triggerHeight, color, isPortal ? 0.03 : 0.22,
+              tr.x + tr.w / 2,
+              triggerCenterY,
+              triggerWidth,
+              triggerHeight,
+              0x000000,
+              0,
             );
-            rect.setStrokeStyle(1, color, isPortal ? 0.08 : 0.55);
+            rect.setStrokeStyle(0);
+            rect.setVisible(false);
             this.triggerBodies.push({ rect, meta: tr });
           });
+
+          if (import.meta.env.DEV) {
+            // eslint-disable-next-line no-console
+            console.info(
+              '[LhScene] lh_triggers → Phaser bodies',
+              _triggers.map((t) => ({
+                kind: t.kind,
+                mode: t.activation_mode ?? 'interaction',
+                interactable_id: t.interactable_id,
+                bounds: { x: t.x, y: t.y, w: t.w, h: t.h },
+              })),
+            );
+          }
 
           const hasTraveler = this.textures.exists('lh_traveler_idle_down');
           if (this.textures.exists('lh_maia_portal_idle')) {
@@ -437,8 +553,12 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
           });
 
           this.cursors = this.input.keyboard?.createCursorKeys() as Phaser.Types.Input.Keyboard.CursorKeys;
-          this.keySpace = this.input.keyboard?.addKey(
+          // Space opens Pause (headerless gameplay). Interaction moves to E.
+          this.keyPause = this.input.keyboard?.addKey(
             Phaser.Input.Keyboard.KeyCodes.SPACE,
+          ) as Phaser.Input.Keyboard.Key;
+          this.keyInteract = this.input.keyboard?.addKey(
+            Phaser.Input.Keyboard.KeyCodes.E,
           ) as Phaser.Input.Keyboard.Key;
           this.keyAttack = this.input.keyboard?.addKey(
             Phaser.Input.Keyboard.KeyCodes.A,
@@ -450,34 +570,25 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
           this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
           this.cameras.main.setZoom(1.85);
 
-          // ── Temporary on-screen debug overlay ──
-          this.debugText = this.add
-            .text(12, 34, '', {
-              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-              fontSize: '11px',
-              color: '#cbd5e1',
-              backgroundColor: '#0b1220cc',
-              padding: { x: 8, y: 6 },
-            })
-            .setScrollFactor(0)
-            .setDepth(1000)
-            .setAlpha(0.95);
-
           this.add
-            .text(12, 10, '⬆⬇⬅➡ Move  ·  SPACE Interact  ·  A Attack  ·  R Sprint', {
+            .text(12, 10, '⬆⬇⬅➡ Move  ·  SPACE Pause  ·  E Interact  ·  A Attack  ·  R Sprint', {
               fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial',
               fontSize: '13px',
               color: '#94a3b8',
             })
             .setScrollFactor(0)
-            .setDepth(999)
+            .setDepth(9999)
             .setAlpha(0.92);
 
           window.addEventListener('lh:maia-handoff-opened', this.handleMaiaOpened);
           window.addEventListener('lh:maia-handoff-closed', this.handleMaiaClosed);
+          window.addEventListener(LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT, this.handleGuildResearchAbort);
+          window.addEventListener(LH_WINDOW_PHASER_GUILD_RESEARCH_EXIT, this.handleGuildResearchExit);
           this.events.once('shutdown', () => {
             window.removeEventListener('lh:maia-handoff-opened', this.handleMaiaOpened);
             window.removeEventListener('lh:maia-handoff-closed', this.handleMaiaClosed);
+            window.removeEventListener(LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT, this.handleGuildResearchAbort);
+            window.removeEventListener(LH_WINDOW_PHASER_GUILD_RESEARCH_EXIT, this.handleGuildResearchExit);
           });
         }
 
@@ -545,23 +656,107 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
           });
         };
 
+        private runGuildResearchExitWalk(hit: TriggerRect) {
+          const startScale = this.player.scale;
+          const standY = guildResearchExitStandY(hit);
+          const exitWalkDist = Math.abs(standY - this.player.y);
+          // Same pacing as Maia portal return: ~1700ms over ~111px, idle sprite (slow stroll, not run cycle).
+          const portalReturnMsPerPx = 1700 / 111;
+          const exitDuration = Math.max(
+            1600,
+            Math.min(3200, Math.round(480 + exitWalkDist * portalReturnMsPerPx)),
+          );
+          this.facing = 'down';
+          this.player.anims.stop();
+          if (this.textures.exists('lh_traveler_idle_down')) {
+            this.player.setTexture('lh_traveler_idle_down', TRAVELER_VISIBLE_FRAME_INDICES[0]);
+          }
+          this.tweens.add({
+            targets: this.player,
+            alpha: 1,
+            y: standY,
+            scale: startScale,
+            duration: exitDuration,
+            ease: 'Sine.easeOut',
+            onComplete: () => {
+              this.facing = 'down';
+              this.player.anims.stop();
+              if (this.textures.exists('lh_traveler_idle_down')) {
+                this.player.setTexture('lh_traveler_idle_down', TRAVELER_VISIBLE_FRAME_INDICES[0]);
+              }
+              this.guildResearchCooldownUntil.set(
+                hit.interactable_id,
+                this.time.now + GUILD_RESEARCH_REACTIVATE_COOLDOWN_MS,
+              );
+              this.triggerTransitionLocked = false;
+            },
+          });
+        }
+
+        private handleGuildResearchAbort = (ev: Event) => {
+          const detail = (ev as CustomEvent<LhPhaserGuildResearchBridgeDetail>).detail;
+          const id = detail?.interactableId;
+          if (!id || !this.guildResearchPendingExit || this.guildResearchPendingExit.interactableId !== id) return;
+          this.tweens.killTweensOf(this.player);
+          const { preEnter } = this.guildResearchPendingExit;
+          this.guildResearchPendingExit = null;
+          this.player.setPosition(preEnter.x, preEnter.y);
+          this.player.setAlpha(preEnter.alpha);
+          this.player.setScale(preEnter.scale);
+          this.facing = 'down';
+          this.player.anims.stop();
+          if (this.textures.exists('lh_traveler_idle_down')) {
+            this.player.setTexture('lh_traveler_idle_down', TRAVELER_VISIBLE_FRAME_INDICES[0]);
+          }
+          this.triggerTransitionLocked = false;
+          if (detail?.mode === 'blocked') {
+            // Blocked barrier: keep it latched and cool it briefly so overlap_auto doesn't loop while the player stands in the zone.
+            this.guildResearchCooldownUntil.set(id, this.time.now + 8000);
+            return;
+          }
+          this.activatedInteractableIds.delete(id);
+        };
+
+        private handleGuildResearchExit = (ev: Event) => {
+          const id = (ev as CustomEvent<LhPhaserGuildResearchBridgeDetail>).detail?.interactableId;
+          if (!id || !this.guildResearchPendingExit || this.guildResearchPendingExit.interactableId !== id) return;
+          const { hit } = this.guildResearchPendingExit;
+          this.guildResearchPendingExit = null;
+          this.runGuildResearchExitWalk(hit);
+        };
+
         private activateTrigger(hit: TriggerRect) {
           const isPortal = hit.kind === 'maia_portal';
           const isGuildResearchPortal = hit.kind === 'guild_hq_research';
           const completed = Boolean(_completionById.current.get(hit.interactable_id));
           const blockedBySession =
-            !isPortal && this.activatedInteractableIds.has(hit.interactable_id);
-          if ((!isPortal && completed) || blockedBySession) return;
+            !isPortal && !isGuildResearchPortal && this.activatedInteractableIds.has(hit.interactable_id);
+          if ((!isPortal && !isGuildResearchPortal && completed) || blockedBySession) return;
 
           if (!isPortal) {
-            // Portal-like guild research trigger: short transition + input lock, then open UI.
+            // Guild research: enter tween → React opens Guild Info + Atlas; exit walk runs when atlas closes (window event).
             if (isGuildResearchPortal) {
+              if (this.isGuildResearchCooling(hit.interactable_id)) return;
+              if (typeof console !== 'undefined') {
+                console.info('[LhTrigger Phaser]', 'guild_hq_research activate', {
+                  interactable_id: hit.interactable_id,
+                  target_realm_id: hit.target_realm_id,
+                  activation_mode: hit.activation_mode,
+                  bounds: { x: hit.x, y: hit.y, w: hit.w, h: hit.h },
+                });
+              }
               this.activatedInteractableIds.add(hit.interactable_id);
               this.triggerTransitionLocked = true;
               this.player.setAcceleration(0, 0);
               this.player.setVelocity(0, 0);
               this.player.anims.stop();
 
+              const preEnter = {
+                x: this.player.x,
+                y: this.player.y,
+                alpha: this.player.alpha,
+                scale: this.player.scale,
+              };
               const startScale = this.player.scale;
               this.tweens.add({
                 targets: this.player,
@@ -571,19 +766,12 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
                 duration: 650,
                 ease: 'Sine.easeInOut',
                 onComplete: () => {
+                  this.guildResearchPendingExit = {
+                    interactableId: hit.interactable_id,
+                    hit,
+                    preEnter,
+                  };
                   _onActivate(hit.interactable_id);
-                  // Restore the traveler so closing overlays returns to play.
-                  this.tweens.add({
-                    targets: this.player,
-                    alpha: 1,
-                    y: this.player.y + 14,
-                    scale: startScale,
-                    duration: 420,
-                    ease: 'Sine.easeOut',
-                    onComplete: () => {
-                      this.triggerTransitionLocked = false;
-                    },
-                  });
                 },
               });
               return;
@@ -647,6 +835,11 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
             return;
           }
 
+          if (Phaser.Input.Keyboard.JustDown(this.keyPause)) {
+            onPauseRef.current?.();
+            return;
+          }
+
           if (this.attackingUntil > this.time.now) {
             this.player?.setAcceleration(0, 0);
             this.player?.setVelocity(0, 0);
@@ -655,17 +848,6 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
 
           const body = this.player?.body as Phaser.Physics.Arcade.Body | undefined;
           if (!body) return;
-
-          if (this.debugText) {
-            const cam = this.cameras.main;
-            const z = (cam.zoom ?? 1).toFixed(2);
-            this.debugText.setText([
-              `map tiles: ${this.cache.tilemap.has('lh_world') ? 'cached' : 'missing'}`,
-              `map px: ${Math.round(cam.getBounds().width)}x${Math.round(cam.getBounds().height)}`,
-              `cam: x=${Math.round(cam.scrollX)} y=${Math.round(cam.scrollY)} zoom=${z}`,
-              `player: x=${Math.round(this.player.x)} y=${Math.round(this.player.y)}`,
-            ]);
-          }
 
           let ix = 0;
           let iy = 0;
@@ -682,7 +864,10 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
 
           let moveSpeed = TRAVELER_MOVE_SPEED_PX;
           let sprintingMove = false;
-          if (
+          if (DEMO_UNLIMITED_SPRINT && this.keySprint.isDown && inputLen > 0) {
+            moveSpeed = TRAVELER_SPRINT_SPEED_PX;
+            sprintingMove = true;
+          } else if (
             sprintCooldownReady &&
             this.keySprint.isDown &&
             this.sprintFuelMs > 0 &&
@@ -761,16 +946,20 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
 
           const px = this.player.x;
           const py = this.player.y;
+          const pGeom = this.getPlayerBodyGeomRect(this.scratchPlayerGeom);
           const overlaps = this.triggerBodies
-            .filter(({ rect }) =>
+            .filter(({ meta }) =>
               Phaser.Geom.Intersects.RectangleToRectangle(
-                this.player.getBounds(), rect.getBounds(),
+                pGeom,
+                this.triggerMetaToGeom(meta, this.scratchTriggerGeom),
               ),
             )
-            .map((row) => ({
-              ...row,
-              d: (row.rect.x - px) ** 2 + (row.rect.y - py) ** 2,
-            }))
+            .map((row) => {
+              const m = row.meta;
+              const cx = m.x + m.w / 2;
+              const cy = m.y + m.h / 2;
+              return { ...row, d: (cx - px) ** 2 + (cy - py) ** 2 };
+            })
             .sort((a, b) => {
               const aDone = Boolean(_completionById.current.get(a.meta.interactable_id));
               const bDone = Boolean(_completionById.current.get(b.meta.interactable_id));
@@ -794,6 +983,7 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
           const autoHitRow = overlaps.find((row) => {
             const m = row.meta;
             if (m.kind === 'maia_portal') return false;
+            if (m.kind === 'guild_hq_research' && this.isGuildResearchCooling(m.interactable_id)) return false;
             const mode = m.activation_mode ?? 'interaction';
             if (mode === 'overlap_auto') return true;
             if (mode === 'overlap_auto_bottom') {
@@ -801,33 +991,28 @@ export function PhaserExplorationView({ realmId, parsedMap, hotspots, onActivate
             }
             return false;
           });
-          const autoHit = autoHitRow?.meta;
-
-          // ── Temporary debug output (collision-vs-trigger diagnosis) ──
-          // Shows trigger kind, mode, overlap count, and bottom-entry pass/fail.
-          if (this.debugText) {
-            const top = overlaps[0]?.meta;
-            const topMode = top?.activation_mode ?? 'interaction';
-            const bottomPass = top
-              ? Boolean(moving && iy < 0 && this.player.y > top.y + top.h * 0.92)
-              : false;
-            this.debugText.setText([
-              `player: x=${Math.round(this.player.x)} y=${Math.round(this.player.y)}`,
-              `overlaps: ${overlaps.length}`,
-              top
-                ? `top: ${top.kind} mode=${topMode} rot=${(top.rotation_deg ?? 0).toFixed(3)} bottomPass=${bottomPass}`
-                : 'top: (none)',
-              top ? `topBounds: x=${top.x.toFixed(1)} y=${top.y.toFixed(1)} w=${top.w.toFixed(1)} h=${top.h.toFixed(1)}` : '',
-              autoHit ? `AUTO: ${autoHit.kind} mode=${autoHit.activation_mode ?? 'interaction'}` : 'AUTO: (none)',
-            ]);
-          }
+          const guildResearchNearRow = autoHitRow
+            ? undefined
+            : this.triggerBodies.find((row) => {
+                const m = row.meta;
+                if (m.kind !== 'guild_hq_research') return false;
+                if (this.isGuildResearchCooling(m.interactable_id)) return false;
+                if ((m.activation_mode ?? 'interaction') !== 'overlap_auto') return false;
+                this.triggerMetaToGeom(m, this.scratchTriggerGeom);
+                Phaser.Geom.Rectangle.Inflate(this.scratchTriggerGeom, 72, 72);
+                if (Phaser.Geom.Intersects.RectangleToRectangle(pGeom, this.scratchTriggerGeom)) return true;
+                const dx = Math.max(Math.abs(px - (m.x + m.w / 2)) - m.w / 2, 0);
+                const dy = Math.max(Math.abs(py - (m.y + m.h / 2)) - m.h / 2, 0);
+                return Math.hypot(dx, dy) <= 96;
+              });
+          const autoHit = autoHitRow?.meta ?? guildResearchNearRow?.meta;
 
           if (autoHit) {
             this.activateTrigger(autoHit);
             return;
           }
 
-          if (Phaser.Input.Keyboard.JustDown(this.keySpace)) {
+          if (Phaser.Input.Keyboard.JustDown(this.keyInteract)) {
             const hit = overlaps[0]?.meta;
             const done = hit ? Boolean(_completionById.current.get(hit.interactable_id)) : false;
             if (hit && !done) this.activateTrigger(hit);

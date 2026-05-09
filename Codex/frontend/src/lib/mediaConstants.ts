@@ -7,6 +7,12 @@ export const LH_MEDIA_ASSET_ID_SAVE_CHIME = 'sfx_save_chime_placeholder';
 /** World Atlas fog lift after Guild Research hub closes (falls back to oscillator stub if unset). */
 export const LH_MEDIA_ASSET_ID_ATLAS_FOG_REVEAL = 'sfx_atlas_fog_reveal_placeholder';
 
+/** Prototype-parity fog clearing SFX (local file recommended). */
+export const LH_MEDIA_ASSET_ID_FOG_CLEARING = 'sfx_fog_clearing';
+
+/** Guild research hub opens: scroll unfurl. */
+export const LH_MEDIA_ASSET_ID_SCROLL_UNFURLING = 'sfx_scroll_unfurling';
+
 export const LH_MEDIA_ASSET_ID_MENTOR_PORTRAIT = 'portrait_mentor_kael_placeholder';
 
 /** Matches `npc_id` on catalog rows (Sheets `LhMediaAssets.npc_id`). */

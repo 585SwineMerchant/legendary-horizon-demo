@@ -12,7 +12,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@samples': path.resolve(__dirname, '../data/samples'),
-      '@maps': path.resolve(__dirname, '../tiled'),
+      // Single source of truth with Phaser (`publicAssetUrl('assets/maps/…')`) so triggers stay in sync.
+      '@maps': path.resolve(__dirname, 'public/assets/maps'),
     },
   },
 });

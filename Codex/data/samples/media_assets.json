@@ -28,6 +28,20 @@
     "delivery_url_placeholder": "https://example.invalid/mock-audio/atlas-fog-reveal.mp3"
   },
   {
+    "asset_id": "sfx_fog_clearing",
+    "kind": "sfx",
+    "description": "Fog clearing SFX (place at /assets/fog clearing.wav).",
+    "drive_file_id": "",
+    "delivery_url_placeholder": "/assets/fog clearing.wav"
+  },
+  {
+    "asset_id": "sfx_scroll_unfurling",
+    "kind": "sfx",
+    "description": "Scroll unfurling SFX (place at /assets/Scroll Unfurling.wav).",
+    "drive_file_id": "",
+    "delivery_url_placeholder": "/assets/Scroll Unfurling.wav"
+  },
+  {
     "asset_id": "media_image_missing_placeholder",
     "kind": "image",
     "description": "Fallback when a catalog image URL is missing or fails to load.",

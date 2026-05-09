@@ -4,9 +4,10 @@ This guide is for turning the current atlas-inspired Tiled map into the playable
 
 Current source map:
 
-- Authoring file: `Game Map/Legendary_Horizon_Map.tmx`
-- Runtime export: `Codex/tiled/Legendary_Horizon_Map.json`
-- Runtime assets: `Codex/frontend/public/assets/maps/`
+- Authoring file: `Game Map/Legendary_Horizon_Map.tmx` (or your `.tmx` location)
+- **Canonical runtime JSON (Phaser + bundled parser):** `Codex/frontend/public/assets/maps/Legendary_Horizon_Map.json`
+- Tile PNGs the map references: `Codex/frontend/public/assets/maps/` (paths inside JSON look like `assets/maps/….png`)
+- Optional mirror copy: `Codex/tiled/Legendary_Horizon_Map.json` (keep in sync if you use it)
 - Current size: 400 x 300 tiles, 32 px tiles
 - Current painted layers: `Main`, `Hillside`, `forest 4`, `Hillside 2`, `forest layer 3`, `Guild HQs`
 
@@ -245,16 +246,39 @@ The large map now renders in Phaser and the runtime parser also reads `Legendary
 
 Until those object layers exist, the app will show the full world but will not expose the old Aethelwood demo triggers from `aethelwood_demo.json`.
 
-## Export Checklist
+## Export Checklist (read this if the game stopped loading)
+
+The usual failure mode is exporting **external** tilesets (`.tsx` references). Phaser loads the map over HTTP; it **cannot** open `../../../../Your PC/Game Map/foo.tsx`. Tile graphics must be **embedded** in the `.json` with `"image": "assets/maps/….png"`.
+
+### Tiled settings / steps
+
+1. Save your `.tmx` as usual.
+2. **Embed tilesets into the map** before JSON export:
+   - In recent Tiled: **Map → Embed All Tilesets** (or embed each external tileset from the Tilesets panel).
+   - Alternatively **Edit → Preferences → Saving & Loading** and enable embedding where offered.
+3. **Export**: **File → Export As… → JSON map files (\*.json)**  
+   - Prefer **no compression** on tile layers for simpler debugging (optional).
+4. **Overwrite only this file with the export:**  
+   `Codex/frontend/public/assets/maps/Legendary_Horizon_Map.json`
+5. **Sanity-check the JSON** (open in an editor and search for `"source":`):
+   - **Good:** `"tilesets": [ { "firstgid": …, "image": "assets/maps/your sheet.png", … } ]`
+   - **Bad:** `"tilesets": [ { "firstgid": …, "source": "..\\..\\Something.tsx" } ]` → go back to step 2.
+6. **Tileset names:** embedded `"name"` values must match what Phaser loads (see `TILESET_IMAGES` in `Codex/frontend/src/rendering/PhaserExplorationView.tsx`). Renaming a tileset in Tiled without updating that list breaks rendering.
+7. Put any **new** tileset PNGs beside the JSON under `Codex/frontend/public/assets/maps/` using the same filenames as in the `"image"` fields (spaces allowed; URLs encode them).
+8. Restart **`npm run dev`** if it was running (so Vite may pick up the new/changed JSON import). Hard-refresh the browser (**Ctrl+Shift+R**) to avoid a stale cached map.
+9. Trigger rectangles: class/type should be `lh_trigger_zone` when using `lh_kind`; keep object layers named **`lh_triggers`** so parsing stays stable.
+
+### What you do **not** need
+
+- Restarting Cursor is unnecessary for the map file alone.
+- Exporting only to `Codex/tiled/` without copying to `public/assets/maps/` will **not** update Phaser if that folder is out of sync.
 
 After editing in Tiled:
 
-1. Save `Game Map/Legendary_Horizon_Map.tmx`.
-2. Export JSON to `Codex/tiled/Legendary_Horizon_Map.json`.
-3. Copy/update any referenced tileset images in `Codex/frontend/public/assets/maps/`.
-4. Confirm the map still loads in Phaser.
-5. Confirm object layers appear in map debug.
-6. Run frontend typecheck.
+1. Embed tilesets → export JSON → save to `Codex/frontend/public/assets/maps/Legendary_Horizon_Map.json`.
+2. Confirm referenced PNGs exist under `Codex/frontend/public/assets/maps/`.
+3. Confirm the map loads in Phaser and map debug shows layers/triggers.
+4. Run frontend typecheck / build when convenient.
 
 ## Design Guardrails
 

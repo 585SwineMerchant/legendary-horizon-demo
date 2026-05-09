@@ -23,7 +23,7 @@ export const DEFAULT_LH_ACCESSIBILITY_PREFS: LhAccessibilityPrefsV1 = {
   text_scale: 'default',
   motion: 'system',
   low_clutter: false,
-  audio_muted: true,
+  audio_muted: false,
 };
 
 function normalize(raw: unknown): LhAccessibilityPrefsV1 {
@@ -37,7 +37,7 @@ function normalize(raw: unknown): LhAccessibilityPrefsV1 {
     text_scale: text as LhTextScale,
     motion: motion as LhMotionPreference,
     low_clutter: Boolean(o.low_clutter),
-    audio_muted: o.audio_muted === undefined ? DEFAULT_LH_ACCESSIBILITY_PREFS.audio_muted : Boolean(o.audio_muted),
+    audio_muted: false,
   };
 }
 

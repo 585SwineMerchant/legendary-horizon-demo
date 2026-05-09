@@ -47,6 +47,14 @@ export type TiledObjectGroupLayer = {
 
 export type TiledLayer = TiledTileLayer | TiledObjectGroupLayer;
 
+export type TiledMapTilesetRef = {
+  firstgid?: number;
+  name?: string;
+  /** External `.tsx` path — not loadable in the browser; tilesets must be embedded with `image`. */
+  source?: string;
+  image?: string;
+};
+
 export type TiledRoot = {
   type?: string;
   width: number;
@@ -57,4 +65,5 @@ export type TiledRoot = {
   infinite?: boolean;
   layers?: TiledLayer[];
   properties?: TiledProperty[];
+  tilesets?: TiledMapTilesetRef[];
 };

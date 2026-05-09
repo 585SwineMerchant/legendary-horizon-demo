@@ -16,7 +16,7 @@
     "baseUrl": ".",
     "paths": {
       "@samples/*": ["../data/samples/*"],
-      "@maps/*": ["../tiled/*"]
+      "@maps/*": ["public/assets/maps/*"]
     }
   },
   "include": ["src"]

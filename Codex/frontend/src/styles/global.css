@@ -849,6 +849,11 @@ code.lh-code-inline {
   gap: 0.75rem 1rem;
   flex-shrink: 0;
   margin-bottom: 0.5rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: #070b14;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
 }
 
 .lh-world-atlas__lede {
@@ -948,40 +953,17 @@ code.lh-code-inline {
   background: radial-gradient(ellipse 90% 75% at 50% 50%, transparent 40%, rgba(10, 12, 16, 0.12) 100%);
 }
 
-/* Full-plate fog until Guild Research closes; radial lift toward pin (Fog of the Unknown parity). */
-.lh-atlas__map-fog-shroud {
+/* Prototype-parity Fog of the Unknown (backdrop-filter + inline SVG data URI mask). */
+.lh-atlas__proto-fog {
   pointer-events: none;
   position: absolute;
   inset: 0;
   z-index: 10;
   border-radius: inherit;
-  background:
-    radial-gradient(ellipse 130% 115% at var(--atlas-fog-x, 50%) var(--atlas-fog-y, 50%), rgba(9, 11, 18, 0.08) 0%, rgba(6, 8, 14, 0.94) 62%, rgba(4, 6, 11, 0.97) 100%),
-    rgba(5, 7, 12, 0.88);
-  backdrop-filter: blur(1px);
-  -webkit-backdrop-filter: blur(1px);
-}
-
-.lh-atlas__map-fog-shroud--lifting {
-  animation: lh-atlas-fog-lift 1.15s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-@keyframes lh-atlas-fog-lift {
-  from {
-    opacity: 1;
-    -webkit-mask-image: radial-gradient(circle at var(--atlas-fog-x, 50%) var(--atlas-fog-y, 50%), transparent 0%, black 0.35%);
-    -webkit-mask-size: 100% 100%;
-    mask-image: radial-gradient(circle at var(--atlas-fog-x, 50%) var(--atlas-fog-y, 50%), transparent 0%, black 0.35%);
-    mask-size: 100% 100%;
-  }
-
-  to {
-    opacity: 0;
-    -webkit-mask-image: radial-gradient(circle at var(--atlas-fog-x, 50%) var(--atlas-fog-y, 50%), transparent 165%, black 166%);
-    -webkit-mask-size: 100% 100%;
-    mask-image: radial-gradient(circle at var(--atlas-fog-x, 50%) var(--atlas-fog-y, 50%), transparent 165%, black 166%);
-    mask-size: 100% 100%;
-  }
+  background: rgba(10, 15, 20, 0.4);
+  backdrop-filter: blur(12px) grayscale(0.5) brightness(0.6) sepia(0.2);
+  -webkit-backdrop-filter: blur(12px) grayscale(0.5) brightness(0.6) sepia(0.2);
+  transition: opacity 2.5s ease;
 }
 
 .lh-atlas__map-empty-hint {

@@ -5,6 +5,7 @@ import playerJson from '@samples/player_save.json';
 import questsJson from '@samples/quests.json';
 import rosterJson from '@samples/roster_entry.json';
 import assetsJson from '@samples/media_assets.json';
+/** Canonical world export: save Tiled JSON here so Phaser and this import stay aligned (`vite.config` @maps → public/assets/maps). */
 import tiledMapJson from '@maps/Legendary_Horizon_Map.json';
 
 import type {
