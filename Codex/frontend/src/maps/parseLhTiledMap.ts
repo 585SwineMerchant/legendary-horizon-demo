@@ -65,6 +65,24 @@ export type ParsedLhRealmMarker = {
   bounds: ParsedLhTrigger['bounds'];
 };
 
+export type ParsedLhSpawnPoint = {
+  tiled_object_id: number;
+  name?: string;
+  layer_name?: string;
+  realm_id?: string;
+  spawn_key?: string;
+  bounds: ParsedLhTrigger['bounds'];
+};
+
+export type ParsedLhCollisionRegion = {
+  tiled_object_id: number;
+  name?: string;
+  layer_name?: string;
+  collision_kind?: string;
+  realm_id?: string;
+  bounds: ParsedLhTrigger['bounds'];
+};
+
 /**
  * Tiled-authored spawn marker for a roaming hack-and-slash Lost Echo (or a small group of them).
  * Place in Tiled with `lh_kind = roaming_lost_echo_spawn`. All tuning fields are optional —
@@ -135,6 +153,8 @@ export type ParsedLhMap = {
   npc_markers: ParsedLhNpcMarker[];
   /** Milestone 19 — realm anchors exported from Tiled for Act III map bridging. */
   realm_markers: ParsedLhRealmMarker[];
+  spawn_points: ParsedLhSpawnPoint[];
+  collision_regions: ParsedLhCollisionRegion[];
   /** Tiled-driven spawn markers for roaming hack-and-slash Lost Echoes. */
   roaming_lost_echo_spawns: ParsedLhRoamingLostEchoSpawn[];
   parse_warnings: string[];
@@ -510,6 +530,44 @@ function normaliseRealmMarkers(objects: TiledObject[], layerName: string): Parse
   return out;
 }
 
+function normaliseSpawnPoints(objects: TiledObject[], layerName: string): ParsedLhSpawnPoint[] {
+  const out: ParsedLhSpawnPoint[] = [];
+  objects.forEach((obj) => {
+    const props = obj.properties ?? [];
+    const kind = tileProperty(props, 'lh_kind');
+    const isSpawn = kind === 'spawn_point' || obj.type === 'lh_spawn_point';
+    if (!isSpawn) return;
+    out.push({
+      tiled_object_id: obj.id,
+      name: obj.name,
+      layer_name: layerName,
+      realm_id: tileProperty(props, 'lh_realm_id'),
+      spawn_key: tileProperty(props, 'lh_spawn_key') ?? obj.name,
+      bounds: objectBounds(obj),
+    });
+  });
+  return out;
+}
+
+function normaliseCollisionRegions(objects: TiledObject[], layerName: string): ParsedLhCollisionRegion[] {
+  const out: ParsedLhCollisionRegion[] = [];
+  objects.forEach((obj) => {
+    const props = obj.properties ?? [];
+    const kind = tileProperty(props, 'lh_kind');
+    const isCollision = kind === 'collision' || obj.type === 'lh_collision';
+    if (!isCollision) return;
+    out.push({
+      tiled_object_id: obj.id,
+      name: obj.name,
+      layer_name: layerName,
+      collision_kind: tileProperty(props, 'lh_collision_kind'),
+      realm_id: tileProperty(props, 'lh_realm_id'),
+      bounds: objectBounds(obj),
+    });
+  });
+  return out;
+}
+
 /**
  * Parses a Tiled JSON export into LH-native scene metadata (triggers, waypoints, fog, NPC markers, layer summaries).
  * Tolerates missing layers and unknown `lh_*` kinds — see `parse_warnings`.
@@ -528,6 +586,8 @@ export function parseLhTiledMap(payload: unknown): ParsedLhMap {
       fog_regions: [],
       npc_markers: [],
       realm_markers: [],
+      spawn_points: [],
+      collision_regions: [],
       roaming_lost_echo_spawns: [],
       parse_warnings: ['invalid_or_empty_root'],
     };
@@ -572,6 +632,8 @@ export function parseLhTiledMap(payload: unknown): ParsedLhMap {
   const fog_regions: ParsedLhFogRegion[] = [];
   const npc_markers: ParsedLhNpcMarker[] = [];
   const realm_markers: ParsedLhRealmMarker[] = [];
+  const spawn_points: ParsedLhSpawnPoint[] = [];
+  const collision_regions: ParsedLhCollisionRegion[] = [];
   const roaming_lost_echo_spawns: ParsedLhRoamingLostEchoSpawn[] = [];
 
   (raw.layers ?? []).forEach((layer: TiledLayer) => {
@@ -582,6 +644,8 @@ export function parseLhTiledMap(payload: unknown): ParsedLhMap {
       fog_regions.push(...normaliseFog(layer.objects, layerName));
       npc_markers.push(...normaliseNpcs(layer.objects, layerName));
       realm_markers.push(...normaliseRealmMarkers(layer.objects, layerName));
+      spawn_points.push(...normaliseSpawnPoints(layer.objects, layerName));
+      collision_regions.push(...normaliseCollisionRegions(layer.objects, layerName));
       roaming_lost_echo_spawns.push(
         ...normaliseRoamingLostEchoSpawns(layer.objects, layerName, warnings),
       );
@@ -598,6 +662,8 @@ export function parseLhTiledMap(payload: unknown): ParsedLhMap {
     fog_regions,
     npc_markers,
     realm_markers,
+    spawn_points,
+    collision_regions,
     roaming_lost_echo_spawns,
     parse_warnings: warnings,
   };

@@ -5,6 +5,7 @@ import Phaser from 'phaser';
 import type { DemoGuidanceStateV1 } from '../demo/demoGuidance';
 import type { ExplorationHotspot } from '../screens/ExplorationScreen';
 import type { ParsedLhMap, ParsedLhRoamingLostEchoSpawn } from '../maps/parseLhTiledMap';
+import { PRIMARY_WORLD_TRIGGER_REALM_ID } from '../runtime/primaryWorldMap';
 import {
   LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT,
   LH_WINDOW_PHASER_GUILD_RESEARCH_EXIT,
@@ -91,6 +92,21 @@ type TriggerRect = {
   h: number;
 };
 
+type TiledObjectLayerRuntime = {
+  name?: string;
+  objects?: Array<{
+    id?: number;
+    gid?: number;
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    rotation?: number;
+    visible?: boolean;
+    name?: string;
+  }>;
+};
+
 /** Static list of all tileset image keys used by the map (must match Tiled tileset names). */
 const TILESET_IMAGES = [
   'water to grass - river orientation-spritesheet',
@@ -106,6 +122,8 @@ const TILESET_IMAGES = [
   'orc melee - all animations with fx',
   'cabin',
   'Aethelwood Farmsteads',
+  'fences and half-sized walls',
+  'vendor-tent',
 ] as const;
 
 const PRELOAD_TILESET_KEYS = new Set<string>(TILESET_IMAGES);
@@ -193,6 +211,19 @@ const TRAVELER_RUN_ANIM_FPS = 12;
  * Persists across knowledge-battle entry/exit because Phaser cameras keep their zoom across `startFollow`.
  */
 const EXPLORATION_CAMERA_ZOOM = 2.1;
+/** Bias follow point slightly south so tall attack frames are less likely to clip the top of the viewport. */
+const EXPLORATION_CAMERA_FOLLOW_OFFSET_Y = 42;
+/**
+ * Strip cells are 32×80. At `EXPLORATION_CAMERA_ZOOM`, we want an **integer** screen width for one column
+ * (`frameWidth * scale * zoom`) so WebGL nearest sampling does not shear high-contrast sword FX with vertical
+ * “slice” seams. Target ~50px wide (was 50.4 at 0.75×2.1 — imperceptible size change).
+ */
+const EXPLORATION_TRAVELER_FRAME_SCREEN_PX_W = 50;
+/** Exploration Traveler (`lh_traveler_*`) display scale. JRPG battle Traveler uses its own scale in `enterKnowledgeBattlePresentation`. */
+const EXPLORATION_TRAVELER_DISPLAY_SCALE =
+  EXPLORATION_TRAVELER_FRAME_SCREEN_PX_W / (TRAVELER_FRAME.width * EXPLORATION_CAMERA_ZOOM);
+/** Hide the floating "E / Enter" bubble while the player stays within this radius of the session spawn (portal demo). */
+const INTERACTION_PROMPT_SUPPRESS_NEAR_SPAWN_PX = 120;
 
 /** Sprint (hold R while moving). Fuel drains only during sprint movement; cooldown starts when fuel hits 0. */
 const TRAVELER_SPRINT_SPEED_PX = 188;
@@ -242,9 +273,15 @@ const ROAMING_LOST_ECHO_HURT_LOCK_MS = 280;
 const ROAMING_LOST_ECHO_DEATH_FADE_MS = 950;
 const ROAMING_LOST_ECHO_WANDER_RADIUS_PX = 96;
 const ROAMING_LOST_ECHO_WANDER_REPLAN_MS = 2400;
-const ROAMING_LOST_ECHO_DEPTH = 49;
 /** Display scale matches the scripted Lost Echo visual (`addLostEchoVisual` uses 0.62). */
 const ROAMING_LOST_ECHO_SCALE = 0.62;
+
+/**
+ * Tall grass tile objects use Tiled `y` (feet line) for `setDepth` in `addTiledTileObjectDecor`. Subtracting a
+ * few world pixels pulls the sort line “north” so the player pops in front sooner — same layering rules,
+ * shorter hide-behind band. Only layers whose name includes `grass` (e.g. `lh_decor_tall_grass`).
+ */
+const EXPLORATION_TALL_GRASS_DEPTH_Y_SHRINK_PX = 10;
 
 /** How far in front of the Traveler the A-button swing extends, and how wide the swing arc is. */
 const PLAYER_ATTACK_RANGE_PX = 64;
@@ -582,17 +619,118 @@ function travelerVisibleFrameIndices(totalFrames: number): number[] {
 }
 
 /**
- * Override of `travelerVisibleFrameIndices` for the attack / attack2 sheets.
- *
- * The traveler attack spritesheets are 24 cells × 32 px wide, but only frames 1 (idle pose)
- * and 4 (full-width swing extension) are drawn cleanly centered inside their 32-px cell.
- * Frames 7–22 in those sheets have the character body shifted to one edge of the cell — the
- * result is a "cropped" look during the recovery half of the swing. We therefore play a tight
- * `[1, 4, 1]` sequence (wind-up → swing → return-to-idle) at swing fps, then `playTravelerOneShot`
- * resets back to the idle animation when the clip finishes.
+ * Per-direction non-blank strip cells (`attack1_*.png` / `attack2_*.png`). Each facing is its own
+ * texture — a single global list (intersection) dropped swing frames that only exist on left/right
+ * sheets, which read as horizontal “clip” + empty-frame blink. Regenerate if attack PNGs change.
+ * (Opaque pixel count > 35 at α > 20 in each 32×80 cell.)
+ * Omit near-empty cells (roughly under ~120 opaque px) — they read as a blink against fuller swing frames.
+ * Vertical sheets: drop sparse in-betweens, identical tail duplicates (`attack1_up` 19≡22), and near-duplicate
+ * recovery (`attack2_up` 13≈16) so up/down clips do not “double tap” the same pose.
  */
-function travelerAttackFrameIndices(): number[] {
-  return [1, 4, 1];
+const ATTACK1_FRAMES_BY_DIR: Record<TravelerDirection, readonly number[]> = {
+  down: [1, 3, 4, 7, 10, 13, 16, 19, 22],
+  left: [1, 3, 4, 6, 7, 10, 13, 16, 19, 22],
+  right: [1, 4, 5, 7, 8, 10, 13, 16, 19, 22],
+  up: [1, 3, 4, 6, 7, 10, 13, 16, 19],
+};
+const ATTACK2_FRAMES_BY_DIR: Record<TravelerDirection, readonly number[]> = {
+  down: [1, 3, 4, 5, 6, 7, 10, 13, 16, 19, 22],
+  left: [1, 3, 4, 6, 7, 10, 13, 16, 19, 22],
+  right: [1, 4, 5, 7, 8, 10, 13, 16, 19, 22],
+  up: [1, 4, 5, 7, 8, 10, 13, 19, 22],
+};
+/** Faster than idle `fps` so multi-frame attack clips stay snappy. */
+const TRAVELER_ATTACK_ANIM_FPS = 18;
+
+/**
+ * Attack FX often spans two 32px strip columns; sampling only the nominal cell shears the arc at vertical
+ * cell edges (see screen recordings). Wide frames sample `±pad` into neighbors; `attachTravelerWideStripHandlers`
+ * shifts horizontal origin so the foot column stays stable.
+ */
+/** One full 32px neighbor column each side so swing tips at strip ends stay inside the sampled rect. */
+const TRAVELER_ATTACK_WIDE_PAD_PX = 32;
+
+function travelerWideStripRect(
+  stripIndex: number,
+  sourceWidthPx: number,
+  cellW: number,
+  pad: number,
+): { x0: number; width: number; originX: number } {
+  const L = stripIndex * cellW;
+  const nominalCenter = L + cellW / 2;
+  const x0 = Math.max(0, L - pad);
+  const x1 = Math.min(sourceWidthPx, L + cellW + pad);
+  const width = Math.max(1, x1 - x0);
+  const originX = Phaser.Math.Clamp((nominalCenter - x0) / width, 0.02, 0.98);
+  return { x0, width, originX };
+}
+
+function registerTravelerWideAttackStripFrames(scene: Phaser.Scene): void {
+  const n = TRAVELER_FRAME_COUNTS.attack;
+  for (const dir of TRAVELER_DIRECTIONS) {
+    for (const kind of ['attack', 'attack2'] as const) {
+      const texKey = `lh_traveler_${kind}_${dir}`;
+      if (!scene.textures.exists(texKey)) continue;
+      const tex = scene.textures.get(texKey);
+      const srcW = tex.source[0].width;
+      for (let stripIdx = 0; stripIdx < n; stripIdx++) {
+        const wideName = `wide_${stripIdx}`;
+        if (tex.has(wideName)) {
+          tex.remove(wideName);
+        }
+        const { x0, width } = travelerWideStripRect(
+          stripIdx,
+          srcW,
+          TRAVELER_FRAME.width,
+          TRAVELER_ATTACK_WIDE_PAD_PX,
+        );
+        tex.add(wideName, 0, x0, 0, width, TRAVELER_FRAME.height);
+      }
+    }
+  }
+}
+
+function syncTravelerWideStripOrigin(sprite: Phaser.GameObjects.Sprite, footOriginY: number): void {
+  const nm = sprite.frame?.name;
+  if (nm === undefined || nm === null) return;
+  if (!/^wide_\d+$/.test(String(nm))) return;
+  const stripIdx = Number(String(nm).slice('wide_'.length));
+  const tex = sprite.texture;
+  const srcW = tex.source[0]?.width ?? TRAVELER_FRAME.width * TRAVELER_FRAME_COUNTS.attack;
+  const { originX } = travelerWideStripRect(
+    stripIdx,
+    srcW,
+    TRAVELER_FRAME.width,
+    TRAVELER_ATTACK_WIDE_PAD_PX,
+  );
+  sprite.setOrigin(originX, footOriginY);
+}
+
+function attachTravelerWideStripHandlers(sprite: Phaser.GameObjects.Sprite, footOriginY: number): void {
+  sprite.on(Phaser.Animations.Events.ANIMATION_UPDATE, () => {
+    syncTravelerWideStripOrigin(sprite, footOriginY);
+  });
+  sprite.on(Phaser.Animations.Events.ANIMATION_START, (anim: Phaser.Animations.Animation) => {
+    if (!anim.key.startsWith('lh_traveler_attack')) {
+      sprite.setOrigin(0.5, footOriginY);
+      return;
+    }
+    // First attack frame was drawing with idle origin for one tick; align before render.
+    syncTravelerWideStripOrigin(sprite, footOriginY);
+  });
+}
+
+/** Safety timeout for `playTravelerOneShot` / `playBattleTravelerOneShot` must cover full attack length. */
+function travelerAttackSafetyFinishMs(kind: TravelerStrikeAnimKind | 'cast' | 'hurt', callerDurationMs: number): number {
+  if (kind !== 'attack' && kind !== 'attack2') {
+    return Math.min(callerDurationMs + 200, 1400);
+  }
+  const n =
+    kind === 'attack'
+      ? Math.max(...TRAVELER_DIRECTIONS.map((d) => ATTACK1_FRAMES_BY_DIR[d].length))
+      : Math.max(...TRAVELER_DIRECTIONS.map((d) => ATTACK2_FRAMES_BY_DIR[d].length));
+  const animMs = Math.ceil((n / TRAVELER_ATTACK_ANIM_FPS) * 1000);
+  return Math.max(callerDurationMs + 250, animMs + 200);
 }
 
 function publicAssetUrl(path: string): string {
@@ -742,6 +880,11 @@ export function PhaserExplorationView({
         private keySprint!: Phaser.Input.Keyboard.Key;
         private keyLostEchoDiagForce?: Phaser.Input.Keyboard.Key;
         private player!: Phaser.Physics.Arcade.Sprite;
+        /** True when exploration uses Traveler sheets (foot origin); false for `lh_player_dot` fallback. */
+        private explorationPlayerTraveler = false;
+        /** Foot spawn for this session — used to suppress the interaction prompt over the demo spawn tile. */
+        private explorationSpawnFootX = 0;
+        private explorationSpawnFootY = 0;
         private fogStatics!: Phaser.Physics.Arcade.StaticGroup;
         private solidStatics!: Phaser.Physics.Arcade.StaticGroup;
         private triggerBodies: Array<{ rect: Phaser.GameObjects.Rectangle; meta: TriggerRect }> = [];
@@ -900,6 +1043,11 @@ export function PhaserExplorationView({
         private playTravelerOneShot(kind: TravelerStrikeAnimKind | 'cast' | 'hurt', durationMs: number): boolean {
           this.player.setVelocity(0, 0);
           this.player.anims.timeScale = 1;
+          // Clear any stale crop/tint before swing (attack textures are the same 32×80 strip layout as idle).
+          if (kind === 'attack' || kind === 'attack2') {
+            this.player.setCrop();
+            this.player.clearTint();
+          }
           if (!this.playTravelerAnimation(kind, this.facing, true)) return false;
           this.attackingUntil = this.time.now + durationMs;
           let done = false;
@@ -908,24 +1056,16 @@ export function PhaserExplorationView({
             done = true;
             this.player.off(Phaser.Animations.Events.ANIMATION_COMPLETE, finish);
             this.attackingUntil = 0;
+            this.player.setCrop();
+            this.player.setOrigin(0.5, 1);
             this.playTravelerAnimation('idle', this.facing, true);
           };
           this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE, finish);
-          this.time.delayedCall(Math.min(durationMs + 200, 1400), finish);
+          this.time.delayedCall(travelerAttackSafetyFinishMs(kind, durationMs), finish);
           return true;
         }
 
         // ───────────────────────── Roaming hack-and-slash Lost Echoes ─────────────────────────
-
-        /** Convert player facing to a unit vector — used for swing arc, knockbacks, and aim helpers. */
-        private facingVector(): { x: number; y: number } {
-          switch (this.facing) {
-            case 'up': return { x: 0, y: -1 };
-            case 'down': return { x: 0, y: 1 };
-            case 'left': return { x: -1, y: 0 };
-            case 'right': return { x: 1, y: 0 };
-          }
-        }
 
         /**
          * Forward AABB representing the player's A-button swing reach. Used to test which roaming
@@ -933,7 +1073,8 @@ export function PhaserExplorationView({
          */
         private playerAttackHitRect(out: Phaser.Geom.Rectangle): Phaser.Geom.Rectangle {
           const px = this.player.x;
-          const py = this.player.y - 18; // bias up to the torso so swings land on the echo body
+          // Dot: default center origin. Traveler: feet at `player.y` — bias further up to the torso.
+          const py = this.player.y - (this.explorationPlayerTraveler ? 28 : 18);
           const half = PLAYER_ATTACK_WIDTH_PX / 2;
           const reach = PLAYER_ATTACK_RANGE_PX;
           let x = px - half;
@@ -968,7 +1109,7 @@ export function PhaserExplorationView({
          */
         private spawnRoamingLostEchoes(
           spawns: ParsedLhRoamingLostEchoSpawn[],
-          solidLayers: Phaser.Tilemaps.TilemapLayer[],
+          solidLayers: Array<Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer>,
           worldW: number,
           worldH: number,
         ): void {
@@ -1058,7 +1199,7 @@ export function PhaserExplorationView({
               const sprite = this.physics.add.sprite(x, y, LOST_ECHO_IDLE_KEY);
               sprite.setOrigin(0.5, 1);
               sprite.setScale(ROAMING_LOST_ECHO_SCALE);
-              sprite.setDepth(ROAMING_LOST_ECHO_DEPTH);
+              sprite.setDepth(y);
               // Tight body around the feet so collisions feel grounded and the wide sprite frame
               // (192×128) doesn't snag on terrain it visually clears.
               sprite.setSize(28, 18);
@@ -1527,7 +1668,7 @@ export function PhaserExplorationView({
               this.knowledgeBattleInteractableId = null;
               this.applyExplorationBattleDim(false);
               if (this.knowledgeBattleCameraWasFollowing) {
-                this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+                this.cameras.main.startFollow(this.player, true, 0.1, 0.1, 0, EXPLORATION_CAMERA_FOLLOW_OFFSET_Y);
               }
               this.knowledgeBattleCameraWasFollowing = false;
             }
@@ -1778,6 +1919,9 @@ export function PhaserExplorationView({
           this.knowledgeBattleTraveler = traveler;
           this.knowledgeBattleEnemy = enemy;
           this.knowledgeBattleRipple = ripple;
+          if (travelerSheet !== 'lh_player_dot') {
+            attachTravelerWideStripHandlers(traveler, 0.88);
+          }
 
           this.layoutKnowledgeBattlePresentation();
           if (import.meta.env.DEV) {
@@ -1862,7 +2006,7 @@ export function PhaserExplorationView({
           this.applyExplorationBattleDim(false);
 
           if (this.knowledgeBattleCameraWasFollowing) {
-            this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+            this.cameras.main.startFollow(this.player, true, 0.1, 0.1, 0, EXPLORATION_CAMERA_FOLLOW_OFFSET_Y);
           }
           this.knowledgeBattleCameraWasFollowing = false;
 
@@ -1880,6 +2024,7 @@ export function PhaserExplorationView({
         private playBattleTravelerIdle(): void {
           const spr = this.knowledgeBattleTraveler;
           if (!spr) return;
+          spr.setOrigin(0.5, 0.88);
           const dir = this.battleTravelerFacing();
           const key = `lh_traveler_idle_${dir}`;
           safeSpriteAnimPlay(this, spr, key, {
@@ -1922,7 +2067,7 @@ export function PhaserExplorationView({
             this.playBattleTravelerIdle();
           };
           spr.once(Phaser.Animations.Events.ANIMATION_COMPLETE, finish);
-          this.time.delayedCall(Math.min(durationMs + 200, 1400), finish);
+          this.time.delayedCall(travelerAttackSafetyFinishMs(kind, durationMs), finish);
           return true;
         }
 
@@ -2038,7 +2183,7 @@ export function PhaserExplorationView({
               padding: { x: 7, y: 3 },
             })
             .setOrigin(0.5)
-            .setDepth(60);
+            .setDepth(hit.y + hit.h / 2);
           marker.setStroke('#78350f', 3);
         }
 
@@ -2052,7 +2197,7 @@ export function PhaserExplorationView({
               padding: { x: 8, y: 3 },
             })
             .setOrigin(0.5)
-            .setDepth(58);
+            .setDepth(hit.y + hit.h / 2);
           marker.setStroke('#111827', 3);
           marker.setVisible(_demoGuidance.current?.stage_id === 'demo_combat_trial_available');
           this.lostEchoFallbackMarkers.set(hit.interactable_id, marker);
@@ -2082,7 +2227,7 @@ export function PhaserExplorationView({
           const sprite = this.add.sprite(hit.x + hit.w / 2, hit.y + hit.h / 2, MASTER_SCRIBE_IDLE_KEY);
           sprite.setOrigin(0.5, 1);
           sprite.setScale(0.62);
-          sprite.setDepth(59);
+          sprite.setDepth(sprite.y);
           if (this.anims.exists(MASTER_SCRIBE_IDLE_ANIM_KEY)) {
             sprite.play(MASTER_SCRIBE_IDLE_ANIM_KEY);
           }
@@ -2112,7 +2257,7 @@ export function PhaserExplorationView({
           const sprite = this.add.sprite(hit.x + hit.w / 2, hit.y + hit.h / 2, LOST_ECHO_IDLE_KEY);
           sprite.setOrigin(0.5, 1);
           sprite.setScale(0.62);
-          sprite.setDepth(57);
+          sprite.setDepth(sprite.y);
           if (this.anims.exists(LOST_ECHO_IDLE_ANIM_KEY)) {
             sprite.play(LOST_ECHO_IDLE_ANIM_KEY);
           }
@@ -2137,6 +2282,101 @@ export function PhaserExplorationView({
               depth: sprite.depth,
               texture_exists: this.textures.exists(LOST_ECHO_IDLE_KEY),
             });
+          }
+        }
+
+        private addTiledTileObjectDecor(map: Phaser.Tilemaps.Tilemap): void {
+          const tileObjectLayers = ((map as unknown as { objects?: TiledObjectLayerRuntime[] }).objects ?? [])
+            .filter((layer) => layer.objects?.some((obj) => typeof obj.gid === 'number'));
+          if (!tileObjectLayers.length) return;
+
+          const flipMask = 0x80000000 | 0x40000000 | 0x20000000;
+          let added = 0;
+          const warnedMissingTextures = new Set<string>();
+
+          tileObjectLayers.forEach((layer) => {
+            const layerNameLc = (layer.name ?? '').toLowerCase();
+            const grassDepthShrink = layerNameLc.includes('grass') ? EXPLORATION_TALL_GRASS_DEPTH_Y_SHRINK_PX : 0;
+            layer.objects?.forEach((obj) => {
+              if (obj.visible === false || typeof obj.gid !== 'number') return;
+              const rawGid = obj.gid >>> 0;
+              const gid = rawGid & ~flipMask;
+              const tileset = map.tilesets
+                .filter((ts) => ts.firstgid <= gid)
+                .sort((a, b) => b.firstgid - a.firstgid)[0];
+              if (!tileset) return;
+              const key = tileset.name;
+              if (!this.textures.exists(key)) {
+                if (import.meta.env.DEV && !warnedMissingTextures.has(key)) {
+                  warnedMissingTextures.add(key);
+                  console.warn('[LhScene] Tile object skipped - tileset texture not loaded', { layer: layer.name, key });
+                }
+                return;
+              }
+
+              const localId = gid - tileset.firstgid;
+              const columns = Math.max(tileset.columns, 1);
+              const tileW = tileset.tileWidth || map.tileWidth || 32;
+              const tileH = tileset.tileHeight || map.tileHeight || 32;
+              const margin = tileset.tileMargin ?? 0;
+              const spacing = tileset.tileSpacing ?? 0;
+              const sx = margin + (localId % columns) * (tileW + spacing);
+              const sy = margin + Math.floor(localId / columns) * (tileH + spacing);
+              const frameName = `gid_${gid}`;
+              const texture = this.textures.get(key);
+              if (!texture.has(frameName)) {
+                texture.add(frameName, 0, sx, sy, tileW, tileH);
+              }
+
+              const sprite = this.add.image(obj.x ?? 0, obj.y ?? 0, key, frameName);
+              sprite.setOrigin(0, 1);
+              const sortY = Math.max(0, (obj.y ?? 0) - grassDepthShrink);
+              sprite.setDepth(sortY + 0.001);
+              if (typeof obj.width === 'number' && obj.width > 0 && obj.width !== tileW) {
+                sprite.displayWidth = obj.width;
+              }
+              if (typeof obj.height === 'number' && obj.height > 0 && obj.height !== tileH) {
+                sprite.displayHeight = obj.height;
+              }
+              if (typeof obj.rotation === 'number' && obj.rotation) {
+                sprite.setRotation(Phaser.Math.DegToRad(obj.rotation));
+              }
+              sprite.setFlipX(Boolean(rawGid & 0x80000000));
+              sprite.setFlipY(Boolean(rawGid & 0x40000000));
+              added += 1;
+            });
+          });
+
+          if (import.meta.env.DEV) {
+            console.info('[LhScene] Tiled tile-object decor rendered', {
+              layers: tileObjectLayers.map((layer) => layer.name ?? '(unnamed)'),
+              objects: added,
+            });
+          }
+        }
+
+        /** Y-sort exploration actors so tile-object decor (grass) compares against `player.y`, not a fixed depth. */
+        private syncExplorationActorYDepths(): void {
+          if (this.player?.active) this.player.setDepth(this.player.y);
+          this.portalSprites.forEach((sp) => {
+            if (sp.active) sp.setDepth(sp.y);
+          });
+          this.maiaPortalRotationGhosts.forEach((ghost, portalId) => {
+            if (!ghost.active) return;
+            const main = this.portalSprites.get(portalId);
+            ghost.setDepth(main?.active ? main.depth - 0.01 : ghost.y - 0.01);
+          });
+          this.masterScribeSprites.forEach((sp) => {
+            if (sp.active) sp.setDepth(sp.y);
+          });
+          this.lostEchoSprites.forEach((sp) => {
+            if (sp.active) sp.setDepth(sp.y);
+          });
+          this.lostEchoFallbackMarkers.forEach((marker) => {
+            if (marker.active) marker.setDepth(marker.y);
+          });
+          for (const r of this.roamingLostEchoes) {
+            if (r.sprite.active) r.sprite.setDepth(r.sprite.y);
           }
         }
 
@@ -2375,6 +2615,7 @@ export function PhaserExplorationView({
           }
 
           console.log(`[LhScene] Layers created: ${createdLayers.length ? createdLayers.join(', ') : '(none)'}`);
+          this.addTiledTileObjectDecor(map);
 
           if (tilesets.length === 0 || createdLayers.length === 0) {
             const cam = this.cameras.main;
@@ -2400,6 +2641,21 @@ export function PhaserExplorationView({
           // Fog regions — dark blocking rectangles
           this.fogStatics = this.physics.add.staticGroup();
           this.solidStatics = this.physics.add.staticGroup();
+          _parsedMap.collision_regions.forEach((region) => {
+            const b = region.bounds;
+            if (b.width <= 0 || b.height <= 0) return;
+            const r = this.add.rectangle(
+              b.x + b.width / 2,
+              b.y + b.height / 2,
+              b.width,
+              b.height,
+              0x000000,
+              0,
+            );
+            r.setVisible(false);
+            this.physics.add.existing(r, true);
+            this.solidStatics.add(r);
+          });
           _parsedMap.fog_regions.forEach((f) => {
             const b = f.bounds;
             const r = this.add.rectangle(
@@ -2442,7 +2698,7 @@ export function PhaserExplorationView({
               const scale = Phaser.Math.Clamp(Math.max(tr.h, 72) / 192, 0.48, 1.2);
               portal.setScale(scale);
               portal.setOrigin(0.5, 1);
-              portal.setDepth(42);
+              portal.setDepth(portal.y);
               this.portalSprites.set(tr.interactable_id, portal);
 
               const portalBlock = this.add.rectangle(
@@ -2564,32 +2820,47 @@ export function PhaserExplorationView({
             });
           }
 
-          if (hasTraveler) for (const dir of TRAVELER_DIRECTIONS) {
-            for (const spec of [
-              { kind: 'idle', count: TRAVELER_FRAME_COUNTS.idle, fps: 6, repeat: -1 },
-              { kind: 'walk', count: TRAVELER_FRAME_COUNTS.walk, fps: 10, repeat: -1 },
-              { kind: 'run', count: TRAVELER_FRAME_COUNTS.run, fps: TRAVELER_RUN_ANIM_FPS, repeat: -1 },
-              { kind: 'attack', count: TRAVELER_FRAME_COUNTS.attack, fps: 9, repeat: 0 },
-              { kind: 'attack2', count: TRAVELER_FRAME_COUNTS.attack2, fps: 9, repeat: 0 },
-              { kind: 'hurt', count: TRAVELER_FRAME_COUNTS.hurt, fps: 12, repeat: 0 },
-              { kind: 'death', count: TRAVELER_FRAME_COUNTS.death, fps: 10, repeat: 0 },
-              { kind: 'cast', count: TRAVELER_FRAME_COUNTS.cast, fps: 16, repeat: 0 },
-            ] as const) {
-              const key = `lh_traveler_${spec.kind}_${dir}`;
-              if (!this.textures.exists(key) || this.anims.exists(key)) continue;
-              // Attack sheets only have clean centered frames at indices 1 and 4 — see
-              // `travelerAttackFrameIndices` for why we trim them. All other kinds keep the
-              // standard stride-3 cadence shared with idle/walk/run.
-              const frameIndices =
-                spec.kind === 'attack' || spec.kind === 'attack2'
-                  ? travelerAttackFrameIndices()
-                  : travelerVisibleFrameIndices(spec.count);
-              this.anims.create({
-                key,
-                frames: this.anims.generateFrameNumbers(key, { frames: frameIndices }),
-                frameRate: spec.fps,
-                repeat: spec.repeat,
-              });
+          if (hasTraveler) {
+            registerTravelerWideAttackStripFrames(this);
+            for (const dir of TRAVELER_DIRECTIONS) {
+              for (const spec of [
+                { kind: 'idle', count: TRAVELER_FRAME_COUNTS.idle, fps: 6, repeat: -1 },
+                { kind: 'walk', count: TRAVELER_FRAME_COUNTS.walk, fps: 10, repeat: -1 },
+                { kind: 'run', count: TRAVELER_FRAME_COUNTS.run, fps: TRAVELER_RUN_ANIM_FPS, repeat: -1 },
+                { kind: 'attack', count: TRAVELER_FRAME_COUNTS.attack, fps: TRAVELER_ATTACK_ANIM_FPS, repeat: 0 },
+                { kind: 'attack2', count: TRAVELER_FRAME_COUNTS.attack2, fps: TRAVELER_ATTACK_ANIM_FPS, repeat: 0 },
+                { kind: 'hurt', count: TRAVELER_FRAME_COUNTS.hurt, fps: 12, repeat: 0 },
+                { kind: 'death', count: TRAVELER_FRAME_COUNTS.death, fps: 10, repeat: 0 },
+                { kind: 'cast', count: TRAVELER_FRAME_COUNTS.cast, fps: 16, repeat: 0 },
+              ] as const) {
+                const key = `lh_traveler_${spec.kind}_${dir}`;
+                if (!this.textures.exists(key) || this.anims.exists(key)) continue;
+                // Attack / attack2: per-facing strip + `wide_*` frames (neighbor-aware UV); idle/walk/run use stride-3.
+                const frameIndices =
+                  spec.kind === 'attack'
+                    ? [...ATTACK1_FRAMES_BY_DIR[dir]]
+                    : spec.kind === 'attack2'
+                      ? [...ATTACK2_FRAMES_BY_DIR[dir]]
+                      : travelerVisibleFrameIndices(spec.count);
+                const frames =
+                  spec.kind === 'attack' || spec.kind === 'attack2'
+                    ? frameIndices.map((stripIdx) => ({ key, frame: `wide_${stripIdx}` }))
+                    : this.anims.generateFrameNumbers(key, { frames: frameIndices });
+                this.anims.create({
+                  key,
+                  frames,
+                  frameRate: spec.fps,
+                  repeat: spec.repeat,
+                });
+              }
+            }
+            // One filter mode for all Traveler strip textures so attack/idle/walk are sampled the same way at runtime.
+            for (const dir of TRAVELER_DIRECTIONS) {
+              for (const kind of ['idle', 'walk', 'run', 'attack', 'attack2', 'hurt', 'death', 'cast'] as const) {
+                const texKey = `lh_traveler_${kind}_${dir}`;
+                if (!this.textures.exists(texKey)) continue;
+                this.textures.get(texKey).setFilter(Phaser.Textures.FilterMode.NEAREST);
+              }
             }
           }
 
@@ -2601,19 +2872,45 @@ export function PhaserExplorationView({
             g.destroy();
           }
 
+          const authoredSpawn =
+            _parsedMap.spawn_points.find((spawn) => spawn.realm_id === realmId) ??
+            _parsedMap.spawn_points[0];
           const maiaPortal = _triggers.find((tr) => tr.kind === 'maia_portal');
-          const spawnX = maiaPortal
-            ? Phaser.Math.Clamp(maiaPortal.x + maiaPortal.w / 2, 24, wpx - 24)
-            : wpx / 2;
-          const spawnY = maiaPortal
-            ? Phaser.Math.Clamp(maiaPortal.y + maiaPortal.h + 150, 24, hpx - 24)
-            : hpx / 2;
+          const usePortalAnchoredAethelwoodDemoStart =
+            realmId === PRIMARY_WORLD_TRIGGER_REALM_ID &&
+            !!maiaPortal &&
+            !!authoredSpawn &&
+            (authoredSpawn.spawn_key === 'aethelwood_demo_start' ||
+              authoredSpawn.name === 'spawn_aethelwood_start');
+          const rawSpawnX = usePortalAnchoredAethelwoodDemoStart
+            ? maiaPortal.x + maiaPortal.w / 2
+            : authoredSpawn
+              ? authoredSpawn.bounds.x + authoredSpawn.bounds.width / 2
+              : maiaPortal
+                ? maiaPortal.x + maiaPortal.w / 2
+                : wpx / 2;
+          const rawSpawnY = usePortalAnchoredAethelwoodDemoStart
+            ? maiaPortal.y + maiaPortal.h + 150
+            : authoredSpawn
+              ? authoredSpawn.bounds.y + authoredSpawn.bounds.height / 2
+              : maiaPortal
+                ? maiaPortal.y + maiaPortal.h + 150
+                : hpx / 2;
+          const spawnX = Phaser.Math.Clamp(rawSpawnX, 24, wpx - 24);
+          const spawnY = Phaser.Math.Clamp(rawSpawnY, 24, hpx - 24);
+          this.explorationSpawnFootX = spawnX;
+          this.explorationSpawnFootY = spawnY;
 
+          this.explorationPlayerTraveler = hasTraveler;
           this.player = this.physics.add.sprite(spawnX, spawnY, hasTraveler ? 'lh_traveler_idle_down' : 'lh_player_dot');
           if (hasTraveler) {
-            this.player.setScale(0.75);
+            this.player.setScale(EXPLORATION_TRAVELER_DISPLAY_SCALE);
+            // Foot origin matches Lost Echo / Master Scribe so wide attack frames do not pivot around
+            // the frame center (which reads as the sprite "blooming" then clipping vs idle).
+            this.player.setOrigin(0.5, 1);
             this.player.setSize(14, 28);
-            this.player.setOffset(9, 46);
+            this.player.setOffset(9, 52);
+            attachTravelerWideStripHandlers(this.player, 1);
             this.playTravelerAnimation('idle', 'down');
           }
           this.player.setCollideWorldBounds(true);
@@ -2623,7 +2920,7 @@ export function PhaserExplorationView({
           this.player.setAcceleration(0, 0);
           const maxSpd = Math.max(TRAVELER_MOVE_SPEED_PX, TRAVELER_SPRINT_SPEED_PX) * 1.1;
           this.player.setMaxVelocity(maxSpd, maxSpd);
-          this.player.setDepth(50);
+          this.player.setDepth(this.player.y);
 
           this.physics.add.collider(this.player, this.fogStatics);
           this.physics.add.collider(this.player, this.solidStatics);
@@ -2654,8 +2951,9 @@ export function PhaserExplorationView({
             ) as Phaser.Input.Keyboard.Key;
           }
 
-          this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
+          this.cameras.main.startFollow(this.player, true, 0.1, 0.1, 0, EXPLORATION_CAMERA_FOLLOW_OFFSET_Y);
           this.cameras.main.setZoom(EXPLORATION_CAMERA_ZOOM);
+          this.cameras.main.setRoundPixels(true);
 
           // Roaming hack-and-slash Lost Echoes are now driven entirely by Tiled `roaming_lost_echo_spawn`
           // markers. If a map has none authored yet, we either log a clear DEV note (default) or fall
@@ -2699,44 +2997,6 @@ export function PhaserExplorationView({
             console.info(
               '[LhScene] No `roaming_lost_echo_spawn` markers in Tiled and no DEV fallback — exploration will have zero roamers.',
             );
-          }
-
-          const showControlsHint = import.meta.env.DEV || import.meta.env.VITE_LH_SHOW_CONTROLS_HINT === 'true';
-          const controlsHint = this.add
-            .text(
-              12,
-              10,
-              `⬆⬇⬅➡ Move  ·  SPACE Pause  ·  E / Enter Interact  ·  A Attack  ·  R Sprint${
-                LOST_ECHO_DEEP_DIAG ? '  ·  L Lost Echo diag force' : ''
-              }`,
-              {
-                fontFamily: 'ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial',
-                fontSize: '13px',
-                color: '#94a3b8',
-              },
-            )
-            .setScrollFactor(0)
-            .setDepth(9999)
-            .setAlpha(showControlsHint ? 0.9 : 0);
-
-          if (!showControlsHint) {
-            // Presentation polish: keep the world clean. Brief tutorial hint only.
-            this.tweens.add({
-              targets: controlsHint,
-              alpha: { from: 0, to: 0.9 },
-              duration: 650,
-              ease: 'Sine.easeOut',
-              onComplete: () => {
-                this.time.delayedCall(5200, () => {
-                  this.tweens.add({
-                    targets: controlsHint,
-                    alpha: 0,
-                    duration: 900,
-                    ease: 'Sine.easeInOut',
-                  });
-                });
-              },
-            });
           }
 
           this.objectiveText = this.add
@@ -3021,7 +3281,7 @@ export function PhaserExplorationView({
             targets: this.player,
             alpha: 1,
             y: meta.y + meta.h + 135,
-            scale: 0.75,
+            scale: EXPLORATION_TRAVELER_DISPLAY_SCALE,
             duration: 1700,
             ease: 'Sine.easeOut',
             onComplete: () => {
@@ -3385,6 +3645,9 @@ export function PhaserExplorationView({
         }
 
         update() {
+          if (!this.maiaHandoffPaused && !this.knowledgeBattlePaused) {
+            this.syncExplorationActorYDepths();
+          }
           if (
             LOST_ECHO_DEEP_DIAG &&
             this.keyLostEchoDiagForce &&
@@ -3610,7 +3873,15 @@ export function PhaserExplorationView({
             return true;
           })?.meta;
 
-          if (promptHit && !dialogueOpen) {
+          const nearSessionSpawn =
+            Phaser.Math.Distance.Between(
+              px,
+              py,
+              this.explorationSpawnFootX,
+              this.explorationSpawnFootY,
+            ) < INTERACTION_PROMPT_SUPPRESS_NEAR_SPAWN_PX;
+
+          if (promptHit && !dialogueOpen && !nearSessionSpawn) {
             const cx = promptHit.x + promptHit.w / 2;
             const y = promptHit.y - 10;
             const label =
@@ -3713,6 +3984,10 @@ export function PhaserExplorationView({
         backgroundColor: '#0b1220',
         width,
         height,
+        render: {
+          // Nearest filtering + round draw positions — avoids subpixel “vertical slice” tears on 32px strip anims.
+          pixelArt: true,
+        },
         physics: {
           default: 'arcade',
           arcade: { gravity: { x: 0, y: 0 }, debug: false },
@@ -3721,6 +3996,7 @@ export function PhaserExplorationView({
         scale: {
           mode: Phaser.Scale.RESIZE,
           autoCenter: Phaser.Scale.CENTER_BOTH,
+          autoRound: true,
         },
       };
 

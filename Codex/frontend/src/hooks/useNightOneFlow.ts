@@ -169,6 +169,49 @@ import type {
 } from '../types';
 import type { TeacherToolsPanelProps } from '../components/TeacherToolsPanel';
 
+/**
+ * `http://localhost:5173/#lh-main?lh_reset_demo=1` puts `lh_reset_demo` in the **hash**, not
+ * `location.search`. Parse hash as `#fragment?query` so DEV boot flags still work.
+ */
+function readLhDevBootUrlSnapshot(w: typeof window): {
+  reset: boolean;
+  forceIntro: boolean;
+  pathname: string;
+  searchParams: URLSearchParams;
+  hashFragment: string;
+  hashQueryParams: URLSearchParams;
+} | null {
+  const searchParams = new URLSearchParams(w.location.search);
+  const hash = w.location.hash;
+  const qIdx = hash.indexOf('?');
+  const hashFragment = qIdx < 0 ? hash : hash.slice(0, qIdx);
+  const hashQueryParams =
+    qIdx < 0 ? new URLSearchParams() : new URLSearchParams(hash.slice(qIdx + 1));
+  const reset =
+    searchParams.get('lh_reset_demo') === '1' || hashQueryParams.get('lh_reset_demo') === '1';
+  const forceIntro =
+    searchParams.get('lh_force_intro') === '1' || hashQueryParams.get('lh_force_intro') === '1';
+  if (!reset && !forceIntro) return null;
+  return {
+    reset,
+    forceIntro,
+    pathname: w.location.pathname,
+    searchParams,
+    hashFragment,
+    hashQueryParams,
+  };
+}
+
+function urlAfterLhDevBootCleanup(s: NonNullable<ReturnType<typeof readLhDevBootUrlSnapshot>>): string {
+  s.searchParams.delete('lh_reset_demo');
+  s.searchParams.delete('lh_force_intro');
+  s.hashQueryParams.delete('lh_reset_demo');
+  s.hashQueryParams.delete('lh_force_intro');
+  const qs = s.searchParams.toString();
+  const hqs = s.hashQueryParams.toString();
+  const nextHash = s.hashFragment ? `${s.hashFragment}${hqs ? `?${hqs}` : ''}` : '';
+  return `${s.pathname}${qs ? `?${qs}` : ''}${nextHash}`;
+}
 
 const BLUEPRINT = loadLhRuntimeFixture();
 const seededPlayerSeed = BLUEPRINT.player;
@@ -703,23 +746,21 @@ export function useNightOneFlow() {
     if (!import.meta.env.DEV) return;
     if (lhDevBootUrlQueryHandled) return;
     if (typeof window === 'undefined') return;
-    const params = new URLSearchParams(window.location.search);
-    const reset = params.get('lh_reset_demo') === '1';
-    const forceIntro = params.get('lh_force_intro') === '1';
-    if (!reset && !forceIntro) return;
+    const snap = readLhDevBootUrlSnapshot(window);
+    if (!snap) return;
     lhDevBootUrlQueryHandled = true;
-    params.delete('lh_reset_demo');
-    params.delete('lh_force_intro');
-    const qs = params.toString();
-    const nextUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
-    window.history.replaceState({}, '', nextUrl);
-    if (reset) {
+    window.history.replaceState({}, '', urlAfterLhDevBootCleanup(snap));
+    if (snap.reset) {
       clearCachedFullState();
       if (typeof console !== 'undefined') {
-        console.info('[LhDev] ?lh_reset_demo=1 — cleared local full-state cache only; opening intro bootstrap.');
+        console.info(
+          '[LhDev] lh_reset_demo=1 — cleared local full-state cache only; opening intro bootstrap. (Works in ?query=… or #fragment?query=…)',
+        );
       }
-    } else if (forceIntro && typeof console !== 'undefined') {
-      console.info('[LhDev] ?lh_force_intro=1 — opening intro bootstrap (local cache unchanged).');
+    } else if (snap.forceIntro && typeof console !== 'undefined') {
+      console.info(
+        '[LhDev] lh_force_intro=1 — opening intro bootstrap (local cache unchanged). (Works in ?query=… or #fragment?query=…)',
+      );
     }
     void beginDemoRef.current();
   }, []);
