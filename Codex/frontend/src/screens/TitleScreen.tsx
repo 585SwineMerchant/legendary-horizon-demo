@@ -33,7 +33,7 @@ export function TitleScreen({
         }
       />
       <div className="lh-stack lh-screen__panel lh-screen__panel--title">
-        <p className="lh-eyebrow">Leadership demo build - prepared for Corey</p>
+        <p className="lh-eyebrow">The Horizon calls</p>
         <h1 className="lh-heading-xl">Legendary Horizon</h1>
 
         {failed ? (

@@ -1,5 +1,6 @@
 import type { ExplorationLoopState, GuildEndgameV1 } from '../domain/lh-contract';
 import type { RealmProgressMap } from '../realm/realmProgress';
+import { createDemoGuidanceState } from '../demo/demoGuidance';
 
 export type { ComparisonLedgerEntry, ExplorationLoopState } from '../domain/lh-contract';
 
@@ -74,6 +75,7 @@ export function createEmptyExplorationLoopState(): ExplorationLoopState {
     module_drafts: {},
     session_encounter_xp_awarded: 0,
     encounter_log: [],
+    demo_guidance_v1: createDemoGuidanceState(),
     guild_endgame_v1: createDefaultGuildEndgameV1(),
     guild_hq_atlas_revealed_realm_ids: [],
   };

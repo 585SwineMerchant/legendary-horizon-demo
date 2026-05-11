@@ -33,14 +33,20 @@ export function useLhAccessibilityPrefs() {
     setPrefs((p) => ({ ...p, audio_muted }));
   }, []);
 
+  const setMusicMuted = useCallback((music_muted: boolean) => {
+    setPrefs((p) => ({ ...p, music_muted }));
+  }, []);
+
   return {
     textScale: prefs.text_scale,
     motion: prefs.motion,
     lowClutter: prefs.low_clutter,
     audioMuted: prefs.audio_muted,
+    musicMuted: prefs.music_muted,
     setTextScale,
     setMotion,
     setLowClutter,
     setAudioMuted,
+    setMusicMuted,
   };
 }

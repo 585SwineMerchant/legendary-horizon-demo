@@ -206,6 +206,14 @@ export type ExplorationLoopState = {
   fog_keys_cleared: string[];
   waypoint_keys_visited: string[];
   ledger_entries: ComparisonLedgerEntry[];
+  /** Vertical slice guide state: Master Scribe objectives, stamina reward, and debug trace. */
+  demo_guidance_v1?: {
+    stage_id: string;
+    current_objective: string;
+    last_npc_interaction_id?: string;
+    stamina_upgrade_applied?: boolean;
+    max_stamina_ms?: number;
+  };
   /** Milestone 11 — keyed by `task_id`. */
   academic_tasks?: Record<string, AcademicTaskProgress>;
   /** Integrated modules: per-module draft fields (safe, compact, JSON-only). */

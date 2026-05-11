@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Legendary Horizon — Intro</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;600&display=swap');
+      :root {
+        --bg-deep: #0a0c10;
+        --amber-light: #fef3c7;
+        --text-bright: #f1f5f9;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg-deep);
+        color: var(--text-bright);
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      }
+      .root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        background: #000;
+      }
+      video {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        background: #000;
+      }
+      .vignette {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(circle, transparent 15%, rgba(10, 12, 16, 0.92) 100%);
+      }
+      /**
+       * Narration/dialogue live in the DaVinci export — keep HTML free of duplicate subtitles
+       * so nothing mismatches or bleeds through to the title overlay on top of this iframe.
+       */
+      .tap-to-start {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 30;
+        background: rgba(10, 12, 16, 0.72);
+        backdrop-filter: blur(6px);
+      }
+      .tap-to-start button {
+        border: 2px solid rgba(245, 158, 11, 0.85);
+        background: rgba(15, 23, 42, 0.75);
+        color: var(--amber-light);
+        font-family: Cinzel, serif;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 0.9rem 1.4rem;
+        border-radius: 12px;
+        box-shadow: 0 0 20px rgba(245, 158, 11, 0.18);
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="root">
+      <video id="intro-video" preload="auto" playsinline>
+        <source src="/assets/intro/intro_davinci.mp4" type="video/mp4" />
+      </video>
+      <div class="vignette" aria-hidden="true"></div>
+
+      <div class="tap-to-start" id="tap-to-start" style="display: none">
+        <button type="button" id="start-btn">Tap to begin</button>
+      </div>
+    </div>
+
+    <script>
+      function notifyParent(type, payload) {
+        try {
+          if (!window.parent || window.parent === window) return;
+          window.parent.postMessage({ type, payload }, '*');
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      const video = document.getElementById('intro-video');
+      const overlay = document.getElementById('tap-to-start');
+      const startBtn = document.getElementById('start-btn');
+
+      function begin() {
+        notifyParent('lh_intro_started', { started: true, mode: 'davinci_video' });
+
+        const p = video.play();
+        if (p && typeof p.then === 'function') {
+          p.then(() => {
+            overlay.style.display = 'none';
+          }).catch(() => {
+            overlay.style.display = 'flex';
+          });
+        }
+      }
+
+      function fadeVideoTo(target, durationMs) {
+        try {
+          const start = performance.now();
+          const from = typeof video.volume === 'number' ? video.volume : 1;
+          const dur = Math.max(1, durationMs || 800);
+          const tick = (now) => {
+            const t = Math.min(1, (now - start) / dur);
+            const eased = t * t * (3 - 2 * t);
+            video.volume = from + (target - from) * eased;
+            if (t < 1) requestAnimationFrame(tick);
+          };
+          requestAnimationFrame(tick);
+        } catch {}
+      }
+
+      window.addEventListener('message', (evt) => {
+        const data = evt.data;
+        if (!data || typeof data !== 'object') return;
+        if (data.type !== 'lh_intro_skip') return;
+        try {
+          const dur = Number(video.duration);
+          if (Number.isFinite(dur) && dur > 0.2) {
+            video.currentTime = Math.max(0, dur - 0.08);
+          }
+          video.pause();
+          fadeVideoTo(0, 900);
+        } catch {}
+        notifyParent('lh_intro_finished', { finished: true, skipped: true });
+      });
+
+      startBtn.addEventListener('click', () => begin());
+
+      video.addEventListener('ended', () => {
+        notifyParent('lh_intro_finished', { finished: true, mode: 'davinci_video' });
+        fadeVideoTo(0, 900);
+      });
+
+      begin();
+    </script>
+  </body>
+</html>

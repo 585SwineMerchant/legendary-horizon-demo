@@ -65,6 +65,43 @@ export type ParsedLhRealmMarker = {
   bounds: ParsedLhTrigger['bounds'];
 };
 
+/**
+ * Tiled-authored spawn marker for a roaming hack-and-slash Lost Echo (or a small group of them).
+ * Place in Tiled with `lh_kind = roaming_lost_echo_spawn`. All tuning fields are optional —
+ * unset properties fall back to the global constants in `PhaserExplorationView.tsx`.
+ *
+ * Rectangle objects: the rectangle's center is the spawn origin (each roamer wanders within
+ * `wander_radius_px` of that center).
+ * Point objects: the object's `x`/`y` is the spawn origin directly.
+ */
+export type ParsedLhRoamingLostEchoSpawn = {
+  tiled_object_id: number;
+  name?: string;
+  layer_name?: string;
+  bounds: ParsedLhTrigger['bounds'];
+  /** Center of the rectangle (or point coords for point objects). Convenience for the spawner. */
+  center_x: number;
+  center_y: number;
+  count: number;
+  hp?: number;
+  aggro_radius_px?: number;
+  deaggro_radius_px?: number;
+  wander_radius_px?: number;
+  wander_speed?: number;
+  chase_speed?: number;
+  attack_range_px?: number;
+  attack_cooldown_ms?: number;
+  spawn_group?: string;
+  respawn: boolean;
+  debug_label?: string;
+  /**
+   * Tiled property keys that were dropped because the canonical (unprefixed) form was also
+   * present on the same object — surfaced for a one-line DEV warn at spawn time.
+   * Empty when the object used only one form (canonical or alias) for every field.
+   */
+  ignored_aliases: string[];
+};
+
 export type ParsedLhMapFootprint = {
   width_px: number;
   height_px: number;
@@ -98,6 +135,8 @@ export type ParsedLhMap = {
   npc_markers: ParsedLhNpcMarker[];
   /** Milestone 19 — realm anchors exported from Tiled for Act III map bridging. */
   realm_markers: ParsedLhRealmMarker[];
+  /** Tiled-driven spawn markers for roaming hack-and-slash Lost Echoes. */
+  roaming_lost_echo_spawns: ParsedLhRoamingLostEchoSpawn[];
   parse_warnings: string[];
 };
 
@@ -106,6 +145,35 @@ export function tileProperty(dict: TiledProperty[] | undefined, key: string): st
   const hit = dict.find((p) => p.name === key);
   if (!hit || hit.value === null || hit.value === undefined) return undefined;
   return String(hit.value);
+}
+
+/**
+ * Read a numeric Tiled property. Tolerates both Tiled JSON shapes:
+ * - typed: `{ name, type: 'int' | 'float', value: 12 }` (already a number)
+ * - stringy: `{ name, value: '12' }` (legacy or hand-edited maps)
+ * Returns `undefined` for missing, blank, or non-numeric values.
+ */
+export function tilePropertyNumber(dict: TiledProperty[] | undefined, key: string): number | undefined {
+  const raw = tileProperty(dict, key);
+  if (raw === undefined || raw === '') return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/**
+ * Read a boolean Tiled property. Accepts native booleans plus the common stringy forms
+ * (`'true' | 'false' | '1' | '0' | 'yes' | 'no'`). Defaults to `undefined` if the
+ * property is missing so callers can apply their own default.
+ */
+export function tilePropertyBoolean(dict: TiledProperty[] | undefined, key: string): boolean | undefined {
+  if (!dict) return undefined;
+  const hit = dict.find((p) => p.name === key);
+  if (!hit || hit.value === null || hit.value === undefined) return undefined;
+  if (typeof hit.value === 'boolean') return hit.value;
+  const s = String(hit.value).trim().toLowerCase();
+  if (s === 'true' || s === '1' || s === 'yes') return true;
+  if (s === 'false' || s === '0' || s === 'no') return false;
+  return undefined;
 }
 
 function objectBounds(obj: TiledObject, warnings?: string[]): ParsedLhTrigger['bounds'] {
@@ -152,21 +220,30 @@ function normaliseTriggers(objects: TiledObject[], layerName: string, warnings: 
       return;
     }
     const kind = lhKindRaw ?? 'unknown';
-    if (kind === 'waypoint' || kind === 'fog_region') {
+    if (kind === 'waypoint' || kind === 'fog_region' || kind === 'roaming_lost_echo_spawn') {
       return;
     }
-    const modeRaw = String(tileProperty(props, 'lh_activation_mode') ?? '').trim();
+    const modeRaw = String(tileProperty(props, 'lh_activation_mode') ?? '').trim().toLowerCase();
+    const objectName = obj.name?.trim() || tileProperty(props, 'name');
+    const combatLike = kind === 'combat_encounter' || kind === 'vocab_battle';
+    /** Tiled sometimes uses `proximity` / `overlap`; treat like `overlap_auto` for combat-style triggers only. */
+    const proximityAsOverlap =
+      combatLike && (modeRaw === 'proximity' || modeRaw === 'overlap' || modeRaw === 'overlap_proximity');
     const activation_mode: ParsedLhTrigger['activation_mode'] =
-      modeRaw === 'overlap_auto' || modeRaw === 'overlap_auto_bottom' || modeRaw === 'interaction'
-        ? (modeRaw as ParsedLhTrigger['activation_mode'])
-        : kind === 'maia_portal'
+      modeRaw === 'overlap_auto' || proximityAsOverlap
+        ? 'overlap_auto'
+        : modeRaw === 'overlap_auto_bottom'
           ? 'overlap_auto_bottom'
-          : kind === 'guild_hq_research'
-            ? 'overlap_auto'
-          : 'interaction';
+          : modeRaw === 'interaction'
+            ? 'interaction'
+            : kind === 'maia_portal'
+              ? 'overlap_auto_bottom'
+              : kind === 'guild_hq_research'
+                ? 'overlap_auto'
+                : 'interaction';
     out.push({
       tiled_object_id: obj.id,
-      tiled_name: obj.name,
+      tiled_name: objectName,
       layer_name: layerName,
       kind,
       activation_mode,
@@ -177,7 +254,7 @@ function normaliseTriggers(objects: TiledObject[], layerName: string, warnings: 
       external_url_key: tileProperty(props, 'lh_external_url_key'),
       bounds: objectBounds(obj, warnings),
       interaction_label_active:
-        tileProperty(props, 'lh_interaction_copy_active') ?? obj.name ?? `Interact #${obj.id}`,
+        tileProperty(props, 'lh_interaction_copy_active') ?? objectName ?? `Interact #${obj.id}`,
       interaction_label_complete:
         tileProperty(props, 'lh_interaction_copy_complete') ?? 'Interaction sealed — review your quest log.',
     });
@@ -276,6 +353,145 @@ function summariseObjectLayers(raw: TiledRoot): ParsedLhObjectLayerSummary[] {
   return out;
 }
 
+/**
+ * Prefer the canonical (unprefixed) Tiled property; fall back to the legacy `lh_*` alias.
+ * If both are present, return the canonical value and append the alias key to `ignoredAliases`
+ * so the spawner can DEV-warn that the alias was dropped.
+ */
+function preferCanonicalNumber(
+  props: TiledProperty[],
+  canonical: string,
+  alias: string,
+  ignoredAliases: string[],
+): number | undefined {
+  const c = tilePropertyNumber(props, canonical);
+  const a = tilePropertyNumber(props, alias);
+  if (c !== undefined && a !== undefined) ignoredAliases.push(alias);
+  return c ?? a;
+}
+
+function preferCanonicalString(
+  props: TiledProperty[],
+  canonical: string,
+  alias: string,
+  ignoredAliases: string[],
+): string | undefined {
+  const c = tileProperty(props, canonical);
+  const a = tileProperty(props, alias);
+  if (c !== undefined && a !== undefined) ignoredAliases.push(alias);
+  return c ?? a;
+}
+
+function preferCanonicalBoolean(
+  props: TiledProperty[],
+  canonical: string,
+  alias: string,
+  ignoredAliases: string[],
+): boolean | undefined {
+  const c = tilePropertyBoolean(props, canonical);
+  const a = tilePropertyBoolean(props, alias);
+  if (c !== undefined && a !== undefined) ignoredAliases.push(alias);
+  return c ?? a;
+}
+
+/**
+ * Parse Tiled `lh_kind = roaming_lost_echo_spawn` markers into `ParsedLhRoamingLostEchoSpawn`s.
+ *
+ * Supported per-object properties (precedence: canonical > legacy alias > default).
+ * If both forms are set on the same object, the canonical wins and the alias is reported via
+ * `ignored_aliases` so the spawner can DEV-warn.
+ *
+ *   ┌───────────────────────┬──────────────────────────┬────────────┐
+ *   │ canonical (preferred) │ legacy alias             │ type       │
+ *   ├───────────────────────┼──────────────────────────┼────────────┤
+ *   │ count                 │ lh_count                 │ int (≥1)   │
+ *   │ hp                    │ lh_hp                    │ int        │
+ *   │ aggro_radius_px       │ lh_aggro_radius_px       │ float      │
+ *   │ deaggro_radius_px     │ lh_deaggro_radius_px     │ float      │
+ *   │ wander_radius_px      │ lh_wander_radius_px      │ float      │
+ *   │ wander_speed          │ lh_wander_speed          │ float      │
+ *   │ chase_speed           │ lh_chase_speed           │ float      │
+ *   │ attack_range_px       │ lh_attack_range_px       │ float      │
+ *   │ attack_cooldown_ms    │ lh_attack_cooldown_ms    │ int        │
+ *   │ spawn_group           │ lh_spawn_group           │ string     │
+ *   │ respawn               │ lh_respawn               │ bool       │
+ *   │ debug_label           │ lh_debug_label           │ string     │
+ *   └───────────────────────┴──────────────────────────┴────────────┘
+ *
+ * Notes:
+ *   - `lh_kind = roaming_lost_echo_spawn` is the only field that stays `lh_`-prefixed; it is
+ *     the Tiled-wide object classifier and shares the convention with every other LH kind.
+ *   - Defaults for unset numeric fields come from `DEFAULT_ROAMING_LOST_ECHO_CONFIG`
+ *     (defined in `PhaserExplorationView.tsx` next to the global tuning constants).
+ *   - `respawn` defaults to `false`. `count` defaults to `1`.
+ *   - For rectangle objects the spawn origin is the rectangle center; for point objects it is
+ *     the object's `x`/`y` directly.
+ */
+function normaliseRoamingLostEchoSpawns(
+  objects: TiledObject[],
+  layerName: string,
+  warnings: string[],
+): ParsedLhRoamingLostEchoSpawn[] {
+  const out: ParsedLhRoamingLostEchoSpawn[] = [];
+  objects.forEach((obj) => {
+    const props = obj.properties ?? [];
+    const kind = tileProperty(props, 'lh_kind');
+    if (kind !== 'roaming_lost_echo_spawn') return;
+
+    const bounds = objectBounds(obj, warnings);
+    const cx = bounds.x + bounds.width / 2;
+    const cy = bounds.y + bounds.height / 2;
+    if (!Number.isFinite(cx) || !Number.isFinite(cy)) {
+      warnings.push(`roaming_spawn_invalid_origin:${obj.id}`);
+      return;
+    }
+
+    const ignored: string[] = [];
+    const rawCount = preferCanonicalNumber(props, 'count', 'lh_count', ignored);
+    // Sanitize: clamp to [1, 32]. Authors who type a large number (or stray decimal) by accident
+    // shouldn't be able to spawn a thousand roamers and lock the frame loop.
+    const ROAMING_SPAWN_COUNT_MAX = 32;
+    const requestedCount = Math.floor(rawCount ?? 1);
+    const count = Math.min(
+      ROAMING_SPAWN_COUNT_MAX,
+      Math.max(1, Number.isFinite(requestedCount) ? requestedCount : 1),
+    );
+    if (rawCount !== undefined && requestedCount !== count) {
+      warnings.push(`roaming_spawn_count_clamped:obj=${obj.id}:requested=${rawCount}:applied=${count}`);
+    }
+
+    const parsed: ParsedLhRoamingLostEchoSpawn = {
+      tiled_object_id: obj.id,
+      name: obj.name,
+      layer_name: layerName,
+      bounds,
+      center_x: cx,
+      center_y: cy,
+      count,
+      hp: preferCanonicalNumber(props, 'hp', 'lh_hp', ignored),
+      aggro_radius_px: preferCanonicalNumber(props, 'aggro_radius_px', 'lh_aggro_radius_px', ignored),
+      deaggro_radius_px: preferCanonicalNumber(props, 'deaggro_radius_px', 'lh_deaggro_radius_px', ignored),
+      wander_radius_px: preferCanonicalNumber(props, 'wander_radius_px', 'lh_wander_radius_px', ignored),
+      wander_speed: preferCanonicalNumber(props, 'wander_speed', 'lh_wander_speed', ignored),
+      chase_speed: preferCanonicalNumber(props, 'chase_speed', 'lh_chase_speed', ignored),
+      attack_range_px: preferCanonicalNumber(props, 'attack_range_px', 'lh_attack_range_px', ignored),
+      attack_cooldown_ms: preferCanonicalNumber(props, 'attack_cooldown_ms', 'lh_attack_cooldown_ms', ignored),
+      spawn_group: preferCanonicalString(props, 'spawn_group', 'lh_spawn_group', ignored),
+      respawn: preferCanonicalBoolean(props, 'respawn', 'lh_respawn', ignored) ?? false,
+      debug_label:
+        preferCanonicalString(props, 'debug_label', 'lh_debug_label', ignored) ?? obj.name,
+      ignored_aliases: ignored,
+    };
+
+    if (ignored.length > 0) {
+      warnings.push(`roaming_spawn_alias_ignored:obj=${obj.id}:keys=${ignored.join(',')}`);
+    }
+
+    out.push(parsed);
+  });
+  return out;
+}
+
 function normaliseRealmMarkers(objects: TiledObject[], layerName: string): ParsedLhRealmMarker[] {
   const out: ParsedLhRealmMarker[] = [];
   objects.forEach((obj) => {
@@ -312,6 +528,7 @@ export function parseLhTiledMap(payload: unknown): ParsedLhMap {
       fog_regions: [],
       npc_markers: [],
       realm_markers: [],
+      roaming_lost_echo_spawns: [],
       parse_warnings: ['invalid_or_empty_root'],
     };
   }
@@ -355,6 +572,7 @@ export function parseLhTiledMap(payload: unknown): ParsedLhMap {
   const fog_regions: ParsedLhFogRegion[] = [];
   const npc_markers: ParsedLhNpcMarker[] = [];
   const realm_markers: ParsedLhRealmMarker[] = [];
+  const roaming_lost_echo_spawns: ParsedLhRoamingLostEchoSpawn[] = [];
 
   (raw.layers ?? []).forEach((layer: TiledLayer) => {
     if ('type' in layer && layer.type === 'objectgroup' && layer.objects?.length) {
@@ -364,6 +582,9 @@ export function parseLhTiledMap(payload: unknown): ParsedLhMap {
       fog_regions.push(...normaliseFog(layer.objects, layerName));
       npc_markers.push(...normaliseNpcs(layer.objects, layerName));
       realm_markers.push(...normaliseRealmMarkers(layer.objects, layerName));
+      roaming_lost_echo_spawns.push(
+        ...normaliseRoamingLostEchoSpawns(layer.objects, layerName, warnings),
+      );
     }
   });
 
@@ -377,6 +598,7 @@ export function parseLhTiledMap(payload: unknown): ParsedLhMap {
     fog_regions,
     npc_markers,
     realm_markers,
+    roaming_lost_echo_spawns,
     parse_warnings: warnings,
   };
 }

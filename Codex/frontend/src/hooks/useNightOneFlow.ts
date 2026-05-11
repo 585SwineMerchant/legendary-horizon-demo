@@ -26,6 +26,10 @@ import {
   localApplyUnlockQuest,
   tryLocalRestoreFromPlayerBackup,
 } from '../services/teacherToolsLocal';
+import { clearCachedFullState } from '../services/localFullStateCache';
+
+/** Survives React StrictMode remount so DEV boot query handling runs once per full page load. */
+let lhDevBootUrlQueryHandled = false;
 import {
   teacherRestoreBackupRemote,
   teacherRestoreItemRemote,
@@ -43,7 +47,6 @@ import {
   type ClassroomToolHandlers,
 } from '../services/classroomToolLaunches';
 import { buildExitTicketPrompt } from '../services/exitTicketHandoff';
-import { tryLoadCachedFullState } from '../services/localFullStateCache';
 import { tryPlayCatalogAudioAsset } from '../lib/lhCatalogAudio';
 import {
   LH_MEDIA_ASSET_ID_MENTOR_PORTRAIT,
@@ -99,6 +102,24 @@ import {
 import { emptyLedgerDraft, ritualDraftsFromLedgerDraft } from '../exploration/comparisonLedger';
 import { normalizeForetoldSignpostRealmIds, signpostLedgerMilestone } from '../exploration/foretoldSignposts';
 import {
+  LH_NPC_ID_MASTER_SCRIBE,
+  advanceDemoGuidanceStage,
+  applyDemoObjectiveToPlayer,
+  applyDemoStaminaReward,
+  buildDemoGuidanceMap,
+  ensureDemoGuidanceState,
+  isLostEchoDemoTrigger,
+  mergeDemoGuidanceState,
+  resolveMasterScribeDialogue,
+  resolveMasterScribeNextStage,
+} from '../demo/demoGuidance';
+import {
+  DEMO_LOAD_AUDIT,
+  fetchPersistedDemoSession,
+  finalizeDemoBootstrapExploration,
+  logDemoLoadAudit,
+} from '../demo/demoSessionBootstrap';
+import {
   createDefaultGuildEndgameV1,
   createEmptyExplorationLoopState,
   mergeGuildEndgameIntoExploration,
@@ -120,6 +141,7 @@ import {
   LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT,
   LH_WINDOW_PHASER_GUILD_RESEARCH_EXIT,
 } from '../lib/lhPhaserGuildResearchBridge';
+import { playLhSfx } from '../lib/lhSfx';
 import {
   markResearchComplete,
   setRealmLearnedNotes,
@@ -156,13 +178,39 @@ const TILED_LOAD = BLUEPRINT.tiled_map_payload
   ? loadLhTiledMapPayload(BLUEPRINT.tiled_map_payload)
   : ({ ok: false as const, errors: ['no_tiled_payload'] });
 
-const PARSED_PRIMARY_MAP: ParsedLhMap = TILED_LOAD.ok
-  ? TILED_LOAD.map
-  : getEmptyParsedLhMap(BLUEPRINT.realm?.realm_id, TILED_LOAD.errors);
+const PARSED_PRIMARY_MAP: ParsedLhMap = buildDemoGuidanceMap(
+  TILED_LOAD.ok ? TILED_LOAD.map : getEmptyParsedLhMap(BLUEPRINT.realm?.realm_id, TILED_LOAD.errors),
+);
 
 if (!TILED_LOAD.ok && typeof console !== 'undefined') {
   console.warn('[LhMapLoader]', TILED_LOAD.errors.join('; '));
 }
+
+const SHOW_TRIGGER_PARSE_DEBUG =
+  import.meta.env.DEV || import.meta.env.VITE_LH_QUEST_DEBUG === 'true';
+
+if (SHOW_TRIGGER_PARSE_DEBUG && typeof console !== 'undefined') {
+  const combat = PARSED_PRIMARY_MAP.triggers.filter((t) => t.kind === 'combat_encounter');
+  console.info(
+    '[LhDemo] combat_encounter triggers (after demo synthetic merge)',
+    combat.map((t) => ({
+      tiled_object_id: t.tiled_object_id,
+      tiled_name: t.tiled_name,
+      layer: t.layer_name,
+      lh_kind: t.kind,
+      activation_mode: t.activation_mode ?? 'interaction',
+      bounds: t.bounds,
+    })),
+  );
+  const lostEcho = PARSED_PRIMARY_MAP.triggers.filter(isLostEchoDemoTrigger);
+  console.info('[LhDemo] lost_echo_demo triggers', lostEcho);
+  const syntheticLost = lostEcho.filter((t) => t.layer_name === 'demo_synthetic_guidance');
+  console.info('[LhDemo] synthetic Lost Echo fallback present?', syntheticLost.length > 0, syntheticLost);
+}
+
+const LOST_ECHO_DEMO_INTERACTABLE_IDS = PARSED_PRIMARY_MAP.triggers
+  .filter(isLostEchoDemoTrigger)
+  .map((t) => makeTriggerInteractableId(PRIMARY_WORLD_TRIGGER_REALM_ID, t.tiled_object_id));
 
 export function useNightOneFlow() {
   const maiaDebug =
@@ -225,6 +273,18 @@ export function useNightOneFlow() {
 
   const consumeRealmAtlasFogRevealIntent = useCallback(() => {
     setRealmAtlasEntryIntent((prev) => ({ ...prev, fogRevealRealmId: null }));
+    setExploration((e) => {
+      const prevStage = ensureDemoGuidanceState(e).stage_id;
+      const next = advanceDemoGuidanceStage(e, 'demo_fog_revealed');
+      const nextStage = ensureDemoGuidanceState(next).stage_id;
+      logDemoLoadAudit('demo_guidance advance (fog reveal atlas consumed)', {
+        condition: 'RealmAtlasOverlay completed fog lift → consumeRealmAtlasFogRevealIntent',
+        prev_stage_id: prevStage,
+        next_stage_id: nextStage,
+        note: 'Next slice step is usually Master Scribe dialogue at demo_fog_revealed; dismiss advances to demo_slice_complete.',
+      });
+      return next;
+    });
   }, []);
   const [worldMapOpen, setWorldMapOpen] = useState(false);
   /** Inline message when travel is blocked (shown inside World Map overlay). */
@@ -237,6 +297,8 @@ export function useNightOneFlow() {
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [realmProgress, setRealmProgress] = useState<RealmProgressMap>({});
   const [exploration, setExploration] = useState<ExplorationLoopState>(() => createEmptyExplorationLoopState());
+  /** DEV / slice testing: bump to remount Phaser so session-only trigger latches reset. */
+  const [phaserExplorationRemountKey, setPhaserExplorationRemountKey] = useState(0);
   /** Nudges interview deadline / pause GT-102 gating when wall-clock crosses the return window. */
   const [guildInterviewInviteTimerTick, setGuildInterviewInviteTimerTick] = useState(0);
   const [ledgerDraft, setLedgerDraft] = useState(emptyLedgerDraft);
@@ -257,6 +319,7 @@ export function useNightOneFlow() {
   );
 
   const showQuestDebug = import.meta.env.DEV || import.meta.env.VITE_LH_QUEST_DEBUG === 'true';
+  const demoGuidance = useMemo(() => ensureDemoGuidanceState(exploration), [exploration.demo_guidance_v1]);
 
   useEffect(() => {
     if (screen === 'explore' && player) {
@@ -264,6 +327,11 @@ export function useNightOneFlow() {
       setRealmProgress((p) => touchRealmEntered(p, rid));
     }
   }, [screen, player?.current_realm_id]);
+
+  useEffect(() => {
+    if (!player || player.required_next_action === demoGuidance.current_objective) return;
+    setPlayer((p) => (p ? applyDemoObjectiveToPlayer(p, demoGuidance.current_objective) : p));
+  }, [demoGuidance.current_objective, player?.required_next_action]);
 
   useEffect(() => {
     return () => {
@@ -288,6 +356,7 @@ export function useNightOneFlow() {
     maiaHandoffWindowRef.current = null;
     setMaiaHandoffActive(false);
     setMaiaHandoffPromptActive(false);
+    setExploration((e) => advanceDemoGuidanceStage(e, 'demo_returned_from_maia'));
     window.dispatchEvent(new CustomEvent('lh:maia-handoff-closed'));
   }, []);
 
@@ -563,78 +632,43 @@ export function useNightOneFlow() {
         console.info('[LhRoster]', 'Matched roster fixture ↔ demo save row:', rosterResolution);
       }
 
-      let nextPlayer = deepClone(seededPlayerSeed);
-    let nextQuests = seededQuestSeed.map(deepClone);
-    let explorationInit = createEmptyExplorationLoopState();
-    let realmProgressInit: RealmProgressMap = {};
-    let visitedInit: string[] = [];
+      const persisted = await fetchPersistedDemoSession(seededPlayerSeed, seededQuestSeed);
+      const rawLoop = persisted.rawExplorationLoopFromRemote;
+      const rawDemo =
+        rawLoop && typeof rawLoop === 'object' && !Array.isArray(rawLoop)
+          ? (rawLoop as Record<string, unknown>).demo_guidance_v1
+          : undefined;
+      logDemoLoadAudit('before normalize (loaded persistence)', {
+        load_source: persisted.source,
+        roster_fixture_matched: rosterResolution.matched,
+        raw_exploration_loop_demo_guidance_v1: rawDemo ?? null,
+        raw_exploration_loop_keys:
+          rawLoop && typeof rawLoop === 'object' && !Array.isArray(rawLoop)
+            ? Object.keys(rawLoop as Record<string, unknown>)
+            : null,
+        visited_interactable_ids_before_finalize: [...persisted.visitedInit],
+        exploration_after_coerce_demo_guidance_v1: persisted.explorationAfterCoerce.demo_guidance_v1,
+      });
 
-    const webConfigured =
-      Boolean(import.meta.env.VITE_LH_APPS_SCRIPT_WEBAPP_URL?.trim()) &&
-      import.meta.env.VITE_LH_FORCE_SIMULATED_SAVE !== 'true';
+      const finalized = finalizeDemoBootstrapExploration({
+        academicTaskDefs: BLUEPRINT.academic_worksheet_tasks,
+        explorationAfterCoerce: persisted.explorationAfterCoerce,
+        realmProgressInit: persisted.realmProgressInit,
+        nextPlayer: persisted.nextPlayer,
+      });
 
-    if (webConfigured) {
-      const remote = await loadPlayerStateFromRemote(seededPlayerSeed.player_id);
-      if (remote.ok) {
-        nextPlayer = remote.player;
-        nextQuests = remote.quests.length ? remote.quests : seededQuestSeed.map(deepClone);
-        visitedInit = remote.progression_flags.visited_trigger_object_ids;
-        if (remote.exploration_loop) {
-          const coerced = coerceExplorationLoop(remote.exploration_loop);
-          if (coerced) explorationInit = coerced;
-        }
-        if (remote.realm_progress) {
-          realmProgressInit = mergeRealmProgressMaps({}, remote.realm_progress);
-        }
-      } else {
-        if (typeof console !== 'undefined') {
-          console.warn('[LhLoadPlayer]', remote.message, remote.errors?.join('; ') ?? '');
-        }
-        const cached = tryLoadCachedFullState(seededPlayerSeed.player_id);
-        if (cached) {
-          nextPlayer = deepClone(cached.player_snapshot);
-          nextQuests = cached.quests_snapshot.length ? cached.quests_snapshot.map(deepClone) : seededQuestSeed.map(deepClone);
-          visitedInit = [...cached.progression_flags.visited_trigger_object_ids];
-          if (cached.exploration_loop) {
-            const coerced = coerceExplorationLoop(cached.exploration_loop);
-            if (coerced) explorationInit = coerced;
-          }
-          if (cached.realm_progress) {
-            realmProgressInit = mergeRealmProgressMaps({}, cached.realm_progress);
-          }
-        }
-      }
-    } else {
-      const cached = tryLoadCachedFullState(seededPlayerSeed.player_id);
-      if (cached) {
-        nextPlayer = deepClone(cached.player_snapshot);
-        nextQuests = cached.quests_snapshot.length ? cached.quests_snapshot.map(deepClone) : seededQuestSeed.map(deepClone);
-        visitedInit = [...cached.progression_flags.visited_trigger_object_ids];
-        if (cached.exploration_loop) {
-          const coerced = coerceExplorationLoop(cached.exploration_loop);
-          if (coerced) explorationInit = coerced;
-        }
-        if (cached.realm_progress) {
-          realmProgressInit = mergeRealmProgressMaps({}, cached.realm_progress);
-        }
-      }
-    }
+      logDemoLoadAudit('after normalize (finalizeDemoBootstrapExploration)', {
+        load_source: persisted.source,
+        demo_guidance_v1: finalized.exploration.demo_guidance_v1,
+        guild_hq_atlas_revealed_realm_ids: finalized.exploration.guild_hq_atlas_revealed_realm_ids ?? [],
+        visited_interactable_ids_unchanged_by_normalize: [...persisted.visitedInit],
+      });
 
-    // Demo bootstrap normalization: always start with Aethelwood *not* pre-visited, even if a cached save exists.
-    // (Players should earn the first guild HQ reveal via the walk-in trigger.)
-    realmProgressInit = Object.fromEntries(
-      Object.entries(realmProgressInit).filter(([rid]) => String(rid || '').trim() !== 'realm_aethelwood'),
-    ) as RealmProgressMap;
-    explorationInit = {
-      ...explorationInit,
-      guild_hq_atlas_revealed_realm_ids: (explorationInit.guild_hq_atlas_revealed_realm_ids ?? []).filter(
-        (id) => String(id || '').trim() !== 'realm_aethelwood',
-      ),
-    };
-
-    explorationInit = ensureAcademicTasksSeeded(BLUEPRINT.academic_worksheet_tasks, explorationInit);
-    explorationInit = syncGuildTruePathFromPlayerIfUnset(explorationInit, nextPlayer.current_realm_id);
-    explorationInit = mergeGuildHqAtlasRevealedFromRealmProgress(explorationInit, realmProgressInit);
+      const nextPlayer = finalized.nextPlayer;
+      const explorationInit = finalized.exploration;
+      const realmProgressInit = finalized.realmProgress;
+      const visitedInit = persisted.visitedInit;
+      const nextQuests = persisted.nextQuests;
 
     setPlayer(nextPlayer);
     setQuests(reconcileQuestPrerequisites(loadQuestDefinitionsFromJson(nextQuests)));
@@ -661,6 +695,35 @@ export function useNightOneFlow() {
     }
   }, [rosterResolution]);
 
+  const beginDemoRef = useRef(beginDemo);
+  beginDemoRef.current = beginDemo;
+
+  // DEV URL helpers: predictable intro restart without auto-skipping the title gate on every refresh.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    if (lhDevBootUrlQueryHandled) return;
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const reset = params.get('lh_reset_demo') === '1';
+    const forceIntro = params.get('lh_force_intro') === '1';
+    if (!reset && !forceIntro) return;
+    lhDevBootUrlQueryHandled = true;
+    params.delete('lh_reset_demo');
+    params.delete('lh_force_intro');
+    const qs = params.toString();
+    const nextUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
+    window.history.replaceState({}, '', nextUrl);
+    if (reset) {
+      clearCachedFullState();
+      if (typeof console !== 'undefined') {
+        console.info('[LhDev] ?lh_reset_demo=1 — cleared local full-state cache only; opening intro bootstrap.');
+      }
+    } else if (forceIntro && typeof console !== 'undefined') {
+      console.info('[LhDev] ?lh_force_intro=1 — opening intro bootstrap (local cache unchanged).');
+    }
+    void beginDemoRef.current();
+  }, []);
+
   const quitToTitle = () => {
     setScreen('title');
     setPauseOpen(false);
@@ -682,7 +745,22 @@ export function useNightOneFlow() {
     setActiveEncounter(null);
   };
 
-  const dismissNpcDialogue = useCallback(() => setNpcDialogue(null), []);
+  const dismissNpcDialogue = useCallback(() => {
+    const current = npcDialogue;
+    setNpcDialogue(null);
+    if (current?.npcId !== LH_NPC_ID_MASTER_SCRIBE) return;
+    const nextStage = resolveMasterScribeNextStage(demoGuidance.stage_id);
+    if (!nextStage) return;
+    logDemoLoadAudit('demo_guidance advance (Master Scribe dialogue dismissed)', {
+      condition: 'resolveMasterScribeNextStage(dismissNpcDialogue)',
+      prev_stage_id: demoGuidance.stage_id,
+      next_stage_id: nextStage,
+    });
+    setExploration((e) => {
+      // Stamina reward is now granted on Lost Echo victory (no required return-to-scribe busywork).
+      return advanceDemoGuidanceStage(e, nextStage);
+    });
+  }, [demoGuidance.stage_id, demoGuidance.stamina_upgrade_applied, npcDialogue]);
 
   const handleEncounterRetreat = useCallback(() => {
     const cur = activeEncounterRef.current;
@@ -711,7 +789,7 @@ export function useNightOneFlow() {
         requestedXp: summary.requestedXp,
       });
       const qLink = tryQuestLinkedEncounterWin(capAward.nextPlayer, quests, cur.target_quest_id);
-      const nextE = appendEncounterLog(capAward.nextExploration, {
+      let nextE = appendEncounterLog(capAward.nextExploration, {
         kind: cur.kind,
         outcome: 'win',
         xp_awarded: capAward.xpGranted,
@@ -719,6 +797,25 @@ export function useNightOneFlow() {
         interactable_id: cur.interactableId,
         target_quest_id: cur.target_quest_id,
       });
+      const encounterTrigger = PARSED_PRIMARY_MAP.triggers.find(
+        (t) => makeTriggerInteractableId(PRIMARY_WORLD_TRIGGER_REALM_ID, t.tiled_object_id) === cur.interactableId,
+      );
+      const isDemoLostEcho =
+        cur.kind === 'combat_encounter' && Boolean(encounterTrigger && isLostEchoDemoTrigger(encounterTrigger));
+      if (isDemoLostEcho) {
+        const stageBefore = ensureDemoGuidanceState(nextE).stage_id;
+        const guided = ensureDemoGuidanceState(nextE);
+        // Flow polish: after victory, continue directly to Aethelwood (no required return to Master Scribe).
+        nextE = guided.stamina_upgrade_applied
+          ? advanceDemoGuidanceStage(nextE, 'demo_seek_aethelwood_guild')
+          : advanceDemoGuidanceStage(applyDemoStaminaReward(nextE), 'demo_seek_aethelwood_guild');
+        logDemoLoadAudit('demo_guidance advance (Lost Echo encounter win)', {
+          condition: 'handleEncounterWin + isLostEchoDemoTrigger',
+          prev_stage_id: stageBefore,
+          next_stage_id: ensureDemoGuidanceState(nextE).stage_id,
+          stamina_upgrade_applied_after: ensureDemoGuidanceState(nextE).stamina_upgrade_applied,
+        });
+      }
       setPlayer(qLink.nextPlayer);
       setQuests(qLink.nextQuests);
       setExploration(nextE);
@@ -728,6 +825,16 @@ export function useNightOneFlow() {
         setSaveFeedback({
           tone: 'success',
           text: `Encounter cleared — granted ${capAward.xpGranted} XP (session encounter cap reached).`,
+        });
+      } else if (isDemoLostEcho) {
+        setSaveFeedback({
+          tone: 'success',
+          text: "The Lost Echo dissolves. The Traveler’s Resolve deepens — continue to Aethelwood Farmsteads.",
+        });
+      } else if (cur.kind === 'combat_encounter') {
+        setSaveFeedback({
+          tone: 'success',
+          text: 'Lost Echo defeated. Continue onward.',
         });
       }
     },
@@ -744,16 +851,39 @@ export function useNightOneFlow() {
       }
 
       const kind = normaliseLhTriggerKind(String(triggerMeta.kind ?? ''));
+      const lostEchoDemo = kind === 'combat_encounter' && isLostEchoDemoTrigger(triggerMeta);
+
+      if (lostEchoDemo && demoGuidance.stage_id !== 'demo_combat_trial_available') {
+        setSaveFeedback({
+          tone: 'error',
+          text:
+            demoGuidance.stage_id === 'demo_combat_trial_complete'
+              ? 'The Lost Echo has already yielded. Return to the Master Scribe.'
+              : 'The road feels wrong. Return to the Master Scribe before facing the Lost Echo.',
+        });
+        return;
+      }
       if (kind === 'maia_portal') {
+        if (demoGuidance.stage_id !== 'demo_seek_maia') {
+          setSaveFeedback({
+            tone: 'error',
+            text:
+              demoGuidance.stage_id === 'demo_awakened'
+                ? 'The Mirror is still. Speak with the Master Scribe first.'
+                : 'The Mirror of Maia has already answered. Return to the Master Scribe.',
+          });
+          return;
+        }
         // Manual "Return to game" must be able to fire each time.
         maiaHandoffClosedOnceRef.current = false;
         const nextVisited = visitedInteractableIds.includes(interactableId)
           ? visitedInteractableIds
           : [...visitedInteractableIds, interactableId];
+        const nextExploration = advanceDemoGuidanceStage(exploration, 'demo_seek_maia');
+        const nextDemoGuidance = ensureDemoGuidanceState(nextExploration);
         const nextPlayer: PlayerSave = {
           ...player,
-          required_next_action:
-            'Mirror of Maia handoff complete. Teacher-reviewed Maia insights are ready to shape your Scroll of Destiny.',
+          required_next_action: nextDemoGuidance.current_objective,
         };
         const nextRealmProgress = setRealmLearnedNotes(
           realmProgress,
@@ -762,6 +892,7 @@ export function useNightOneFlow() {
         );
 
         setPlayer(nextPlayer);
+        setExploration(nextExploration);
         setRealmProgress(nextRealmProgress);
         setVisitedInteractableIds(nextVisited);
         setMaiaHandoffPromptActive(true);
@@ -773,7 +904,7 @@ export function useNightOneFlow() {
             questsSnapshot: quests,
             realmId: realm.realm_id,
             visitedTriggerInteractableIds: nextVisited,
-            exploration_loop: exploration,
+            exploration_loop: nextExploration,
             realm_progress: nextRealmProgress,
             ritual_drafts: ritualDraftsFromLedgerDraft(ledgerDraft),
             save_kind: 'manual',
@@ -791,6 +922,21 @@ export function useNightOneFlow() {
       }
 
       if (kind === 'guild_hq_research') {
+        if (demoGuidance.stage_id !== 'demo_seek_aethelwood_guild') {
+          setSaveFeedback({
+            tone: 'error',
+            text:
+              demoGuidance.stage_id === 'demo_guild_research_complete' ||
+              demoGuidance.stage_id === 'demo_fog_revealed' ||
+              demoGuidance.stage_id === 'demo_slice_complete'
+                ? 'You have already charted this research hall. Open the World Atlas to revisit its pin.'
+                : 'The guild roads are not ready. Follow the Master Scribe’s guidance first.',
+          });
+          window.dispatchEvent(
+            new CustomEvent(LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT, { detail: { interactableId, mode: 'blocked' } }),
+          );
+          return;
+        }
         const triggerRealm = String(triggerMeta.target_realm_id ?? '').trim() || player.current_realm_id;
         const revealed = new Set((exploration.guild_hq_atlas_revealed_realm_ids ?? []).map((id) => String(id || '').trim()).filter(Boolean));
 
@@ -831,12 +977,26 @@ export function useNightOneFlow() {
         // Shared overworld: physical trigger zone is authoritative — do not require `current_realm_id`
         // to match (that field tracks narrative/UI focus and may lag while exploring the big map).
 
-        setExploration((e) => mergeGuildHqAtlasRevealed(e, triggerRealm));
+        setExploration((e) => {
+          const prev = ensureDemoGuidanceState(e).stage_id;
+          const next = advanceDemoGuidanceStage(mergeGuildHqAtlasRevealed(e, triggerRealm), 'demo_guild_research_complete');
+          logDemoLoadAudit('demo_guidance advance (guild HQ research trigger)', {
+            condition: 'guild_hq_research overlap → atlas + stage minimum demo_guild_research_complete',
+            prev_stage_id: prev,
+            next_stage_id: ensureDemoGuidanceState(next).stage_id,
+            trigger_realm: triggerRealm,
+          });
+          return next;
+        });
         setRealmAtlasEntryIntent({
           initialGuildRealmId: triggerRealm,
           fogRevealRealmId: triggerRealm,
         });
         phaserGuildResearchExitWhenAtlasClosedRef.current = interactableId;
+        // Layer the physical "door opens" SFX over the existing hub swoosh so the entry
+        // transition has both the spatial cue and the arrival ambience.
+        playLhSfx('door_open');
+        playLhSfx('aethelwood_hub_open');
         setPauseOpen(false);
         setRealmAtlasOpen(true);
         return;
@@ -1010,7 +1170,13 @@ export function useNightOneFlow() {
         return;
       }
 
-      if (visitedInteractableIds.includes(interactableId)) {
+      if (
+        visitedInteractableIds.includes(interactableId) &&
+        !(lostEchoDemo && demoGuidance.stage_id === 'demo_combat_trial_available')
+      ) {
+        if (SHOW_TRIGGER_PARSE_DEBUG && typeof console !== 'undefined') {
+          console.info('[LhDemo] trigger skipped (visited)', { interactableId, lostEchoDemo, stage: demoGuidance.stage_id });
+        }
         return;
       }
 
@@ -1028,25 +1194,47 @@ export function useNightOneFlow() {
       setQuests(result.nextQuests);
 
       if (result.openEncounter) {
+        const encounterTrigger = PARSED_PRIMARY_MAP.triggers.find(
+          (t) =>
+            makeTriggerInteractableId(PRIMARY_WORLD_TRIGGER_REALM_ID, t.tiled_object_id) ===
+            result.openEncounter!.interactableId,
+        );
+        const jrpgLostEcho =
+          result.openEncounter.kind === 'combat_encounter' &&
+          Boolean(encounterTrigger && isLostEchoDemoTrigger(encounterTrigger));
         setActiveEncounter({
           kind: result.openEncounter.kind,
           interactableId: result.openEncounter.interactableId,
           target_quest_id: result.openEncounter.target_quest_id,
           title: triggerMeta.interaction_label_active,
+          ...(jrpgLostEcho ? { presentation: 'jrpg_knowledge' as const, enemyTemplateId: 'lost_echo' as const } : {}),
         });
         return;
       }
 
       if (result.openNpcDialogue) {
-        const ctx = { player: result.nextPlayer, realm, quests: result.nextQuests };
-        const { body, npc } = resolveNpcDialogueBody(
-          result.openNpcDialogue.npcId,
-          BLUEPRINT.dialogue_catalog,
-          BLUEPRINT.npc_registry,
-          ctx,
-        );
+        const npc = findNpcEntry(BLUEPRINT.npc_registry, result.openNpcDialogue.npcId);
+        const isMasterScribe = result.openNpcDialogue.npcId === LH_NPC_ID_MASTER_SCRIBE;
+        const resolved = isMasterScribe
+          ? resolveMasterScribeDialogue(demoGuidance.stage_id)
+          : null;
+        const body =
+          resolved?.body ??
+          resolveNpcDialogueBody(
+            result.openNpcDialogue.npcId,
+            BLUEPRINT.dialogue_catalog,
+            BLUEPRINT.npc_registry,
+            { player: result.nextPlayer, realm, quests: result.nextQuests },
+          ).body;
         const aid = npc?.portrait_asset_id;
         const portraitUrl = aid ? resolveAssetDeliveryUrl(aid, BLUEPRINT.media_assets) : '';
+        if (isMasterScribe) {
+          setExploration((e) =>
+            mergeDemoGuidanceState(e, {
+              last_npc_interaction_id: resolved?.lineId ?? 'demo_master_scribe_unknown',
+            }),
+          );
+        }
         setNpcDialogue({
           npcId: result.openNpcDialogue.npcId,
           title: npc?.card_title ?? 'A moment together',
@@ -1060,7 +1248,7 @@ export function useNightOneFlow() {
         setVisitedInteractableIds((curr) => (curr.includes(interactableId) ? curr : [...curr, interactableId]));
       }
     },
-    [player, quests, visitedInteractableIds, realm, exploration, realmProgress, ledgerDraft, launchMaiaHandoffWindow],
+    [player, quests, visitedInteractableIds, realm, exploration, realmProgress, ledgerDraft, launchMaiaHandoffWindow, demoGuidance.stage_id],
   );
 
   const explorationHotspots: ExplorationHotspot[] = useMemo(() => {
@@ -1121,6 +1309,14 @@ export function useNightOneFlow() {
 
     const handle = window.setTimeout(() => {
       void (async () => {
+        if (DEMO_LOAD_AUDIT && typeof console !== 'undefined') {
+          console.info('[LhDemoLoadAudit] auto-save firing (debounced ~3.5s after last explore dependency change)', {
+            save_kind: 'auto',
+            demo_guidance_stage_id: exploration.demo_guidance_v1?.stage_id,
+            visited_trigger_count: visitedInteractableIds.length,
+            note: 'Persists current in-memory exploration_loop (including demo_guidance_v1) to Apps Script or simulated sink.',
+          });
+        }
         const envelope = buildManualSaveEnvelope({
           player,
           questsSnapshot: quests,
@@ -1539,6 +1735,16 @@ export function useNightOneFlow() {
   }, []);
 
   const mergeRemoteLoad = useCallback((remote: Extract<LoadPlayerOutcome, { ok: true }>) => {
+    const rawLoop = remote.exploration_loop;
+    const rawDemo =
+      rawLoop && typeof rawLoop === 'object' && !Array.isArray(rawLoop)
+        ? (rawLoop as Record<string, unknown>).demo_guidance_v1
+        : undefined;
+    logDemoLoadAudit('before normalize (mergeRemoteLoad / teacher reload)', {
+      load_source: 'remote_apps_script_ok',
+      raw_exploration_loop_demo_guidance_v1: rawDemo ?? null,
+      visited_interactable_ids_before_finalize: [...remote.progression_flags.visited_trigger_object_ids],
+    });
     let explorationInit = createEmptyExplorationLoopState();
     if (remote.exploration_loop) {
       const coerced = coerceExplorationLoop(remote.exploration_loop);
@@ -1559,6 +1765,76 @@ export function useNightOneFlow() {
     setVisitedInteractableIds(remote.progression_flags.visited_trigger_object_ids);
     setRealmProgress(realmProgressMerged);
     setExploration(explorationInit);
+    logDemoLoadAudit('after normalize (mergeRemoteLoad — atlas merge only; demo_guidance not re-merged)', {
+      demo_guidance_v1: explorationInit.demo_guidance_v1,
+      guild_hq_atlas_revealed_realm_ids: explorationInit.guild_hq_atlas_revealed_realm_ids ?? [],
+    });
+  }, []);
+
+  const reloadPersistedDemoForResume = useCallback(async (): Promise<string> => {
+    const persisted = await fetchPersistedDemoSession(seededPlayerSeed, seededQuestSeed);
+    const rawLoop = persisted.rawExplorationLoopFromRemote;
+    const rawDemo =
+      rawLoop && typeof rawLoop === 'object' && !Array.isArray(rawLoop)
+        ? (rawLoop as Record<string, unknown>).demo_guidance_v1
+        : undefined;
+    logDemoLoadAudit('before normalize (Game Title → Resume reload)', {
+      load_source: persisted.source,
+      raw_exploration_loop_demo_guidance_v1: rawDemo ?? null,
+      visited_interactable_ids_before_finalize: [...persisted.visitedInit],
+      exploration_after_coerce_demo_guidance_v1: persisted.explorationAfterCoerce.demo_guidance_v1,
+    });
+    const finalized = finalizeDemoBootstrapExploration({
+      academicTaskDefs: BLUEPRINT.academic_worksheet_tasks,
+      explorationAfterCoerce: persisted.explorationAfterCoerce,
+      realmProgressInit: persisted.realmProgressInit,
+      nextPlayer: persisted.nextPlayer,
+    });
+    logDemoLoadAudit('after normalize (Resume reload finalized)', {
+      load_source: persisted.source,
+      demo_guidance_v1: finalized.exploration.demo_guidance_v1,
+    });
+    setPlayer(finalized.nextPlayer);
+    setQuests(reconcileQuestPrerequisites(loadQuestDefinitionsFromJson(persisted.nextQuests)));
+    setVisitedInteractableIds(persisted.visitedInit);
+    setRealmProgress(finalized.realmProgress);
+    setExploration(finalized.exploration);
+    setLedgerDraft(emptyLedgerDraft());
+    setPhaserExplorationRemountKey((k) => k + 1);
+    return persisted.source;
+  }, []);
+
+  const applyFreshVerticalSliceFromGameTitle = useCallback(() => {
+    const explorationFresh = createEmptyExplorationLoopState();
+    const guidance = ensureDemoGuidanceState(explorationFresh);
+    const nextPlayer = applyDemoObjectiveToPlayer(deepClone(seededPlayerSeed), guidance.current_objective);
+    setPlayer(nextPlayer);
+    setQuests(reconcileQuestPrerequisites(loadQuestDefinitionsFromJson(seededQuestSeed.map(deepClone))));
+    setVisitedInteractableIds([]);
+    setRealmProgress({});
+    setExploration(explorationFresh);
+    setLedgerDraft(emptyLedgerDraft());
+    setPhaserExplorationRemountKey((k) => k + 1);
+    logDemoLoadAudit('fresh vertical slice (Game Title → Start)', {
+      load_source: 'client_forced_fresh_slice_no_remote_read',
+      demo_guidance_v1: explorationFresh.demo_guidance_v1,
+      visited_interactable_ids: [],
+    });
+  }, []);
+
+  const devResetToLostEchoCombatStep = useCallback(() => {
+    setVisitedInteractableIds((ids) => ids.filter((id) => !LOST_ECHO_DEMO_INTERACTABLE_IDS.includes(id)));
+    setExploration((e) => {
+      const clearedLog = (e.encounter_log ?? []).filter(
+        (row) => !LOST_ECHO_DEMO_INTERACTABLE_IDS.includes(row.interactable_id),
+      );
+      return mergeDemoGuidanceState({ ...e, encounter_log: clearedLog }, { stage_id: 'demo_combat_trial_available' });
+    });
+    setPhaserExplorationRemountKey((k) => k + 1);
+    logDemoLoadAudit('dev reset → Lost Echo combat step', {
+      cleared_interactable_ids: [...LOST_ECHO_DEMO_INTERACTABLE_IDS],
+      target_stage_id: 'demo_combat_trial_available',
+    });
   }, []);
 
   const handleTeacherUnlockQuest = useCallback(
@@ -1762,6 +2038,13 @@ export function useNightOneFlow() {
           onResetAct: handleTeacherResetAct,
           onOverrideGt102: handleTeacherOverrideGt102,
           onClearModuleDraft: clearModuleDraft,
+          demoSliceDevTools:
+            import.meta.env.DEV || import.meta.env.VITE_LH_QUEST_DEBUG === 'true'
+              ? {
+                  onResetSliceToAwakened: applyFreshVerticalSliceFromGameTitle,
+                  onResetToLostEchoCombat: devResetToLostEchoCombatStep,
+                }
+              : undefined,
         }
       : null;
 
@@ -1771,14 +2054,25 @@ export function useNightOneFlow() {
     introToInstructions: () => setScreen('gameTitle'),
     gameTitleStart: () => {
       setSaveFeedback(null);
+      applyFreshVerticalSliceFromGameTitle();
       setScreen('explore');
     },
-    gameTitleResume: () => {
-      setSaveFeedback({
-        tone: 'success',
-        text: 'Save data loaded. The Traveler returns to the world.',
-      });
-      setScreen('explore');
+    gameTitleResume: async () => {
+      setSaveFeedback(null);
+      try {
+        const source = await reloadPersistedDemoForResume();
+        setSaveFeedback({
+          tone: 'success',
+          text: `Save data reloaded and normalized (source: ${source}). The Traveler returns to the world.`,
+        });
+        setScreen('explore');
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setSaveFeedback({
+          tone: 'error',
+          text: `Resume reload failed: ${msg}`,
+        });
+      }
     },
     proceedInstructions: () => setScreen('maiaProfile'),
     maiaProfileToResume: () => setScreen('scrollReveal'),
@@ -1798,6 +2092,15 @@ export function useNightOneFlow() {
     closeRealmAtlas: () => {
       const phaserGuildExitId = phaserGuildResearchExitWhenAtlasClosedRef.current;
       phaserGuildResearchExitWhenAtlasClosedRef.current = null;
+      // Mirror of the entry: when the player is leaving the Aethelwood Guild HQ specifically,
+      // play the door-close SFX layered with the existing hub swoosh. Atlas-only closes
+      // (without a guild exit) keep just the scroll-close SFX.
+      if (phaserGuildExitId) {
+        playLhSfx('door_close');
+        playLhSfx('aethelwood_hub_close');
+      } else {
+        playLhSfx('atlas_scroll_close');
+      }
       if (phaserGuildExitId) {
         window.dispatchEvent(
           new CustomEvent(LH_WINDOW_PHASER_GUILD_RESEARCH_EXIT, {
@@ -1893,6 +2196,7 @@ export function useNightOneFlow() {
     classroomTools,
     resumeDialogBody,
     npcDialogue,
+    demoGuidance,
     dismissNpcDialogue,
     activeEncounter,
     onEncounterWin: handleEncounterWin,
@@ -1990,6 +2294,7 @@ export function useNightOneFlow() {
       loadErrors: TILED_LOAD.ok ? [] : TILED_LOAD.errors,
     },
 
+    phaserExplorationRemountKey,
     facilitatorToolsProps,
   };
 }

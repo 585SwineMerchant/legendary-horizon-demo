@@ -32,3 +32,12 @@ export function tryLoadCachedFullState(playerId: string): ManualSaveEnvelopeV1 |
     return null;
   }
 }
+
+/** Clears only the browser local full-state cache (not Apps Script / spreadsheet saves). */
+export function clearCachedFullState(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore quota / privacy mode */
+  }
+}

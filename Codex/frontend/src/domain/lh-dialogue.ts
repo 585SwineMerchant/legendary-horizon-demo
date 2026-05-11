@@ -37,6 +37,10 @@ export type LhNpcRegistryEntry = {
   npc_id: string;
   display_name: string;
   role_label: string;
+  /** Optional expanded metadata for reusable in-world NPC patterns. */
+  role?: string;
+  tone?: string;
+  default_interaction_kind?: string;
   /** Key in `dialogue_catalog.banks`. */
   default_dialogue_bank: string;
   /** Optional `media_assets.json` portrait id. */

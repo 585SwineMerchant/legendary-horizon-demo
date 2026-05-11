@@ -67,7 +67,7 @@ export function dispatchLhTrigger(trigger: ParsedLhTrigger, ctx: TriggerDispatch
       handled: true,
       nextPlayer: ctx.player,
       nextQuests: ctx.quests,
-      markVisited: true,
+      markVisited: false,
       openNpcDialogue: { npcId },
     };
   }

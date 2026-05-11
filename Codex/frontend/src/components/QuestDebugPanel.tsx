@@ -1,14 +1,16 @@
 import { useMemo, useState } from 'react';
 
+import type { DemoGuidanceStateV1 } from '../demo/demoGuidance';
 import type { QuestDefinition } from '../types';
 
 type Props = {
   quests: QuestDefinition[];
+  demoGuidance?: DemoGuidanceStateV1;
 };
 
-export function QuestDebugPanel({ quests }: Props) {
+export function QuestDebugPanel({ quests, demoGuidance }: Props) {
   const [open, setOpen] = useState(false);
-  const text = useMemo(() => JSON.stringify(quests, null, 2), [quests]);
+  const text = useMemo(() => JSON.stringify({ demo_guidance_v1: demoGuidance, quests }, null, 2), [demoGuidance, quests]);
 
   return (
     <div className="lh-quest-debug">

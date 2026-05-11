@@ -45,6 +45,7 @@ export function getEmptyParsedLhMap(realmIdHint?: string, extraWarnings: string[
     fog_regions: [],
     npc_markers: [],
     realm_markers: [],
+    roaming_lost_echo_spawns: [],
     parse_warnings: ['empty_fallback_map'].concat(extraWarnings),
   };
 }

@@ -14,6 +14,9 @@ export type PauseDisplayPreferences = {
   onLowClutterChange: (v: boolean) => void;
   audioMuted: boolean;
   onAudioMutedChange: (v: boolean) => void;
+  /** Music-only mute. Independent of `audioMuted`; SFX still play when only music is muted. */
+  musicMuted: boolean;
+  onMusicMutedChange: (v: boolean) => void;
 };
 
 type Props = {
@@ -46,12 +49,16 @@ export function PauseMenu({
   onOpenRealmAtlas,
   onOpenInventory,
   onSave,
+  displayPreferences,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   useEscapeToClose(open, onResume);
   useFocusOnOpen(open, panelRef);
 
   if (!open) return null;
+
+  const musicMuted = Boolean(displayPreferences?.musicMuted);
+  const onMusicMutedChange = displayPreferences?.onMusicMutedChange;
 
   return (
     <div className="lh-overlay lh-overlay--dim" role="dialog" aria-modal="true" aria-labelledby="pause-title">
@@ -78,6 +85,19 @@ export function PauseMenu({
           {onOpenRealmAtlas ? (
             <button type="button" className="lh-button lh-button--secondary" onClick={onOpenRealmAtlas}>
               World Atlas
+            </button>
+          ) : null}
+          {onMusicMutedChange ? (
+            <button
+              type="button"
+              className="lh-button lh-button--secondary"
+              role="switch"
+              aria-checked={musicMuted}
+              aria-label={musicMuted ? 'Unmute background music' : 'Mute background music'}
+              title="Mute background music. Sound effects continue to play."
+              onClick={() => onMusicMutedChange(!musicMuted)}
+            >
+              {musicMuted ? 'Unmute music' : 'Mute music'}
             </button>
           ) : null}
         </div>

@@ -35,7 +35,7 @@ export function InstructionsScreen({ onBack, onStartSession, classroomTools }: P
     <section className="lh-screen lh-screen--instructions">
       <div className="lh-panel lh-panel--sheet lh-panel--instructions">
         <header className="lh-instructions__header">
-          <p className="lh-eyebrow">Corey leadership walkthrough</p>
+          <p className="lh-eyebrow">Prologue briefing</p>
           <h2 className="lh-heading-lg">What this demo proves</h2>
           <p className="lh-instructions__lede">
             Maia remains a core part of the instructional system. Legendary Horizon is the motivating layer that helps
@@ -59,7 +59,7 @@ export function InstructionsScreen({ onBack, onStartSession, classroomTools }: P
           <section className="lh-instructions__classroom-tools" aria-label="Classroom tool shortcuts">
             <h3 className="lh-heading-sm lh-instructions__tools-title">Classroom shortcuts</h3>
             <p className="lh-instructions__tools-hint">
-              Maia and the classroom tools stay available during the walkthrough so the handoff is visible, not implied.
+              Maia and the classroom tools stay available during the prologue so the handoff is visible, not implied.
             </p>
             <ClassroomToolsButtonRow handlers={classroomTools} layout="instructions" />
           </section>

@@ -14,7 +14,8 @@ export type NightOneNavigate = {
   quitToTitle: () => void;
   introToInstructions: () => void;
   gameTitleStart: () => void;
-  gameTitleResume: () => void;
+  /** Reloads persisted session (remote / local cache) then returns to explore. */
+  gameTitleResume: () => Promise<void>;
   proceedInstructions: () => void;
   maiaProfileToResume: () => void;
   scrollRevealToResume: () => void;

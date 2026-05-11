@@ -17,6 +17,11 @@ export type TeacherToolsPanelProps = {
   onResetAct: (act: number) => Promise<void>;
   onOverrideGt102: (outcome: 'passed' | 'failed') => void;
   onClearModuleDraft: (moduleId: string) => void;
+  /** DEV / quest-debug — vertical slice reset shortcuts (Pause → facilitator). */
+  demoSliceDevTools?: {
+    onResetSliceToAwakened: () => void;
+    onResetToLostEchoCombat: () => void;
+  };
 };
 
 export function TeacherToolsPanel({
@@ -33,6 +38,7 @@ export function TeacherToolsPanel({
   onResetAct,
   onOverrideGt102,
   onClearModuleDraft,
+  demoSliceDevTools,
 }: TeacherToolsPanelProps) {
   const [tierFilter, setTierFilter] = useState<'all' | QuestDefinition['tier']>('all');
   const [selectedQuestId, setSelectedQuestId] = useState('');
@@ -81,6 +87,29 @@ export function TeacherToolsPanel({
 
   return (
     <section className="lh-pause-section lh-pause-section--facilitator" aria-label="Facilitator tools">
+      {demoSliceDevTools ? (
+        <div className="lh-pause-section lh-pause-section--demo-dev" style={{ marginBottom: 16 }}>
+          <h3 className="lh-pause-section__label">Demo slice (dev)</h3>
+          <div className="lh-stack" style={{ gap: 8 }}>
+            <button
+              type="button"
+              className="lh-button lh-button--secondary lh-button--small"
+              disabled={busy}
+              onClick={() => demoSliceDevTools.onResetSliceToAwakened()}
+            >
+              Reset demo slice to start
+            </button>
+            <button
+              type="button"
+              className="lh-button lh-button--secondary lh-button--small"
+              disabled={busy}
+              onClick={() => demoSliceDevTools.onResetToLostEchoCombat()}
+            >
+              Reset to Lost Echo combat step
+            </button>
+          </div>
+        </div>
+      ) : null}
       <h3 className="lh-pause-section__label">Facilitator tools</h3>
       <p className="lh-facilitator-tools__hint">
         Milestone 18 — rescue actions post to the Apps Script Web App when configured; otherwise they apply to this

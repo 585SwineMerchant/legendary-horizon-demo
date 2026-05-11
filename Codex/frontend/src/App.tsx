@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { PauseMenu } from './components/PauseMenu';
 import { TeacherToolsPanel } from './components/TeacherToolsPanel';
@@ -18,6 +18,9 @@ import { TitleScreen } from './screens/TitleScreen';
 import { TeacherDashboardScreen } from './screens/TeacherDashboardScreen';
 import { isTerminalQuestStatus } from './quests/questEngine';
 import { sortRealmsCanon } from './realm/realmRegistry';
+import { getLhAudioDirector } from './lib/lhAudioDirector';
+import { auditCoreyRequiredMedia } from './lib/lhMissingMediaAudit';
+import { playLhSfx } from './lib/lhSfx';
 
 /**
  * Thin composition root: Day&nbsp;2 flow state lives in `useNightOneFlow`,
@@ -35,6 +38,7 @@ export function App() {
     activeQuestDefinition,
     showQuestDebug,
     npcDialogue,
+    demoGuidance,
     dismissNpcDialogue,
     activeEncounter,
     onEncounterWin,
@@ -75,6 +79,8 @@ export function App() {
     researchRealm,
     submitLedgerEntry,
     markActiveWaypointVisited,
+    visitedInteractableIds,
+    phaserExplorationRemountKey,
     markQuestTurnedIn,
     updateRealmNotes,
     academicWorksheetsOpen,
@@ -97,6 +103,82 @@ export function App() {
     guildPathExplorationBanner,
     guildPathQuestLogNote,
   } = useNightOneFlow();
+
+  useEffect(() => {
+    void auditCoreyRequiredMedia();
+  }, []);
+
+  useEffect(() => {
+    let lastHoverAt = 0;
+    const isSoundTarget = (target: EventTarget | null): boolean =>
+      target instanceof Element && Boolean(target.closest('button, [role="button"], a[href]'));
+
+    const onPointerOver = (ev: PointerEvent) => {
+      if (!isSoundTarget(ev.target)) return;
+      const now = performance.now();
+      if (now - lastHoverAt < 80) return;
+      lastHoverAt = now;
+      playLhSfx('ui_hover');
+    };
+
+    const onClick = (ev: MouseEvent) => {
+      if (!isSoundTarget(ev.target)) return;
+      playLhSfx('ui_select');
+    };
+
+    document.addEventListener('pointerover', onPointerOver);
+    document.addEventListener('click', onClick, true);
+    return () => {
+      document.removeEventListener('pointerover', onPointerOver);
+      document.removeEventListener('click', onClick, true);
+    };
+  }, []);
+
+  // Presentation polish: one music lane at a time, clean fades, no overlap.
+  useEffect(() => {
+    const dir = getLhAudioDirector();
+
+    if (teacherDashboardOpen) {
+      dir.setLane(null);
+      return;
+    }
+    // Intro + title menus: no exploration music yet. The intro iframe fades its own audio bed; we fade in a title continuation bed.
+    if (screen === 'title') {
+      dir.setLane(null);
+      return;
+    }
+    // Intro video carries its own audio bed; title lane starts when the overlay opens (see IntroCinematicScreen).
+    if (screen === 'intro') {
+      dir.setLane(null);
+      return;
+    }
+    if (screen === 'gameTitle') {
+      dir.setLane('title');
+      return;
+    }
+    if (screen === 'explore' && activeEncounter) {
+      dir.setLane('battle');
+      return;
+    }
+    if (screen === 'explore') {
+      dir.setLane('exploration');
+      return;
+    }
+    dir.setLane(null);
+  }, [teacherDashboardOpen, screen, activeEncounter]);
+
+  useEffect(() => {
+    const dir = getLhAudioDirector();
+    // Duck music during Atlas reveal / full-screen atlas moments to give SFX room.
+    // (If the atlas is opened just for browsing, the duck still feels intentional/cinematic.)
+    dir.setDucked(Boolean(realmAtlasOpen));
+  }, [realmAtlasOpen]);
+
+  // Music-only mute toggles `data-lh-music`; the director needs an explicit poke to re-evaluate volumes
+  // since no DOM event fires for dataset changes.
+  useEffect(() => {
+    getLhAudioDirector().refreshAudibility();
+  }, [a11y.musicMuted, a11y.audioMuted]);
 
   const showMapDebug = import.meta.env.DEV || import.meta.env.VITE_LH_MAP_DEBUG === 'true';
   const showPauseGuildModuleShortcuts =
@@ -162,11 +244,12 @@ export function App() {
 
       {!teacherDashboardOpen && screen === 'intro' ? (
         <IntroCinematicScreen
-          onSkip={navigate.introToInstructions}
-          onComplete={navigate.introToInstructions}
+          onStart={navigate.gameTitleStart}
+          onResume={navigate.gameTitleResume}
         />
       ) : null}
 
+      {/* `gameTitle` is retained as a fallback route, but the primary flow is now the intro→title overlay. */}
       {!teacherDashboardOpen && screen === 'gameTitle' ? (
         <GameTitleScreen
           onStart={navigate.gameTitleStart}
@@ -179,9 +262,11 @@ export function App() {
           player={player}
           realm={realm}
           phaserSurfaceTriggerRealmId={primaryWorldTriggerRealmId}
+          phaserSessionRemountKey={phaserExplorationRemountKey}
           hotspots={explorationHotspots}
           onActivateHotspot={hotspotControls.activate}
           parsedMap={parsedMap}
+          demoGuidance={demoGuidance}
           renderer="phaser"
           saveFeedback={saveFeedback}
           maiaHandoffActive={maiaHandoffActive}
@@ -211,6 +296,7 @@ export function App() {
           activeEncounter={activeEncounter}
           onEncounterWin={onEncounterWin}
           onEncounterRetreat={onEncounterRetreat}
+          lostEchoDiagVisitedTriggerIds={visitedInteractableIds}
           guildBreatherBanner={
             guildPathExplorationBanner
               ? { title: guildPathExplorationBanner.bannerTitle, body: guildPathExplorationBanner.bannerBody }
@@ -285,6 +371,8 @@ export function App() {
           onLowClutterChange: a11y.setLowClutter,
           audioMuted: a11y.audioMuted,
           onAudioMutedChange: a11y.setAudioMuted,
+          musicMuted: a11y.musicMuted,
+          onMusicMutedChange: a11y.setMusicMuted,
         }}
         classroomTools={classroomTools}
         facilitatorTools={facilitatorToolsProps ? <TeacherToolsPanel {...facilitatorToolsProps} /> : null}

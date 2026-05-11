@@ -2,9 +2,11 @@ import type { CSSProperties } from 'react';
 
 import { DialogueBox } from '../components/DialogueBox';
 import { EncounterOverlay, type EncounterLaunchPayload } from '../components/EncounterOverlay';
+import { KnowledgeJrpgBattleOverlay } from '../components/KnowledgeJrpgBattleOverlay';
 import { MapDebugPanel } from '../components/MapDebugPanel';
 import { QuestDebugPanel } from '../components/QuestDebugPanel';
 import type { LhNpcDialogueOverlayModel } from '../dialogue/npcDialogueOverlayModel';
+import type { DemoGuidanceStateV1 } from '../demo/demoGuidance';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { summarizeInventoryBrief } from '../lib/formatInventoryBrief';
 import type { ParsedLhMap } from '../maps/parseLhTiledMap';
@@ -42,9 +44,12 @@ type Props = {
   realm: RealmDefinition;
   /** Stable realm prefix for primary-map trigger IDs (independent of guild `realm`). */
   phaserSurfaceTriggerRealmId?: string;
+  /** Bump to force-remount Phaser (dev slice resets / resume reload). */
+  phaserSessionRemountKey?: number;
   hotspots: ExplorationHotspot[];
   onActivateHotspot: (interactableId: string) => void;
   parsedMap: ParsedLhMap;
+  demoGuidance?: DemoGuidanceStateV1;
   renderer?: 'hotspots' | 'phaser';
   saveFeedback: SaveFeedback | null;
   maiaHandoffActive?: boolean;
@@ -75,15 +80,19 @@ type Props = {
   guildBreatherBanner?: { title: string; body: string } | null;
   /** Scroll of Destiny — Foretold Signpost realm labels (exploration direction). */
   signpostStrip?: { labels: string[] } | null;
+  /** DEV / `VITE_LH_QUEST_DEBUG` — mirrors React visited triggers for Lost Echo pipeline logs in Phaser. */
+  lostEchoDiagVisitedTriggerIds?: readonly string[];
 };
 
 export function ExplorationScreen({
   player,
   realm,
   phaserSurfaceTriggerRealmId,
+  phaserSessionRemountKey = 0,
   hotspots,
   onActivateHotspot,
   parsedMap,
+  demoGuidance,
   renderer = 'hotspots',
   saveFeedback,
   maiaHandoffActive = false,
@@ -105,9 +114,14 @@ export function ExplorationScreen({
   onEncounterWin,
   onEncounterRetreat,
   signpostStrip,
+  lostEchoDiagVisitedTriggerIds,
 }: Props) {
   useEscapeToClose(Boolean(npcDialogue), onDismissNpcDialogue ?? (() => undefined));
-  useEscapeToClose(Boolean(activeEncounter), onEncounterRetreat ?? (() => undefined));
+  const jrpgKnowledgeEncounter = activeEncounter?.presentation === 'jrpg_knowledge';
+  useEscapeToClose(
+    Boolean(activeEncounter) && !jrpgKnowledgeEncounter,
+    onEncounterRetreat ?? (() => undefined),
+  );
   const showTiledHotspots = Boolean(realm.map_tiled_export);
   const usePhaser = renderer === 'phaser';
   const phaserTriggerRealmId = phaserSurfaceTriggerRealmId ?? realm.realm_id;
@@ -151,11 +165,15 @@ export function ExplorationScreen({
 
       {usePhaser ? (
         <PhaserExplorationView
+          key={phaserSessionRemountKey}
           realmId={phaserTriggerRealmId}
           parsedMap={parsedMap}
+          demoGuidance={demoGuidance}
+          dialogueNpcId={npcDialogue?.npcId}
           hotspots={hotspots}
           onActivateHotspot={onActivateHotspot}
           onPause={onPause}
+          lostEchoDiagVisitedTriggerIds={lostEchoDiagVisitedTriggerIds}
         />
       ) : null}
 
@@ -362,7 +380,7 @@ export function ExplorationScreen({
             <MapDebugPanel parsedMap={mapDebug.parsed} loadErrors={mapDebug.loadErrors} />
           ) : null}
 
-          {questDebug ? <QuestDebugPanel quests={questDebug.quests} /> : null}
+          {questDebug ? <QuestDebugPanel quests={questDebug.quests} demoGuidance={demoGuidance} /> : null}
 
           {saveFeedback ? (
             <div
@@ -412,7 +430,11 @@ export function ExplorationScreen({
       ) : null}
 
       {activeEncounter && onEncounterWin && onEncounterRetreat ? (
-        <EncounterOverlay payload={activeEncounter} onWin={onEncounterWin} onRetreat={onEncounterRetreat} />
+        activeEncounter.presentation === 'jrpg_knowledge' ? (
+          <KnowledgeJrpgBattleOverlay payload={activeEncounter} onWin={onEncounterWin} onRetreat={onEncounterRetreat} />
+        ) : (
+          <EncounterOverlay payload={activeEncounter} onWin={onEncounterWin} onRetreat={onEncounterRetreat} />
+        )
       ) : null}
     </section>
   );

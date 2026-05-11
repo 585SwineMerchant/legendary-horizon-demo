@@ -11,10 +11,13 @@
     },
     {
       "npc_id": "master_scribe",
-      "display_name": "Master Scribe Aldwin",
-      "role_label": "Keeper of the Manifest",
-      "default_dialogue_bank": "master_scribe_default",
-      "card_title": "The Scribe speaks"
+      "display_name": "Master Scribe",
+      "role_label": "Narrative Guide",
+      "role": "Narrative Guide",
+      "tone": "wise, warm, mythic, concise",
+      "default_interaction_kind": "npc_dialogue",
+      "default_dialogue_bank": "master_scribe_demo",
+      "card_title": "The Master Scribe"
     },
     {
       "npc_id": "oracle_veiled",

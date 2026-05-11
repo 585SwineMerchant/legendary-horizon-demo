@@ -14,6 +14,11 @@ export type LhAccessibilityPrefsV1 = {
   low_clutter: boolean;
   /** When true, future in-game audio should not play until the learner opts in (no audio engine in Codex yet). */
   audio_muted: boolean;
+  /**
+   * Independent music-only mute. When true, background music lanes (title / exploration / battle) are silenced
+   * but SFX still play. Persisted across sessions (the broader `audio_muted` resets on load by classroom policy).
+   */
+  music_muted: boolean;
 };
 
 const STORAGE_KEY = 'lh_accessibility_prefs_v1';
@@ -24,6 +29,7 @@ export const DEFAULT_LH_ACCESSIBILITY_PREFS: LhAccessibilityPrefsV1 = {
   motion: 'system',
   low_clutter: false,
   audio_muted: false,
+  music_muted: false,
 };
 
 function normalize(raw: unknown): LhAccessibilityPrefsV1 {
@@ -38,6 +44,7 @@ function normalize(raw: unknown): LhAccessibilityPrefsV1 {
     motion: motion as LhMotionPreference,
     low_clutter: Boolean(o.low_clutter),
     audio_muted: false,
+    music_muted: Boolean(o.music_muted),
   };
 }
 
@@ -73,4 +80,5 @@ export function applyLhAccessibilityPrefsToDocument(prefs: LhAccessibilityPrefsV
 
   root.dataset.lhDensity = prefs.low_clutter ? 'compact' : 'comfortable';
   root.dataset.lhAudio = prefs.audio_muted ? 'muted' : 'on';
+  root.dataset.lhMusic = prefs.music_muted ? 'muted' : 'on';
 }

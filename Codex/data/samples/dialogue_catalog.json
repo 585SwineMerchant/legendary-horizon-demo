@@ -27,6 +27,13 @@
         "conditions": [{ "kind": "always" }]
       }
     ],
+    "master_scribe_demo": [
+      {
+        "line_id": "demo_master_scribe_fallback",
+        "text": "Traveler, follow the amber directive: \"{required_next_action}\". The next page opens only when the current one is honored.",
+        "conditions": [{ "kind": "always" }]
+      }
+    ],
     "master_scribe_default": [
       {
         "line_id": "scribe_when_main_active",

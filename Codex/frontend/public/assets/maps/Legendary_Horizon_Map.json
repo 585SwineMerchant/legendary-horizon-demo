@@ -689,6 +689,87 @@
                  "width":422.667,
                  "x":1367.12333333333,
                  "y":2119.49
+                }, 
+                {
+                 "height":148,
+                 "id":10,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"lh_activation_mode",
+                         "type":"string",
+                         "value":"interaction"
+                        }, 
+                        {
+                         "name":"lh_interaction_copy_active",
+                         "type":"string",
+                         "value":"Press Enter to speak with the Master Scribe"
+                        }, 
+                        {
+                         "name":"lh_kind",
+                         "type":"string",
+                         "value":"npc_dialogue"
+                        }, 
+                        {
+                         "name":"lh_npc_id",
+                         "type":"string",
+                         "value":"master_scribe"
+                        }, 
+                        {
+                         "name":"name",
+                         "type":"string",
+                         "value":"demo_master_scribe_intro"
+                        }, 
+                        {
+                         "name":"type",
+                         "type":"string",
+                         "value":"lh_trigger_zone"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":128,
+                 "x":3701.33333333333,
+                 "y":2441.33333333333
+                }, 
+                {
+                 "height":137.333333333333,
+                 "id":13,
+                 "name":"",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"lh_activation_mode",
+                         "type":"string",
+                         "value":"proximity"
+                        }, 
+                        {
+                         "name":"lh_interaction_copy_active",
+                         "type":"string",
+                         "value":"A Lost Echo blocks the path..."
+                        }, 
+                        {
+                         "name":"lh_kind",
+                         "type":"string",
+                         "value":"combat_encounter"
+                        }, 
+                        {
+                         "name":"name",
+                         "type":"string",
+                         "value":"lost_echo_demo"
+                        }, 
+                        {
+                         "name":"type",
+                         "type":"string",
+                         "value":"lh_trigger_zone"
+                        }],
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":130.666666666667,
+                 "x":2388,
+                 "y":2409.33333333333
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -2254,7 +2335,7 @@
          "y":0
         }],
  "nextlayerid":9,
- "nextobjectid":10,
+ "nextobjectid":15,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.12.1",

@@ -218,12 +218,14 @@
             {
                 image: "assets/scene_1_void.png",
                 audio: "assets/opening_video_scene_1_narration.mp3",
+                minDurationMs: 15000,
                 title: "PHASE 1: THE VOID",
                 text: "They say the future is a map already drawn. But across the realms all maps have faded. The paths are overgrown with the Fog of the Unknown"
             },
             {
                 image: "assets/scene_2_traveler_wide.png",
                 audio: "assets/opening_video_scene_2_narration.mp3",
+                minDurationMs: 14500,
                 title: "PHASE 2: THE CALL TO ACTION",
                 text: "A Traveler arrives with no Guild, no Gear, and no Direction. To the world, you are a mystery. To yourself... you are a question waiting for an answer"
             },
@@ -233,6 +235,7 @@
                     "assets/scene_2_base_stats_1775784306257.png"
                 ],
                 audio: "assets/opening_video_scene_3_narration.mp3",
+                minDurationMs: 16500,
                 title: "PHASE 3: THE RITUALS OF SELF",
                 text: "Through the Mirror of Maia, a traveler awakens their foretold destiny. Your interests, skills, and hobbies—they are the 'Runes' that unlock your scroll and reveal your stats"
             },
@@ -246,6 +249,7 @@
                     "assets/Odysee%27s%20Harbor.png"
                 ],
                 audio: "assets/opening_video_scene_4_narration.mp3",
+                minDurationMs: 17500,
                 title: "PHASE 4: THE 16 REALMS",
                 text: "Sixteen Great Realms await. But you cannot simply walk through the gates. You must face Knowledge Combat. You must prove your Professionalism in the Trial of Tongues. You must earn your place in the Guilds"
             },
@@ -255,12 +259,14 @@
                     "assets/scene_6_call_new.png"
                 ],
                 audio: "assets/opening_video_scene_5_narration.mp3",
+                minDurationMs: 15000,
                 title: "PHASE 5: THE MANIFEST",
                 text: "Your choices here aren't just for the game. They are the blueprint for your life in the world beyond the horizon. This is your journey. This is your Legend"
             },
             {
                 image: "assets/scene_6_hook.png",
                 audio: "assets/opening_video_scene_6_narration.mp3",
+                minDurationMs: 10500,
                 title: "PHASE 6: THE HOOK",
                 text: "Wake up, Traveler. The Horizon is waiting"
             }
@@ -275,11 +281,53 @@
         let typingTimeout;
         let sceneTimeout;
         let currentAudio = null;
+        let backgroundMusic = null;
         let montageInterval = null;
+
+        function fadeAudio(audio, targetVolume, durationMs, onComplete) {
+            const startVolume = audio.volume;
+            const startedAt = performance.now();
+
+            function tick(now) {
+                const progress = Math.min((now - startedAt) / durationMs, 1);
+                audio.volume = startVolume + (targetVolume - startVolume) * progress;
+
+                if (progress < 1) {
+                    requestAnimationFrame(tick);
+                } else if (onComplete) {
+                    onComplete();
+                }
+            }
+
+            requestAnimationFrame(tick);
+        }
+
+        function startBackgroundMusic() {
+            if (backgroundMusic) return;
+
+            backgroundMusic = new Audio("../Legendary%20Horizon%20Title.mp3");
+            backgroundMusic.loop = true;
+            backgroundMusic.volume = 0;
+            backgroundMusic.play()
+                .then(() => fadeAudio(backgroundMusic, 0.28, 2200))
+                .catch(e => console.log("Title music play prevented", e));
+        }
+
+        function stopBackgroundMusic() {
+            if (!backgroundMusic) return;
+
+            const music = backgroundMusic;
+            backgroundMusic = null;
+            fadeAudio(music, 0, 1400, () => {
+                music.pause();
+                music.currentTime = 0;
+            });
+        }
 
         // Autoplay on load (no start button).
         window.videoStarted = true;
         notifyParent('lh_intro_started', { started: true });
+        startBackgroundMusic();
 
         // Initialize first bg
         const firstImages = Array.isArray(scenes[0].image) ? scenes[0].image : [scenes[0].image];
@@ -299,6 +347,7 @@
 
             if (index >= scenes.length) {
                 // Done
+                stopBackgroundMusic();
                 window.videoFinished = true;
                 notifyParent('lh_intro_finished', { finished: true });
                 textEl.innerHTML = "Quest Complete.<br>Your future awaits.";
@@ -359,45 +408,51 @@
             if (scene.audio) {
                 currentAudio = new Audio(scene.audio);
                 currentAudio.onloadedmetadata = () => {
-                    const durationMs = currentAudio.duration * 1000;
+                    const narrationDurationMs = currentAudio.duration * 1000;
+                    const durationMs = Math.max(narrationDurationMs, scene.minDurationMs || 0);
                     
                     startMontage(durationMs);
 
-                    // Calculate typing speed so it finishes about 1.5 seconds before audio ends
+                    // Calculate typing speed so it finishes before the paced scene transition.
                     const timeForTyping = Math.max(durationMs - 2000, 2000); 
                     const typingSpeed = Math.floor(timeForTyping / textToType.length);
                     
                     // Wait 1.5s before typing (to match the visual fade-in delay)
                     setTimeout(() => typeWriter(typingSpeed), 1500);
+
+                    sceneTimeout = setTimeout(() => {
+                        if (montageInterval) clearInterval(montageInterval);
+                        currentSceneIndex++;
+                        playScene(currentSceneIndex);
+                    }, durationMs + 1200);
                 };
                 
                 // Fallback in case metadata doesn't load
                 currentAudio.onerror = () => {
-                    const typingSpeed = Math.floor(12000 / textToType.length);
+                    const durationMs = scene.minDurationMs || 14000;
+                    const typingSpeed = Math.floor(Math.max(durationMs - 2000, 2000) / textToType.length);
                     setTimeout(() => typeWriter(typingSpeed), 1500);
-                    startMontage(25000);
+                    startMontage(durationMs);
+
+                    sceneTimeout = setTimeout(() => {
+                        if (montageInterval) clearInterval(montageInterval);
+                        currentSceneIndex++;
+                        playScene(currentSceneIndex);
+                    }, durationMs + 1200);
                 };
 
                 currentAudio.play().catch(e => console.log("Audio play prevented", e));
-                
-                currentAudio.onended = () => {
-                    if (montageInterval) clearInterval(montageInterval);
-                    // Wait a moment after narration before continuing
-                    sceneTimeout = setTimeout(() => {
-                        currentSceneIndex++;
-                        playScene(currentSceneIndex);
-                    }, 2500);
-                };
             } else {
                 // Fallback to 25s static timing if no audio provided
-                const typingSpeed = Math.floor(12000 / textToType.length);
+                const durationMs = scene.minDurationMs || 25000;
+                const typingSpeed = Math.floor(Math.max(durationMs - 2000, 2000) / textToType.length);
                 setTimeout(() => typeWriter(typingSpeed), 1500);
-                startMontage(25000);
+                startMontage(durationMs);
                 
                 sceneTimeout = setTimeout(() => {
                     currentSceneIndex++;
                     playScene(currentSceneIndex);
-                }, 25000);
+                }, durationMs + 1200);
             }
         }
     </script>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="400" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="9" nextobjectid="10">
+<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="400" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="9" nextobjectid="15">
  <editorsettings>
   <export target="../Codex/frontend/public/assets/maps/Legendary_Horizon_Map.json" format="json"/>
  </editorsettings>
@@ -654,6 +654,25 @@
     <property name="lh_activation_mode" value="overlap_auto"/>
     <property name="lh_kind" value="guild_hq_research"/>
     <property name="lh_realm_id" value="realm_aethelwood"/>
+   </properties>
+  </object>
+  <object id="10" x="3701.33" y="2441.33" width="128" height="148">
+   <properties>
+    <property name="lh_activation_mode" value="interaction"/>
+    <property name="lh_interaction_copy_active" value="Press Enter to speak with the Master Scribe"/>
+    <property name="lh_kind" value="npc_dialogue"/>
+    <property name="lh_npc_id" value="master_scribe"/>
+    <property name="name" value="demo_master_scribe_intro"/>
+    <property name="type" value="lh_trigger_zone"/>
+   </properties>
+  </object>
+  <object id="13" x="2388" y="2409.33" width="130.667" height="137.333">
+   <properties>
+    <property name="lh_activation_mode" value="proximity"/>
+    <property name="lh_interaction_copy_active" value="A Lost Echo blocks the path..."/>
+    <property name="lh_kind" value="combat_encounter"/>
+    <property name="name" value="lost_echo_demo"/>
+    <property name="type" value="lh_trigger_zone"/>
    </properties>
   </object>
  </objectgroup>

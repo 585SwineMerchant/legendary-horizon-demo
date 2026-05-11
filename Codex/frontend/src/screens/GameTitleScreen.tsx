@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 type Props = {
   onStart: () => void;
-  onResume: () => void;
+  onResume: () => void | Promise<void>;
 };
 
 export function GameTitleScreen({ onStart, onResume }: Props) {
@@ -12,8 +12,10 @@ export function GameTitleScreen({ onStart, onResume }: Props) {
     if (exiting) return;
     setExiting(mode);
     window.setTimeout(() => {
-      if (mode === 'start') onStart();
-      else onResume();
+      void (async () => {
+        if (mode === 'start') onStart();
+        else await onResume();
+      })();
     }, 760);
   };
 

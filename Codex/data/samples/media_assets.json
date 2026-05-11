@@ -30,16 +30,16 @@
   {
     "asset_id": "sfx_fog_clearing",
     "kind": "sfx",
-    "description": "Fog clearing SFX (place at /assets/fog clearing.wav).",
+    "description": "Fog clearing SFX (place at /assets/Audio/fog clearing.wav).",
     "drive_file_id": "",
-    "delivery_url_placeholder": "/assets/fog clearing.wav"
+    "delivery_url_placeholder": "/assets/Audio/fog clearing.wav"
   },
   {
     "asset_id": "sfx_scroll_unfurling",
     "kind": "sfx",
-    "description": "Scroll unfurling SFX (place at /assets/Scroll Unfurling.wav).",
+    "description": "Scroll unfurling SFX (place at /assets/Audio/Scroll Unfurling.wav).",
     "drive_file_id": "",
-    "delivery_url_placeholder": "/assets/Scroll Unfurling.wav"
+    "delivery_url_placeholder": "/assets/Audio/Scroll Unfurling.wav"
   },
   {
     "asset_id": "media_image_missing_placeholder",

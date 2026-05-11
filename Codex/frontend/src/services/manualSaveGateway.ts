@@ -10,6 +10,7 @@ import type {
   RitualDraftsV1,
   SessionSummaryV1,
 } from '../domain/lh-contract';
+import { coerceDemoGuidanceState } from '../demo/demoGuidance';
 import { coerceLedgerRow } from '../exploration/comparisonLedger';
 import { normalizeForetoldSignpostRealmIds } from '../exploration/foretoldSignposts';
 import { createDefaultGuildEndgameV1 } from '../exploration/explorationTypes';
@@ -151,6 +152,10 @@ export function coerceExplorationLoop(raw: unknown): ExplorationLoopState | null
     waypoint_keys_visited: wps,
     ledger_entries,
   };
+  const demoGuidance = coerceDemoGuidanceState(o.demo_guidance_v1);
+  if (demoGuidance) {
+    base.demo_guidance_v1 = demoGuidance;
+  }
   if (academic_tasks && Object.keys(academic_tasks).length) {
     base.academic_tasks = academic_tasks;
   }
