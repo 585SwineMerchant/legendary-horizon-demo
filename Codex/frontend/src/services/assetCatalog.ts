@@ -3,6 +3,7 @@ import catalogJson from '@samples/media_assets.json';
 import type { MediaAssetRecord } from '../domain/lh-contract';
 import { LH_MEDIA_ASSET_ID_MISSING_IMAGE, LH_CORE_PRELOAD_MEDIA_ASSET_IDS } from '../lib/mediaConstants';
 import { isImageLikeMediaKind } from '../lib/mediaKinds';
+import { publicAssetUrl } from '../lib/publicAssetUrl';
 import { listMediaAssetsForNpc, listMediaAssetsForRealm } from '../realm/realmAssets';
 
 let cache: MediaAssetRecord[] | null = null;
@@ -33,6 +34,11 @@ const MISSING_IMAGE_DATA_URI = `data:image/svg+xml,${encodeURIComponent(
 
 const MAX_FALLBACK_HOPS = 8;
 
+function normalizeCatalogDeliveryUrl(url: string): string {
+  const trimmed = url.trim();
+  return trimmed.startsWith('/assets/') ? publicAssetUrl(trimmed) : trimmed;
+}
+
 /**
  * Ordered delivery URLs: primary row, then each `fallback_asset_id` in the chain.
  * Stops on cycles / hop limit. If nothing resolves, returns `[MISSING_IMAGE_DATA_URI]`.
@@ -48,7 +54,7 @@ export function collectDeliveryUrlChain(assetId: string, catalog?: readonly Medi
     seenIds.add(nextId);
     const rec = cat.find((a) => a.asset_id === nextId);
     if (!rec) break;
-    const u = String(rec.delivery_url_placeholder ?? '').trim();
+    const u = normalizeCatalogDeliveryUrl(String(rec.delivery_url_placeholder ?? ''));
     if (u) urls.push(u);
     const fb = String(rec.fallback_asset_id ?? '').trim();
     nextId = fb || undefined;
