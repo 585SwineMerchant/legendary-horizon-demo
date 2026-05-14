@@ -12,6 +12,7 @@ import {
   type LhPhaserGuildResearchBridgeDetail,
 } from '../lib/lhPhaserGuildResearchBridge';
 import { playLhSfx, playLhSfxRandomOf } from '../lib/lhSfx';
+import { publicAssetUrl } from '../lib/publicAssetUrl';
 import {
   LH_WINDOW_KNOWLEDGE_BATTLE_PRESENTATION,
   LH_WINDOW_KNOWLEDGE_COMBAT_VISUAL,
@@ -747,12 +748,6 @@ function travelerAttackSafetyFinishMs(kind: TravelerStrikeAnimKind | 'cast' | 'h
       : Math.max(...TRAVELER_DIRECTIONS.map((d) => ATTACK2_FRAMES_BY_DIR[d].length));
   const animMs = Math.ceil((n / TRAVELER_ATTACK_ANIM_FPS) * 1000);
   return Math.max(callerDurationMs + 250, animMs + 200);
-}
-
-function publicAssetUrl(path: string): string {
-  const base = import.meta.env.BASE_URL ?? '/';
-  const withSlash = base.endsWith('/') ? base : `${base}/`;
-  return `${withSlash}${path.replace(/^\/+/, '')}`;
 }
 
 /**

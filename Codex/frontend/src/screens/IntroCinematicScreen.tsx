@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getLhAudioDirector } from '../lib/lhAudioDirector';
+import { publicAssetUrl } from '../lib/publicAssetUrl';
 
 type Props = {
   onStart: () => void;
@@ -16,7 +17,12 @@ export function IntroCinematicScreen({ onStart, onResume }: Props) {
   const [visible, setVisible] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuReady, setMenuReady] = useState(false);
-  const iframeSrc = import.meta.env.VITE_LH_INTRO_CINEMATIC_SRC?.trim() || '/assets/intro/intro_davinci.html';
+  const configuredIframeSrc = import.meta.env.VITE_LH_INTRO_CINEMATIC_SRC?.trim();
+  const iframeSrc = configuredIframeSrc
+    ? configuredIframeSrc.startsWith('/assets/')
+      ? publicAssetUrl(configuredIframeSrc)
+      : configuredIframeSrc
+    : publicAssetUrl('assets/intro/intro_davinci.html');
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   const finalizeIntroAndOpenOverlay = useCallback((outcome: 'natural_end' | 'skipped') => {
@@ -114,7 +120,7 @@ export function IntroCinematicScreen({ onStart, onResume }: Props) {
         >
           {/* Same full-viewport framing as intro video (object-fit: cover) — iframe last frame shows underneath until this paints */}
           <img
-            src="/assets/ui/lh_title_logo.png"
+            src={publicAssetUrl('assets/ui/lh_title_logo.png')}
             alt="Legendary Horizon"
             style={{
               position: 'absolute',

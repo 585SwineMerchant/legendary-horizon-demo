@@ -1,4 +1,6 @@
-const SFX_BASE = '/assets/sfx/';
+import { publicAssetUrl } from './publicAssetUrl';
+
+const SFX_BASE = publicAssetUrl('assets/sfx/');
 
 export type LhSfxId =
   | 'portal_activation'

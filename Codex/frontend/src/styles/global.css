@@ -2583,7 +2583,7 @@ button:focus-visible {
   padding: 2rem 1rem 2.5rem;
   background:
     linear-gradient(180deg, rgba(5, 6, 10, 0.55), rgba(5, 6, 10, 0.96)),
-    url('/assets/intro/scene_4_dagger_sword_1775784333493.png') center / cover no-repeat;
+    url('assets/intro/scene_4_dagger_sword_1775784333493.png') center / cover no-repeat;
 }
 
 .lh-scroll-reveal {

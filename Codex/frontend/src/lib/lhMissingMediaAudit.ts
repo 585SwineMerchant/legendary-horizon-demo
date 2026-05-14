@@ -1,3 +1,5 @@
+import { publicAssetUrl } from './publicAssetUrl';
+
 type RequiredMediaItem = {
   label: string;
   url: string;
@@ -23,13 +25,13 @@ export async function auditCoreyRequiredMedia(): Promise<void> {
   if (!shouldRunAudit()) return;
 
   const required: RequiredMediaItem[] = [
-    { label: 'Title continuation music', url: '/assets/Audio/Legendary%20Horizon%20Title.mp3' },
-    { label: 'Exploration music loop', url: '/assets/music/lh_exploration_loop.mp3' },
-    { label: 'Battle music loop', url: '/assets/music/lh_battle_loop.mp3' },
-    { label: 'DaVinci intro export', url: '/assets/intro/intro_davinci.mp4' },
-    { label: 'Fog clearing SFX', url: '/assets/Audio/fog%20clearing.wav' },
-    { label: 'Scroll unfurling SFX', url: '/assets/Audio/Scroll%20Unfurling.wav' },
-    { label: 'Aethelwood battle background', url: '/assets/Battle_screen_aethelwood.png' },
+    { label: 'Title continuation music', url: publicAssetUrl('assets/Audio/Legendary%20Horizon%20Title.mp3') },
+    { label: 'Exploration music loop', url: publicAssetUrl('assets/music/lh_exploration_loop.mp3') },
+    { label: 'Battle music loop', url: publicAssetUrl('assets/music/lh_battle_loop.mp3') },
+    { label: 'DaVinci intro export', url: publicAssetUrl('assets/intro/intro_davinci.mp4') },
+    { label: 'Fog clearing SFX', url: publicAssetUrl('assets/Audio/fog%20clearing.wav') },
+    { label: 'Scroll unfurling SFX', url: publicAssetUrl('assets/Audio/Scroll%20Unfurling.wav') },
+    { label: 'Aethelwood battle background', url: publicAssetUrl('assets/Battle_screen_aethelwood.png') },
   ];
 
   const missing: RequiredMediaItem[] = [];

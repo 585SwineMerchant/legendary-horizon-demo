@@ -1,3 +1,5 @@
+import { publicAssetUrl } from './publicAssetUrl';
+
 type MusicLane = 'title' | 'exploration' | 'battle';
 
 type FadeSpec = { durationMs: number };
@@ -243,9 +245,9 @@ class LhAudioDirector {
   private lane: MusicLane | null = null;
   private ducked = false;
 
-  private titleUrl = '/assets/Audio/Legendary%20Horizon%20Title.mp3';
-  private explorationUrl = '/assets/music/lh_exploration_loop.mp3';
-  private battleUrl = '/assets/Audio/Moonlit%20Boss%20Round.mp3';
+  private titleUrl = publicAssetUrl('assets/Audio/Legendary%20Horizon%20Title.mp3');
+  private explorationUrl = publicAssetUrl('assets/music/lh_exploration_loop.mp3');
+  private battleUrl = publicAssetUrl('assets/Audio/Moonlit%20Boss%20Round.mp3');
 
   // Title track has a long intro; jump straight to the main hook at 2:04.
   private titleStartOffsetSec = 124;

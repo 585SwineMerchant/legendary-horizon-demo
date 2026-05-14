@@ -10,6 +10,7 @@ import {
 import { KNOWLEDGE_COMBAT_QUESTIONS } from '../encounter/knowledgeCombatQuestions';
 import { dispatchKnowledgeCombatVisual } from '../lib/lhKnowledgeCombatBridge';
 import { playLhSfx } from '../lib/lhSfx';
+import { publicAssetUrl } from '../lib/publicAssetUrl';
 
 export type EncounterPresentationMode = 'modal' | 'jrpg_knowledge';
 
@@ -54,7 +55,7 @@ function playBattleBuffSuccessTrill(): void {
   if (typeof document === 'undefined') return;
   if (document.documentElement.dataset.lhAudio === 'muted') return;
 
-  const audio = new Audio('/assets/Audio/success%20trill.wav');
+  const audio = new Audio(publicAssetUrl('assets/Audio/success%20trill.wav'));
   audio.volume = 0.72;
   void audio.play().catch(() => undefined);
 }

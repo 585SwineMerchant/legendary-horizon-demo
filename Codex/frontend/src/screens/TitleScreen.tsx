@@ -1,5 +1,6 @@
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { StatusCallout } from '../components/StatusCallout';
+import { publicAssetUrl } from '../lib/publicAssetUrl';
 
 type Props = {
   onContinue: () => void;
@@ -29,7 +30,7 @@ export function TitleScreen({
         style={
           backdropImageUrl
             ? { backgroundImage: `url(${JSON.stringify(backdropImageUrl)})` }
-            : { backgroundImage: 'url(/assets/bg-title-dusk.svg)' }
+            : { backgroundImage: `url(${JSON.stringify(publicAssetUrl('assets/bg-title-dusk.svg'))})` }
         }
       />
       <div className="lh-stack lh-screen__panel lh-screen__panel--title">

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 
+import { publicAssetUrl } from '../lib/publicAssetUrl';
+
 type Props = {
   onStart: () => void;
   onResume: () => void | Promise<void>;
@@ -25,7 +27,7 @@ export function GameTitleScreen({ onStart, onResume }: Props) {
       <div className="lh-game-title__content">
         <img
           className="lh-game-title__logo"
-          src="/assets/ui/lh_title_logo.png"
+          src={publicAssetUrl('assets/ui/lh_title_logo.png')}
           alt="Legendary Horizon"
         />
         <div className="lh-game-title__actions" aria-label="Game title actions">
