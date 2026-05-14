@@ -96,9 +96,50 @@
       const video = document.getElementById('intro-video');
       const overlay = document.getElementById('tap-to-start');
       const startBtn = document.getElementById('start-btn');
+      const music = new Audio('https://585swinemerchant.github.io/legendary-horizon-demo/assets/Audio/Legendary%20Horizon%20Title.mp3');
+      music.loop = true;
+      music.preload = 'auto';
+      music.volume = 0;
+
+      function fadeAudio(audio, target, durationMs, done) {
+        try {
+          const start = performance.now();
+          const from = typeof audio.volume === 'number' ? audio.volume : 0;
+          const dur = Math.max(1, durationMs || 800);
+          const tick = (now) => {
+            const t = Math.min(1, (now - start) / dur);
+            const eased = t * t * (3 - 2 * t);
+            audio.volume = from + (target - from) * eased;
+            if (t < 1) requestAnimationFrame(tick);
+            else if (typeof done === 'function') done();
+          };
+          requestAnimationFrame(tick);
+        } catch {
+          if (typeof done === 'function') done();
+        }
+      }
+
+      function startMusic() {
+        const p = music.play();
+        if (p && typeof p.then === 'function') {
+          p.then(() => fadeAudio(music, 0.38, 1600)).catch(() => undefined);
+        } else {
+          fadeAudio(music, 0.38, 1600);
+        }
+      }
+
+      function stopMusic() {
+        fadeAudio(music, 0, 900, () => {
+          try {
+            music.pause();
+            music.currentTime = 0;
+          } catch {}
+        });
+      }
 
       function begin() {
         notifyParent('lh_intro_started', { started: true, mode: 'davinci_video' });
+        startMusic();
 
         const p = video.play();
         if (p && typeof p.then === 'function') {
@@ -137,6 +178,7 @@
           video.pause();
           fadeVideoTo(0, 900);
         } catch {}
+        stopMusic();
         notifyParent('lh_intro_finished', { finished: true, skipped: true });
       });
 
@@ -145,6 +187,7 @@
       video.addEventListener('ended', () => {
         notifyParent('lh_intro_finished', { finished: true, mode: 'davinci_video' });
         fadeVideoTo(0, 900);
+        stopMusic();
       });
 
       begin();

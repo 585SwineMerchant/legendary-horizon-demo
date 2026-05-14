@@ -45,7 +45,7 @@ function rafFade(from: number, to: number, durationMs: number, apply: (v: number
   requestAnimationFrame(tick);
 }
 
-function createLoopingHtmlMusic(url: string, baseVolume = 0.5, startOffsetSec = 0): Running {
+function createLoopingHtmlMusic(url: string, lane: MusicLane, baseVolume = 0.5, startOffsetSec = 0): Running {
   const audio = new Audio(url);
   audio.preload = 'auto';
   audio.volume = 0;
@@ -91,7 +91,7 @@ function createLoopingHtmlMusic(url: string, baseVolume = 0.5, startOffsetSec = 
   ensurePlay();
 
   return {
-    lane: 'exploration',
+    lane,
     kind: 'html',
     stop: (fade) => {
       stopped = true;
@@ -263,13 +263,17 @@ class LhAudioDirector {
   }
 
   stopAll(fadeMs = 900) {
+    this.stopRunners(fadeMs);
+    this.lane = null;
+  }
+
+  private stopRunners(fadeMs = 900) {
     this.title?.stop({ durationMs: fadeMs });
     this.exploration?.stop({ durationMs: fadeMs });
     this.battle?.stop({ durationMs: fadeMs });
     this.title = null;
     this.exploration = null;
     this.battle = null;
-    this.lane = null;
   }
 
   setDucked(ducked: boolean) {
@@ -280,9 +284,9 @@ class LhAudioDirector {
   private ensureTitle(): Running {
     if (this.title) return this.title;
     try {
-      this.title = createLoopingHtmlMusic(this.titleUrl, 0.46, this.titleStartOffsetSec);
+      this.title = createLoopingHtmlMusic(this.titleUrl, 'title', 0.46, this.titleStartOffsetSec);
     } catch {
-      this.title = createSynthPadMusic('exploration');
+      this.title = createSynthPadMusic('title');
     }
     return this.title;
   }
@@ -292,7 +296,7 @@ class LhAudioDirector {
     // Try real file first; if it fails to autoplay it will remain silent (fine) and we still have synth fallback via lane swap.
     // If the HTML layer can't play (autoplay policies), we still provide a gentle synth bed.
     try {
-      this.exploration = createLoopingHtmlMusic(this.explorationUrl, 0.5);
+      this.exploration = createLoopingHtmlMusic(this.explorationUrl, 'exploration', 0.5);
     } catch {
       this.exploration = createSynthPadMusic('exploration');
     }
@@ -302,7 +306,7 @@ class LhAudioDirector {
   private ensureBattle(): Running {
     if (this.battle) return this.battle;
     try {
-      this.battle = createLoopingHtmlMusic(this.battleUrl, 0.52);
+      this.battle = createLoopingHtmlMusic(this.battleUrl, 'battle', 0.52);
     } catch {
       this.battle = createSynthPadMusic('battle');
     }
@@ -345,7 +349,7 @@ class LhAudioDirector {
     // If audio (or music specifically) is muted, keep lane intent but stop runners to prevent hidden playback.
     if (!isMusicEnabled()) {
       this.lane = next;
-      this.stopAll(700);
+      this.stopRunners(700);
       return;
     }
 
