@@ -31,6 +31,19 @@ body {
   min-height: 100vh;
 }
 
+/* When the app root is fullscreen (e.g. school Google Sites embed), fill the display and keep the shell flush. */
+#root:fullscreen,
+#root:-webkit-full-screen {
+  width: 100%;
+  min-height: 100%;
+  background: var(--lh-bg);
+}
+
+#root:fullscreen .lh-shell,
+#root:-webkit-full-screen .lh-shell {
+  min-height: 100%;
+}
+
 button {
   font: inherit;
   cursor: pointer;
