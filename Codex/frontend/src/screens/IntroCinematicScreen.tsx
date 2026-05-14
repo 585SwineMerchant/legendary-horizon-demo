@@ -16,6 +16,13 @@ function withIntroCacheTag(src: string): string {
   return `${src}${separator}v=${INTRO_CINEMATIC_CACHE_TAG}`;
 }
 
+function resolveIntroCinematicSrc(configuredSrc?: string): string {
+  const src = configuredSrc?.trim();
+  if (!src) return publicAssetUrl('assets/intro/intro_davinci.html');
+  if (/^(https?:|data:|blob:)/i.test(src)) return src;
+  return publicAssetUrl(src);
+}
+
 export function IntroCinematicScreen({ onStart, onResume }: Props) {
   const completedRef = useRef(false);
   const introOutcomeRef = useRef<'natural_end' | 'skipped' | null>(null);
@@ -23,12 +30,7 @@ export function IntroCinematicScreen({ onStart, onResume }: Props) {
   const [visible, setVisible] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuReady, setMenuReady] = useState(false);
-  const configuredIframeSrc = import.meta.env.VITE_LH_INTRO_CINEMATIC_SRC?.trim();
-  const iframeSrc = configuredIframeSrc
-    ? configuredIframeSrc.startsWith('/assets/')
-      ? publicAssetUrl(configuredIframeSrc)
-      : configuredIframeSrc
-    : publicAssetUrl('assets/intro/intro_davinci.html');
+  const iframeSrc = resolveIntroCinematicSrc(import.meta.env.VITE_LH_INTRO_CINEMATIC_SRC);
   const cacheSafeIframeSrc = withIntroCacheTag(iframeSrc);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
