@@ -107,6 +107,15 @@ type TiledObjectLayerRuntime = {
   }>;
 };
 
+type ReactiveGrassDecor = {
+  sprite: Phaser.GameObjects.Image;
+  homeX: number;
+  homeY: number;
+  homeScaleX: number;
+  homeScaleY: number;
+  lastRustleAt: number;
+};
+
 /** Static list of all tileset image keys used by the map (must match Tiled tileset names). */
 const TILESET_IMAGES = [
   'water to grass - river orientation-spritesheet',
@@ -277,11 +286,18 @@ const ROAMING_LOST_ECHO_WANDER_REPLAN_MS = 2400;
 const ROAMING_LOST_ECHO_SCALE = 0.62;
 
 /**
- * Tall grass tile objects use Tiled `y` (feet line) for `setDepth` in `addTiledTileObjectDecor`. Subtracting a
- * few world pixels pulls the sort line “north” so the player pops in front sooner — same layering rules,
- * shorter hide-behind band. Only layers whose name includes `grass` (e.g. `lh_decor_tall_grass`).
+ * Tall grass tile objects use Tiled `y` (feet line) for `setDepth` in `addTiledTileObjectDecor`.
+ * Keep the default at 0 so grass stays in front until the Traveler's feet cross the same authored line.
+ * Only layers whose name includes `grass` receive this tuning hook (e.g. `lh_decor_tall_grass`).
  */
-const EXPLORATION_TALL_GRASS_DEPTH_Y_SHRINK_PX = 10;
+const EXPLORATION_TALL_GRASS_DEPTH_Y_SHRINK_PX = 0;
+const REACTIVE_GRASS_RADIUS_PX = 34;
+const REACTIVE_GRASS_TRIGGER_INTERVAL_MS = 95;
+const REACTIVE_GRASS_SPRITES_PER_TICK = 5;
+const REACTIVE_GRASS_RUSTLE_COOLDOWN_MS = 230;
+const REACTIVE_GRASS_BEND_PX = 1.6;
+const REACTIVE_GRASS_BEND_DEG = 3.5;
+const REACTIVE_GRASS_SQUASH_Y = 0.95;
 
 /** How far in front of the Traveler the A-button swing extends, and how wide the swing arc is. */
 const PLAYER_ATTACK_RANGE_PX = 64;
@@ -913,6 +929,8 @@ export function PhaserExplorationView({
         /** Prevents `guild_hq_research` overlap_auto from looping when the return tween leaves the player inside the rect. */
         private guildResearchCooldownUntil = new Map<string, number>();
         private lastMaiaPortalId: string | null = null;
+        private reactiveGrassDecor: ReactiveGrassDecor[] = [];
+        private nextReactiveGrassScanAt = 0;
         private maiaHandoffPaused = false;
         private triggerTransitionLocked = false;
         private attackingUntil = 0;
@@ -2290,6 +2308,7 @@ export function PhaserExplorationView({
             .filter((layer) => layer.objects?.some((obj) => typeof obj.gid === 'number'));
           if (!tileObjectLayers.length) return;
 
+          this.reactiveGrassDecor = [];
           const flipMask = 0x80000000 | 0x40000000 | 0x20000000;
           let added = 0;
           const warnedMissingTextures = new Set<string>();
@@ -2328,21 +2347,35 @@ export function PhaserExplorationView({
                 texture.add(frameName, 0, sx, sy, tileW, tileH);
               }
 
-              const sprite = this.add.image(obj.x ?? 0, obj.y ?? 0, key, frameName);
-              sprite.setOrigin(0, 1);
+              const isReactiveGrass = layerNameLc.includes('grass');
+              const authoredW = typeof obj.width === 'number' && obj.width > 0 ? obj.width : tileW;
+              const authoredH = typeof obj.height === 'number' && obj.height > 0 ? obj.height : tileH;
+              const spriteX = isReactiveGrass ? (obj.x ?? 0) + authoredW / 2 : (obj.x ?? 0);
+              const sprite = this.add.image(spriteX, obj.y ?? 0, key, frameName);
+              sprite.setOrigin(isReactiveGrass ? 0.5 : 0, 1);
               const sortY = Math.max(0, (obj.y ?? 0) - grassDepthShrink);
               sprite.setDepth(sortY + 0.001);
-              if (typeof obj.width === 'number' && obj.width > 0 && obj.width !== tileW) {
-                sprite.displayWidth = obj.width;
+              if (authoredW !== tileW) {
+                sprite.displayWidth = authoredW;
               }
-              if (typeof obj.height === 'number' && obj.height > 0 && obj.height !== tileH) {
-                sprite.displayHeight = obj.height;
+              if (authoredH !== tileH) {
+                sprite.displayHeight = authoredH;
               }
               if (typeof obj.rotation === 'number' && obj.rotation) {
                 sprite.setRotation(Phaser.Math.DegToRad(obj.rotation));
               }
               sprite.setFlipX(Boolean(rawGid & 0x80000000));
               sprite.setFlipY(Boolean(rawGid & 0x40000000));
+              if (isReactiveGrass) {
+                this.reactiveGrassDecor.push({
+                  sprite,
+                  homeX: sprite.x,
+                  homeY: sprite.y,
+                  homeScaleX: sprite.scaleX,
+                  homeScaleY: sprite.scaleY,
+                  lastRustleAt: 0,
+                });
+              }
               added += 1;
             });
           });
@@ -2351,7 +2384,64 @@ export function PhaserExplorationView({
             console.info('[LhScene] Tiled tile-object decor rendered', {
               layers: tileObjectLayers.map((layer) => layer.name ?? '(unnamed)'),
               objects: added,
+              reactive_grass: this.reactiveGrassDecor.length,
             });
+          }
+        }
+
+        private updateReactiveGrass(moving: boolean, ix: number, iy: number, sprinting: boolean): void {
+          if (!moving || this.reactiveGrassDecor.length === 0 || !this.player?.active) return;
+          const now = this.time.now;
+          if (now < this.nextReactiveGrassScanAt) return;
+          this.nextReactiveGrassScanAt = now + REACTIVE_GRASS_TRIGGER_INTERVAL_MS;
+
+          const footX = this.player.x;
+          const footY = this.player.y - 5;
+          const radius = REACTIVE_GRASS_RADIUS_PX + (sprinting ? 8 : 0);
+          const radiusSq = radius * radius;
+          let rustled = 0;
+
+          for (const decor of this.reactiveGrassDecor) {
+            const sprite = decor.sprite;
+            if (!sprite.active || !sprite.visible) continue;
+            const dx = decor.homeX - footX;
+            const dy = decor.homeY - footY;
+            if (dx * dx + dy * dy > radiusSq) continue;
+            if (now - decor.lastRustleAt < REACTIVE_GRASS_RUSTLE_COOLDOWN_MS) continue;
+
+            decor.lastRustleAt = now;
+            rustled += 1;
+            const side = Math.sign(dx || ix || 1);
+            const push = REACTIVE_GRASS_BEND_PX * (sprinting ? 1.45 : 1);
+            const bend = REACTIVE_GRASS_BEND_DEG * (sprinting ? 1.35 : 1);
+
+            this.tweens.killTweensOf(sprite);
+            sprite.setX(decor.homeX);
+            sprite.setY(decor.homeY);
+            sprite.setAngle(0);
+            sprite.setScale(decor.homeScaleX, decor.homeScaleY);
+            sprite.setAlpha(1);
+            this.tweens.add({
+              targets: sprite,
+              x: decor.homeX + side * push,
+              y: decor.homeY + Math.abs(iy) * 1.5,
+              angle: side * bend,
+              scaleY: decor.homeScaleY * REACTIVE_GRASS_SQUASH_Y,
+              alpha: 0.92,
+              duration: sprinting ? 78 : 96,
+              ease: 'Sine.easeOut',
+              yoyo: true,
+              onComplete: () => {
+                if (!sprite.active) return;
+                sprite.setX(decor.homeX);
+                sprite.setY(decor.homeY);
+                sprite.setAngle(0);
+                sprite.setScale(decor.homeScaleX, decor.homeScaleY);
+                sprite.setAlpha(1);
+              },
+            });
+
+            if (rustled >= REACTIVE_GRASS_SPRITES_PER_TICK) return;
           }
         }
 
@@ -3795,6 +3885,7 @@ export function PhaserExplorationView({
           }
 
           const moving = inputLen > 0;
+          this.updateReactiveGrass(moving, ix, iy, sprintingMove);
           if (moving && this.textures.exists(`lh_traveler_${sprintingMove ? 'run' : 'walk'}_${this.facing}`)) {
             this.player.anims.timeScale = sprintingMove ? SPRINT_RUN_ANIM_TIME_SCALE : 1;
             // Dominant axis → 4-way facing (clean idle/run transitions).

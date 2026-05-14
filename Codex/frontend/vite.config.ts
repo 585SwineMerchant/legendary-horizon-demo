@@ -8,6 +8,7 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  base: '/legendary-horizon-demo/',
   plugins: [react(), viteSingleFile()],
   resolve: {
     alias: {
