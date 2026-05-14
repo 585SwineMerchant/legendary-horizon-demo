@@ -38,6 +38,7 @@ function mulberry32(seed: number): () => number {
 }
 
 type FogBlobCircle = { dxPct: number; dyPct: number; rPct: number; delayMs?: number };
+type AtlasRenderedBounds = { width: number; height: number; offsetX: number; offsetY: number };
 
 function buildFogBlob(seedKey: string, kind: 'static' | 'reveal'): FogBlobCircle[] {
   const rand = mulberry32(hash32(`${seedKey}:${kind}`));
@@ -118,20 +119,79 @@ export function RealmAtlasOverlay({
   const initialGuildInfoHandledRef = useRef(false);
   const fogLiftKickoffOnceRef = useRef(false);
   const fogAnimStartRef = useRef<number>(0);
+  const mapPlateRef = useRef<HTMLDivElement | null>(null);
+  const mapImageRef = useRef<HTMLImageElement | null>(null);
+  const [atlasBounds, setAtlasBounds] = useState<AtlasRenderedBounds | null>(null);
   const atlasSrcCandidates = useMemo(() => buildRealmAtlasImageSrcCandidates(), []);
   const [atlasSrcIndex, setAtlasSrcIndex] = useState(0);
 
   const frId = String(fogRevealRealmId ?? '').trim();
+  const n = ordered.length;
+  const atlasImgSrc = atlasSrcCandidates[Math.min(atlasSrcIndex, atlasSrcCandidates.length - 1)];
+
+  const updateAtlasBounds = useCallback(() => {
+    const plate = mapPlateRef.current;
+    const img = mapImageRef.current;
+    if (!plate || !img) return;
+    const plateRect = plate.getBoundingClientRect();
+    const naturalW = img.naturalWidth || 0;
+    const naturalH = img.naturalHeight || 0;
+    if (plateRect.width <= 0 || plateRect.height <= 0 || naturalW <= 0 || naturalH <= 0) return;
+    const scale = Math.min(plateRect.width / naturalW, plateRect.height / naturalH);
+    const width = naturalW * scale;
+    const height = naturalH * scale;
+    const next = {
+      width,
+      height,
+      offsetX: (plateRect.width - width) / 2,
+      offsetY: (plateRect.height - height) / 2,
+    };
+    setAtlasBounds((prev) => {
+      if (
+        prev &&
+        Math.abs(prev.width - next.width) < 0.5 &&
+        Math.abs(prev.height - next.height) < 0.5 &&
+        Math.abs(prev.offsetX - next.offsetX) < 0.5 &&
+        Math.abs(prev.offsetY - next.offsetY) < 0.5
+      ) {
+        return prev;
+      }
+      return next;
+    });
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.info('[LH atlas] rendered image bounds', {
+        plate: { width: Math.round(plateRect.width), height: Math.round(plateRect.height) },
+        natural: { width: naturalW, height: naturalH },
+        rendered: {
+          width: Math.round(width),
+          height: Math.round(height),
+          offsetX: Math.round(next.offsetX),
+          offsetY: Math.round(next.offsetY),
+        },
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    updateAtlasBounds();
+    const plate = mapPlateRef.current;
+    if (!plate || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => updateAtlasBounds());
+    ro.observe(plate);
+    return () => ro.disconnect();
+  }, [open, atlasImgSrc, updateAtlasBounds]);
 
   const fogPinPlacement = useMemo(() => {
-    const total = ordered.length || 1;
+    const total = n || 1;
     // If the atlas just opened from a trigger, `revealedSet` can briefly lag the intent;
     // still aim the lift at the canonical placement so the fog reads correctly.
     if (!frId) return { leftPct: 50, topPct: 50 };
     const idx = ordered.findIndex((r) => r.realm_id === frId);
     const i = idx >= 0 ? idx : 0;
     return getAtlasPinPlacementForRealm(frId, i, total);
-  }, [frId, revealedSet, ordered]);
+  }, [frId, n, ordered]);
 
   const completeFogReveal = useCallback(() => {
     setFogLiftAnimating(false);
@@ -231,11 +291,7 @@ export function RealmAtlasOverlay({
   useEscapeToClose(open && !guildInfoRealmId, onClose);
   useEscapeToClose(open && Boolean(guildInfoRealmId), handleGuildInfoClose);
 
-  if (!open) return null;
-
   const revealedCount = revealedSet.size;
-  const n = ordered.length;
-  const atlasImgSrc = atlasSrcCandidates[Math.min(atlasSrcIndex, atlasSrcCandidates.length - 1)];
 
   const fogMaskDataUri = useMemo(() => {
     const circles: string[] = [];
@@ -274,6 +330,30 @@ export function RealmAtlasOverlay({
     return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
   }, [revealedSet, ordered, n, fogLiftAnimating, fogAnimProgress, frId, fogPinPlacement]);
 
+  const atlasLayerStyle = atlasBounds
+    ? ({
+        left: `${atlasBounds.offsetX}px`,
+        top: `${atlasBounds.offsetY}px`,
+        width: `${atlasBounds.width}px`,
+        height: `${atlasBounds.height}px`,
+      } as CSSProperties)
+    : ({ inset: 0 } as CSSProperties);
+
+  const mapPctToRenderedStyle = useCallback(
+    (leftPct: number, topPct: number): CSSProperties => {
+      if (!atlasBounds) {
+        return { left: `${leftPct}%`, top: `${topPct}%` };
+      }
+      return {
+        left: `${atlasBounds.offsetX + (atlasBounds.width * leftPct) / 100}px`,
+        top: `${atlasBounds.offsetY + (atlasBounds.height * topPct) / 100}px`,
+      };
+    },
+    [atlasBounds],
+  );
+
+  if (!open) return null;
+
   return (
     <div className="lh-overlay lh-overlay--dim lh-overlay--atlas-full" role="dialog" aria-label="World Atlas">
       <div className="lh-world-atlas">
@@ -308,11 +388,13 @@ export function RealmAtlasOverlay({
 
         <div className="lh-atlas__map-shell lh-atlas__map-shell--world-fill">
           <div
+            ref={mapPlateRef}
             className="lh-atlas__map-plate lh-atlas__map-plate--world-art lh-atlas__map-plate--fill-height"
             role="presentation"
             aria-label="Illustrated world atlas with guild hall markers"
           >
             <img
+              ref={mapImageRef}
               className="lh-atlas__map-plate-img"
               src={atlasImgSrc}
               alt=""
@@ -320,6 +402,7 @@ export function RealmAtlasOverlay({
               decoding="async"
               draggable={false}
               referrerPolicy="no-referrer"
+              onLoad={updateAtlasBounds}
               onError={() => {
                 setAtlasSrcIndex((i) => (i + 1 < atlasSrcCandidates.length ? i + 1 : i));
               }}
@@ -329,6 +412,7 @@ export function RealmAtlasOverlay({
             <div
               className="lh-atlas__proto-fog"
               style={{
+                ...atlasLayerStyle,
                 WebkitMaskImage: fogMaskDataUri,
                 maskImage: fogMaskDataUri,
                 WebkitMaskSize: '100% 100%',
@@ -350,10 +434,7 @@ export function RealmAtlasOverlay({
             ) : null}
             {ordered.map((r, idx) => {
               const { leftPct, topPct } = getAtlasPinPlacementForRealm(r.realm_id, idx, n);
-              const slotStyle: CSSProperties = {
-                left: `${leftPct}%`,
-                top: `${topPct}%`,
-              };
+              const slotStyle = mapPctToRenderedStyle(leftPct, topPct);
               const revealed = revealedSet.has(r.realm_id);
               const isCurrent = r.realm_id === currentRealmId;
               const infoOpen = guildInfoRealmId === r.realm_id;

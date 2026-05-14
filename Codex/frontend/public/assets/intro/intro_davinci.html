@@ -96,6 +96,7 @@
       const video = document.getElementById('intro-video');
       const overlay = document.getElementById('tap-to-start');
       const startBtn = document.getElementById('start-btn');
+      const fallbackIntroUrl = './intro_video_v2.html';
       const music = new Audio('https://585swinemerchant.github.io/legendary-horizon-demo/assets/Audio/Legendary%20Horizon%20Title.mp3');
       music.loop = true;
       music.preload = 'auto';
@@ -139,6 +140,12 @@
 
       function begin() {
         notifyParent('lh_intro_started', { started: true, mode: 'davinci_video' });
+        try {
+          console.info('[LH intro] using rendered DaVinci video', {
+            src: video.currentSrc || './intro_davinci.mp4',
+            fallback: fallbackIntroUrl,
+          });
+        } catch {}
         startMusic();
 
         const p = video.play();
@@ -146,6 +153,9 @@
           p.then(() => {
             overlay.style.display = 'none';
           }).catch(() => {
+            try {
+              console.info('[LH intro] rendered video blocked until direct tap');
+            } catch {}
             overlay.style.display = 'flex';
           });
         }
@@ -183,6 +193,17 @@
       });
 
       startBtn.addEventListener('click', () => begin());
+
+      video.addEventListener('error', () => {
+        try {
+          console.warn('[LH intro] rendered DaVinci video unavailable; falling back to HTML scene sequence', {
+            attempted: video.currentSrc || './intro_davinci.mp4',
+            fallback: fallbackIntroUrl,
+          });
+        } catch {}
+        stopMusic();
+        window.location.replace(fallbackIntroUrl);
+      });
 
       video.addEventListener('ended', () => {
         notifyParent('lh_intro_finished', { finished: true, mode: 'davinci_video' });

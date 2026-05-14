@@ -11,6 +11,12 @@ type Running = {
   setVolume: (v: number, fade?: FadeSpec) => void;
 };
 
+function audioDevLog(message: string, detail?: Record<string, unknown>): void {
+  if (!import.meta.env.DEV) return;
+  // eslint-disable-next-line no-console
+  console.info(`[LH audio] ${message}`, detail ?? {});
+}
+
 function isAudioEnabled(): boolean {
   if (typeof document === 'undefined') return false;
   return document.documentElement.dataset.lhAudio !== 'muted';
@@ -55,6 +61,7 @@ function createLoopingHtmlMusic(url: string, lane: MusicLane, baseVolume = 0.5, 
 
   let current = 0;
   let stopped = false;
+  let unlockListening = false;
 
   const seekToStart = () => {
     try {
@@ -81,10 +88,24 @@ function createLoopingHtmlMusic(url: string, lane: MusicLane, baseVolume = 0.5, 
     });
   }
 
-  const ensurePlay = () => {
+  const ensurePlay = (reason = 'ensure') => {
     if (stopped) return;
-    void audio.play().catch(() => {
-      // Autoplay may be blocked; we fail silently (classroom-safe).
+    void audio.play().then(() => {
+      audioDevLog('music play ok', { lane, reason, url });
+    }).catch((e) => {
+      audioDevLog('music play blocked; waiting for next user gesture', {
+        lane,
+        reason,
+        error: e instanceof Error ? e.message : String(e),
+      });
+      if (unlockListening || typeof window === 'undefined') return;
+      unlockListening = true;
+      const retry = () => {
+        unlockListening = false;
+        ensurePlay('user-gesture-retry');
+      };
+      window.addEventListener('pointerdown', retry, { once: true, capture: true });
+      window.addEventListener('keydown', retry, { once: true, capture: true });
     });
   };
 
@@ -111,7 +132,7 @@ function createLoopingHtmlMusic(url: string, lane: MusicLane, baseVolume = 0.5, 
     setVolume: (v, fade) => {
       const target = clamp01(v) * clamp01(baseVolume);
       const d = fade?.durationMs ?? 1100;
-      ensurePlay();
+      ensurePlay('volume-change');
       rafFade(current, target, d, (x) => {
         current = x;
         audio.volume = x;
@@ -335,6 +356,12 @@ class LhAudioDirector {
    * call (which stops all runners while music is muted), recreate it here so unmuting actually restores audio.
    */
   refreshAudibility(fadeMs = 600): void {
+    audioDevLog('refresh audibility', {
+      lane: this.lane,
+      musicEnabled: isMusicEnabled(),
+      audioAttr: document.documentElement.dataset.lhAudio,
+      musicAttr: document.documentElement.dataset.lhMusic,
+    });
     if (isMusicEnabled() && this.lane) {
       if (this.lane === 'title') this.ensureTitle();
       else if (this.lane === 'exploration') this.ensureExploration();
@@ -345,6 +372,14 @@ class LhAudioDirector {
 
   setLane(next: MusicLane | null) {
     if (this.lane === next) return;
+
+    audioDevLog('set lane', {
+      from: this.lane,
+      to: next,
+      musicEnabled: isMusicEnabled(),
+      audioAttr: document.documentElement.dataset.lhAudio,
+      musicAttr: document.documentElement.dataset.lhMusic,
+    });
 
     // If audio (or music specifically) is muted, keep lane intent but stop runners to prevent hidden playback.
     if (!isMusicEnabled()) {

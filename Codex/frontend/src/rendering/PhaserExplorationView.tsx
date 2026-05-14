@@ -299,6 +299,9 @@ const REACTIVE_GRASS_RUSTLE_COOLDOWN_MS = 230;
 const REACTIVE_GRASS_BEND_PX = 1.6;
 const REACTIVE_GRASS_BEND_DEG = 3.5;
 const REACTIVE_GRASS_SQUASH_Y = 0.95;
+const EXPLORATION_SHADOW_COLOR = 0x111827;
+const EXPLORATION_CONTACT_SHADOW_ALPHA = 0.24;
+const EXPLORATION_STATIC_SHADOW_ALPHA = 0.14;
 
 /** How far in front of the Traveler the A-button swing extends, and how wide the swing arc is. */
 const PLAYER_ATTACK_RANGE_PX = 64;
@@ -891,6 +894,7 @@ export function PhaserExplorationView({
         private keySprint!: Phaser.Input.Keyboard.Key;
         private keyLostEchoDiagForce?: Phaser.Input.Keyboard.Key;
         private player!: Phaser.Physics.Arcade.Sprite;
+        private playerShadow?: Phaser.GameObjects.Ellipse;
         /** True when exploration uses Traveler sheets (foot origin); false for `lh_player_dot` fallback. */
         private explorationPlayerTraveler = false;
         /** Foot spawn for this session — used to suppress the interaction prompt over the demo spawn tile. */
@@ -906,6 +910,7 @@ export function PhaserExplorationView({
         private lostEchoSprites = new Map<string, Phaser.GameObjects.Sprite>();
         /** Fallback `!` markers when idle texture fails — same visibility rules as `lostEchoSprites`. */
         private lostEchoFallbackMarkers = new Map<string, Phaser.GameObjects.Text>();
+        private lostEchoShadows = new Map<string, Phaser.GameObjects.Ellipse>();
         private interactionPromptRoot?: Phaser.GameObjects.Container;
         private interactionPromptBg?: Phaser.GameObjects.Graphics;
         private interactionPromptText?: Phaser.GameObjects.Text;
@@ -1213,6 +1218,9 @@ export function PhaserExplorationView({
               sprite.setOrigin(0.5, 1);
               sprite.setScale(ROAMING_LOST_ECHO_SCALE);
               sprite.setDepth(y);
+              const shadow = this.add
+                .ellipse(x + 3, y + 3, 24, 8, EXPLORATION_SHADOW_COLOR, EXPLORATION_CONTACT_SHADOW_ALPHA)
+                .setDepth(y - 0.04);
               // Tight body around the feet so collisions feel grounded and the wide sprite frame
               // (192×128) doesn't snag on terrain it visually clears.
               sprite.setSize(28, 18);
@@ -1248,6 +1256,7 @@ export function PhaserExplorationView({
                 respawn: spawn.respawn,
                 source_tiled_object_id: spawn.tiled_object_id,
               };
+              this.lostEchoShadows.set(roamer.id, shadow);
               this.roamingLostEchoes.push(roamer);
               newSprites.push(sprite);
               spawnedCount += 1;
@@ -1494,6 +1503,8 @@ export function PhaserExplorationView({
                   return;
                 }
                 try {
+                  this.lostEchoShadows.get(r.id)?.destroy();
+                  this.lostEchoShadows.delete(r.id);
                   r.sprite.destroy();
                 } catch {
                   // Already destroyed elsewhere — ignore.
@@ -2343,13 +2354,35 @@ export function PhaserExplorationView({
               }
 
               const isReactiveGrass = layerNameLc.includes('grass');
+              const isTreeObject = key.toLowerCase().includes('tree');
+              const castsStaticShadow =
+                !isReactiveGrass &&
+                (isTreeObject ||
+                  key.toLowerCase().includes('guild') ||
+                  key.toLowerCase().includes('cabin') ||
+                  key.toLowerCase().includes('vendor') ||
+                  key.toLowerCase().includes('fence'));
               const authoredW = typeof obj.width === 'number' && obj.width > 0 ? obj.width : tileW;
               const authoredH = typeof obj.height === 'number' && obj.height > 0 ? obj.height : tileH;
-              const spriteX = isReactiveGrass ? (obj.x ?? 0) + authoredW / 2 : (obj.x ?? 0);
+              const baseX = (obj.x ?? 0) + authoredW / 2;
+              const baseY = obj.y ?? 0;
+              const spriteX = isReactiveGrass || isTreeObject ? baseX : (obj.x ?? 0);
+              if (castsStaticShadow) {
+                this.add
+                  .ellipse(
+                    baseX + Math.min(18, authoredW * 0.08),
+                    baseY + Math.min(14, authoredH * 0.04),
+                    Math.max(18, Math.min(86, authoredW * 0.54)),
+                    Math.max(7, Math.min(28, authoredH * 0.12)),
+                    EXPLORATION_SHADOW_COLOR,
+                    EXPLORATION_STATIC_SHADOW_ALPHA,
+                  )
+                  .setDepth(Math.max(0, baseY - 0.08));
+              }
               const sprite = this.add.image(spriteX, obj.y ?? 0, key, frameName);
-              sprite.setOrigin(isReactiveGrass ? 0.5 : 0, 1);
+              sprite.setOrigin(isReactiveGrass || isTreeObject ? 0.5 : 0, 1);
               const sortY = Math.max(0, (obj.y ?? 0) - grassDepthShrink);
-              sprite.setDepth(sortY + 0.001);
+              sprite.setDepth(sortY + (isTreeObject ? -0.01 : 0.001));
               if (authoredW !== tileW) {
                 sprite.displayWidth = authoredW;
               }
@@ -2442,7 +2475,12 @@ export function PhaserExplorationView({
 
         /** Y-sort exploration actors so tile-object decor (grass) compares against `player.y`, not a fixed depth. */
         private syncExplorationActorYDepths(): void {
-          if (this.player?.active) this.player.setDepth(this.player.y);
+          if (this.player?.active) {
+            this.player.setDepth(this.player.y);
+            this.playerShadow?.setPosition(this.player.x + 3, this.player.y + 4);
+            this.playerShadow?.setDepth(this.player.y - 0.05);
+            this.playerShadow?.setVisible(this.player.visible && this.player.alpha > 0.08);
+          }
           this.portalSprites.forEach((sp) => {
             if (sp.active) sp.setDepth(sp.y);
           });
@@ -2461,7 +2499,15 @@ export function PhaserExplorationView({
             if (marker.active) marker.setDepth(marker.y);
           });
           for (const r of this.roamingLostEchoes) {
-            if (r.sprite.active) r.sprite.setDepth(r.sprite.y);
+            const shadow = this.lostEchoShadows.get(r.id);
+            if (r.sprite.active) {
+              r.sprite.setDepth(r.sprite.y);
+              shadow?.setPosition(r.sprite.x + 3, r.sprite.y + 3);
+              shadow?.setDepth(r.sprite.y - 0.05);
+              shadow?.setVisible(r.sprite.visible && r.sprite.alpha > 0.08 && r.state !== 'dead');
+            } else {
+              shadow?.setVisible(false);
+            }
           }
         }
 
@@ -3006,6 +3052,9 @@ export function PhaserExplorationView({
           const maxSpd = Math.max(TRAVELER_MOVE_SPEED_PX, TRAVELER_SPRINT_SPEED_PX) * 1.1;
           this.player.setMaxVelocity(maxSpd, maxSpd);
           this.player.setDepth(this.player.y);
+          this.playerShadow = this.add
+            .ellipse(this.player.x + 3, this.player.y + 4, hasTraveler ? 22 : 14, hasTraveler ? 8 : 6, EXPLORATION_SHADOW_COLOR, EXPLORATION_CONTACT_SHADOW_ALPHA)
+            .setDepth(this.player.y - 0.05);
 
           this.physics.add.collider(this.player, this.fogStatics);
           this.physics.add.collider(this.player, this.solidStatics);
@@ -3331,15 +3380,23 @@ export function PhaserExplorationView({
           const portal = this.portalSprites.get(portalId);
           this.clearMaiaPortalRotationGhost(portalId);
           if (portal) this.tweens.killTweensOf(portal);
-          portal?.setAlpha(0.42);
+          portal?.setAlpha(0.82);
           playLhSfx('portal_activation');
-          if (portal && this.anims.exists('lh_maia_portal_deactivate')) {
-            portal.play('lh_maia_portal_deactivate');
-            portal.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
-              portal.setFrame(0);
+          if (portal) {
+            const dormantKey = this.anims.exists(this.currentMaiaPortalIdleAnim)
+              ? this.currentMaiaPortalIdleAnim
+              : MAIA_PORTAL_LEGACY_IDLE_ANIM_KEY;
+            if (this.anims.exists(dormantKey)) {
+              portal.play(dormantKey);
+            }
+            this.tweens.add({
+              targets: portal,
+              alpha: { from: 0.72, to: 0.92 },
+              duration: 1500,
+              ease: 'Sine.easeInOut',
+              yoyo: true,
+              repeat: -1,
             });
-          } else if (portal) {
-            portal.setFrame(0);
           }
 
           this.portalCooldownUntil.set(portalId, this.time.now + 60000);
@@ -3348,6 +3405,7 @@ export function PhaserExplorationView({
             this.activatedInteractableIds.delete(portalId);
             const cooledPortal = this.portalSprites.get(portalId);
             if (!cooledPortal) return;
+            this.tweens.killTweensOf(cooledPortal);
             cooledPortal.setAlpha(1);
             const resumeKey = this.anims.exists(this.currentMaiaPortalIdleAnim)
               ? this.currentMaiaPortalIdleAnim

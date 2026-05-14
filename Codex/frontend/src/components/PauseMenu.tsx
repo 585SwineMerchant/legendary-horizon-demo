@@ -1,8 +1,9 @@
-import { useRef, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { useFocusOnOpen } from '../hooks/useFocusOnOpen';
 import type { LhMotionPreference, LhTextScale } from '../lib/lhAccessibilityPrefs';
+import { requestLhEmbedFullscreen } from '../lib/lhEmbedFullscreen';
 import type { ClassroomToolHandlers } from '../services/classroomToolLaunches';
 
 export type PauseDisplayPreferences = {
@@ -52,6 +53,7 @@ export function PauseMenu({
   displayPreferences,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const [fullscreenHint, setFullscreenHint] = useState<string | null>(null);
   useEscapeToClose(open, onResume);
   useFocusOnOpen(open, panelRef);
 
@@ -59,6 +61,26 @@ export function PauseMenu({
 
   const musicMuted = Boolean(displayPreferences?.musicMuted);
   const onMusicMutedChange = displayPreferences?.onMusicMutedChange;
+  const enterFullscreen = useCallback(async () => {
+    setFullscreenHint(null);
+    try {
+      await requestLhEmbedFullscreen(document.getElementById('root') as HTMLElement | null);
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.info('[LH fullscreen] pause-menu request succeeded');
+      }
+    } catch (e) {
+      const msg =
+        e instanceof Error
+          ? e.message
+          : 'Could not enter full screen. The browser or host page may be blocking it.';
+      setFullscreenHint(msg);
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.info('[LH fullscreen] pause-menu request failed', { message: msg });
+      }
+    }
+  }, []);
 
   return (
     <div className="lh-overlay lh-overlay--dim" role="dialog" aria-modal="true" aria-labelledby="pause-title">
@@ -71,6 +93,14 @@ export function PauseMenu({
           <button type="button" className="lh-button lh-button--primary" onClick={onResume} data-lh-autofocus>
             Resume
           </button>
+          <button type="button" className="lh-button lh-button--secondary" onClick={() => void enterFullscreen()}>
+            Enter Fullscreen
+          </button>
+          {fullscreenHint ? (
+            <p className="lh-pause-access-hint" role="status">
+              {fullscreenHint}
+            </p>
+          ) : null}
           <button type="button" className="lh-button lh-button--secondary" onClick={onSave}>
             Save
           </button>
