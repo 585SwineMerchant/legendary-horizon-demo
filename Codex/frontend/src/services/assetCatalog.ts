@@ -62,7 +62,7 @@ export function collectDeliveryUrlChain(assetId: string, catalog?: readonly Medi
 
   if (!urls.length) {
     const missing = cat.find((a) => a.asset_id === LH_MEDIA_ASSET_ID_MISSING_IMAGE);
-    const fallbackUrl = String(missing?.delivery_url_placeholder ?? '').trim();
+    const fallbackUrl = normalizeCatalogDeliveryUrl(String(missing?.delivery_url_placeholder ?? ''));
     urls.push(fallbackUrl || MISSING_IMAGE_DATA_URI);
   }
   return urls;
@@ -86,7 +86,7 @@ export function resolveAssetRecordWithFallback(
     seenIds.add(nextId);
     const rec = cat.find((a) => a.asset_id === nextId);
     if (!rec) break;
-    const u = String(rec.delivery_url_placeholder ?? '').trim();
+    const u = normalizeCatalogDeliveryUrl(String(rec.delivery_url_placeholder ?? ''));
     if (u) return rec;
     const fb = String(rec.fallback_asset_id ?? '').trim();
     nextId = fb || undefined;
