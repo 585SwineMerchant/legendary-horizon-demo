@@ -9,6 +9,12 @@ type Props = {
 };
 
 const TITLE_MENU_FADE_MS = 1100;
+const INTRO_CINEMATIC_CACHE_TAG = '20260513-2';
+
+function withIntroCacheTag(src: string): string {
+  const separator = src.includes('?') ? '&' : '?';
+  return `${src}${separator}v=${INTRO_CINEMATIC_CACHE_TAG}`;
+}
 
 export function IntroCinematicScreen({ onStart, onResume }: Props) {
   const completedRef = useRef(false);
@@ -23,6 +29,7 @@ export function IntroCinematicScreen({ onStart, onResume }: Props) {
       ? publicAssetUrl(configuredIframeSrc)
       : configuredIframeSrc
     : publicAssetUrl('assets/intro/intro_davinci.html');
+  const cacheSafeIframeSrc = withIntroCacheTag(iframeSrc);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   const finalizeIntroAndOpenOverlay = useCallback((outcome: 'natural_end' | 'skipped') => {
@@ -71,7 +78,7 @@ export function IntroCinematicScreen({ onStart, onResume }: Props) {
       <iframe
         title="Legendary Horizon intro"
         ref={iframeRef}
-        src={iframeSrc}
+        src={cacheSafeIframeSrc}
         style={{
           position: 'absolute',
           inset: 0,
