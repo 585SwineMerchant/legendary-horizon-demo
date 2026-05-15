@@ -105,7 +105,14 @@ type TiledObjectLayerRuntime = {
     rotation?: number;
     visible?: boolean;
     name?: string;
+    type?: string;
+    properties?: TiledPropertyRuntime[];
   }>;
+};
+
+type TiledPropertyRuntime = {
+  name?: string;
+  value?: unknown;
 };
 
 type ReactiveGrassDecor = {
@@ -302,7 +309,40 @@ const REACTIVE_GRASS_SQUASH_Y = 0.95;
 const EXPLORATION_SHADOW_COLOR = 0x111827;
 const EXPLORATION_CONTACT_SHADOW_ALPHA = 0.18;
 const EXPLORATION_STATIC_SHADOW_ALPHA = 0.14;
-const EXPLORATION_VISUAL_GRADE_ENABLED = import.meta.env.VITE_LH_VISUAL_GRADE !== 'false';
+const EXPLORATION_PROCEDURAL_SHADOWS_ENABLED = import.meta.env.VITE_LH_PROCEDURAL_SHADOWS === 'true';
+const EXPLORATION_VISUAL_GRADE_ENABLED = import.meta.env.VITE_LH_VISUAL_GRADE === 'true';
+const EXPLORATION_AUTHORING_DEBUG =
+  import.meta.env.DEV && import.meta.env.VITE_LH_MAP_AUTHORING_DEBUG === 'true';
+const EXPLORATION_LIGHTS_ENABLED = import.meta.env.VITE_LH_FAKE_LIGHTS !== 'false';
+const EXPLORATION_ADDITIVE_LIGHTS_ENABLED = import.meta.env.VITE_LH_ADDITIVE_LIGHTS === 'true';
+
+const SHADOW_ASSET_BY_KIND: Readonly<Record<string, string>> = {
+  tree_small: 'assets/maps/tree%20-%20shadow%20-%201.png',
+  tent: 'assets/maps/Cabin-shadow%20bot%20right.png',
+};
+
+const SHADOW_TEXTURE_BY_KIND: Readonly<Record<string, string>> = {
+  tree_small: 'lh_shadow_tree_small',
+  tent: 'lh_shadow_tent',
+};
+
+function tiledProp(props: readonly TiledPropertyRuntime[] | undefined, key: string): unknown {
+  return props?.find((p) => p.name === key)?.value;
+}
+
+function tiledPropString(props: readonly TiledPropertyRuntime[] | undefined, key: string): string | null {
+  const v = tiledProp(props, key);
+  return typeof v === 'string' && v.trim() ? v.trim() : null;
+}
+
+function tiledPropNumber(
+  props: readonly TiledPropertyRuntime[] | undefined,
+  key: string,
+  fallback: number,
+): number {
+  const n = Number(tiledProp(props, key));
+  return Number.isFinite(n) ? n : fallback;
+}
 
 /** How far in front of the Traveler the A-button swing extends, and how wide the swing arc is. */
 const PLAYER_ATTACK_RANGE_PX = 64;
@@ -955,6 +995,7 @@ export function PhaserExplorationView({
         /** Throttle overlap_auto combat retriggers without pinning encounters behind session latch. */
         private combatEncounterCooldownUntil = new Map<string, number>();
         private lostEchoIdleLoadFailed = false;
+        private lastAuthoringDepthLogAt = 0;
         /** JRPG-style knowledge battle layer (fixed to camera; exploration map stays mounted underneath). */
         private knowledgeBattlePaused = false;
         private knowledgeBattleInteractableId: string | null = null;
@@ -1219,9 +1260,11 @@ export function PhaserExplorationView({
               sprite.setOrigin(0.5, 1);
               sprite.setScale(ROAMING_LOST_ECHO_SCALE);
               sprite.setDepth(y);
-              const shadow = this.add
-                .ellipse(x + 1, y + 1, 20, 6, EXPLORATION_SHADOW_COLOR, EXPLORATION_CONTACT_SHADOW_ALPHA)
-                .setDepth(y - 0.04);
+              const shadow = EXPLORATION_PROCEDURAL_SHADOWS_ENABLED
+                ? this.add
+                    .ellipse(x, y, 14, 4, EXPLORATION_SHADOW_COLOR, EXPLORATION_CONTACT_SHADOW_ALPHA)
+                    .setDepth(y - 0.04)
+                : null;
               // Tight body around the feet so collisions feel grounded and the wide sprite frame
               // (192×128) doesn't snag on terrain it visually clears.
               sprite.setSize(28, 18);
@@ -1257,7 +1300,7 @@ export function PhaserExplorationView({
                 respawn: spawn.respawn,
                 source_tiled_object_id: spawn.tiled_object_id,
               };
-              this.lostEchoShadows.set(roamer.id, shadow);
+              if (shadow) this.lostEchoShadows.set(roamer.id, shadow);
               this.roamingLostEchoes.push(roamer);
               newSprites.push(sprite);
               spawnedCount += 1;
@@ -2329,6 +2372,87 @@ export function PhaserExplorationView({
           }
         }
 
+        private maybeAddTiledShadowHook(
+          obj: { x?: number; y?: number; width?: number; height?: number; properties?: TiledPropertyRuntime[]; id?: number; name?: string },
+          baseX: number,
+          baseY: number,
+          authoredW: number,
+          authoredH: number,
+          layerName: string | undefined,
+        ): 'none' | 'missing' | 'added' {
+          const kind = tiledPropString(obj.properties, 'lh_shadow');
+          if (!kind || kind === 'none') return 'none';
+          if (kind === 'contact') {
+            if (EXPLORATION_AUTHORING_DEBUG) {
+              console.info('[LhAuthoring] lh_shadow=contact reserved for future actor shadow sprites', {
+                layer: layerName,
+                object_id: obj.id,
+                name: obj.name,
+              });
+            }
+            return 'missing';
+          }
+          const textureKey = SHADOW_TEXTURE_BY_KIND[kind];
+          if (!textureKey || !this.textures.exists(textureKey)) {
+            if (EXPLORATION_AUTHORING_DEBUG) {
+              console.info('[LhAuthoring] shadow asset missing or unmapped', {
+                layer: layerName,
+                object_id: obj.id,
+                name: obj.name,
+                lh_shadow: kind,
+                textureKey: textureKey ?? null,
+              });
+            }
+            return 'missing';
+          }
+          const offsetX = tiledPropNumber(obj.properties, 'lh_shadow_offset_x', Math.min(18, authoredW * 0.08));
+          const offsetY = tiledPropNumber(obj.properties, 'lh_shadow_offset_y', Math.min(14, authoredH * 0.04));
+          const shadow = this.add.image(baseX + offsetX, baseY + offsetY, textureKey);
+          shadow.setOrigin(0.5, 1);
+          shadow.setAlpha(0.72);
+          shadow.setDepth(Math.max(0, baseY - 0.09));
+          return 'added';
+        }
+
+        private maybeAddTiledLightHook(
+          obj: { x?: number; y?: number; width?: number; height?: number; properties?: TiledPropertyRuntime[]; id?: number; name?: string },
+          baseX: number,
+          baseY: number,
+          layerName: string | undefined,
+        ): 'none' | 'added' {
+          if (!EXPLORATION_LIGHTS_ENABLED) return 'none';
+          const kind = tiledPropString(obj.properties, 'lh_light');
+          if (!kind || kind === 'none') return 'none';
+          if (kind !== 'warm_torch') {
+            if (EXPLORATION_AUTHORING_DEBUG) {
+              console.info('[LhAuthoring] unsupported lh_light kind', {
+                layer: layerName,
+                object_id: obj.id,
+                name: obj.name,
+                lh_light: kind,
+              });
+            }
+            return 'none';
+          }
+          const radius = Phaser.Math.Clamp(tiledPropNumber(obj.properties, 'lh_light_radius_px', 72), 24, 180);
+          const flicker = tiledPropString(obj.properties, 'lh_light_flicker') !== 'false';
+          const light = this.add.circle(baseX, baseY - radius * 0.25, radius, 0xfbbf24, 0.1);
+          light.setDepth(Math.max(0, baseY - 0.12));
+          light.setBlendMode(EXPLORATION_ADDITIVE_LIGHTS_ENABLED ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL);
+          if (flicker) {
+            this.tweens.add({
+              targets: light,
+              alpha: { from: 0.075, to: 0.13 },
+              scale: { from: 0.96, to: 1.04 },
+              duration: 900 + Math.floor(Math.random() * 420),
+              yoyo: true,
+              repeat: -1,
+              ease: 'Sine.easeInOut',
+            });
+          }
+          return 'added';
+        }
+
         private addTiledTileObjectDecor(map: Phaser.Tilemaps.Tilemap): void {
           const tileObjectLayers = ((map as unknown as { objects?: TiledObjectLayerRuntime[] }).objects ?? [])
             .filter((layer) => layer.objects?.some((obj) => typeof obj.gid === 'number'));
@@ -2337,11 +2461,18 @@ export function PhaserExplorationView({
           this.reactiveGrassDecor = [];
           const flipMask = 0x80000000 | 0x40000000 | 0x20000000;
           let added = 0;
+          let baseSorted = 0;
+          let reactiveGrass = 0;
+          let shadowHooks = 0;
+          let lightHooks = 0;
           const warnedMissingTextures = new Set<string>();
 
           tileObjectLayers.forEach((layer) => {
             const layerNameLc = (layer.name ?? '').toLowerCase();
             const grassDepthShrink = layerNameLc.includes('grass') ? EXPLORATION_TALL_GRASS_DEPTH_Y_SHRINK_PX : 0;
+            if (EXPLORATION_AUTHORING_DEBUG && layerNameLc.includes('grass')) {
+              console.info('[LhAuthoring] reactive grass layer detected', { layer: layer.name });
+            }
             layer.objects?.forEach((obj) => {
               if (obj.visible === false || typeof obj.gid !== 'number') return;
               const rawGid = obj.gid >>> 0;
@@ -2374,8 +2505,10 @@ export function PhaserExplorationView({
               }
 
               const isReactiveGrass = layerNameLc.includes('grass');
-              const isTreeObject = key.toLowerCase().includes('tree');
+              const explicitBaseSort = tiledPropString(obj.properties, 'lh_sort') === 'base';
+              const isTreeObject = key.toLowerCase().includes('tree') || explicitBaseSort;
               const castsStaticShadow =
+                EXPLORATION_PROCEDURAL_SHADOWS_ENABLED &&
                 !isReactiveGrass &&
                 (isTreeObject ||
                   key.toLowerCase().includes('guild') ||
@@ -2387,6 +2520,10 @@ export function PhaserExplorationView({
               const baseX = (obj.x ?? 0) + authoredW / 2;
               const baseY = obj.y ?? 0;
               const spriteX = isReactiveGrass || isTreeObject ? baseX : (obj.x ?? 0);
+              const shadowResult = this.maybeAddTiledShadowHook(obj, baseX, baseY, authoredW, authoredH, layer.name);
+              if (shadowResult === 'added') shadowHooks += 1;
+              const lightResult = this.maybeAddTiledLightHook(obj, baseX, baseY, layer.name);
+              if (lightResult === 'added') lightHooks += 1;
               if (castsStaticShadow) {
                 this.add
                   .ellipse(
@@ -2403,6 +2540,8 @@ export function PhaserExplorationView({
               sprite.setOrigin(isReactiveGrass || isTreeObject ? 0.5 : 0, 1);
               const sortY = Math.max(0, (obj.y ?? 0) - grassDepthShrink);
               sprite.setDepth(sortY + (isTreeObject ? -0.01 : 0.001));
+              if (isTreeObject) baseSorted += 1;
+              if (isReactiveGrass) reactiveGrass += 1;
               if (authoredW !== tileW) {
                 sprite.displayWidth = authoredW;
               }
@@ -2425,6 +2564,24 @@ export function PhaserExplorationView({
                 });
               }
               added += 1;
+              if (EXPLORATION_AUTHORING_DEBUG) {
+                console.info('[LhAuthoring] tile object classification', {
+                  layer: layer.name,
+                  object_id: obj.id,
+                  name: obj.name,
+                  tileset: key,
+                  visual_only: true,
+                  collision: false,
+                  grass_reactive: isReactiveGrass,
+                  base_sorted: isTreeObject,
+                  tree_base_depth: sortY + (isTreeObject ? -0.01 : 0.001),
+                  foot_depth_reference: baseY,
+                  shadow: tiledPropString(obj.properties, 'lh_shadow') ?? 'none',
+                  shadow_result: shadowResult,
+                  light: tiledPropString(obj.properties, 'lh_light') ?? 'none',
+                  light_result: lightResult,
+                });
+              }
             });
           });
 
@@ -2433,6 +2590,9 @@ export function PhaserExplorationView({
               layers: tileObjectLayers.map((layer) => layer.name ?? '(unnamed)'),
               objects: added,
               reactive_grass: this.reactiveGrassDecor.length,
+              base_sorted: baseSorted,
+              shadow_hooks: shadowHooks,
+              light_hooks: lightHooks,
             });
           }
         }
@@ -2497,9 +2657,18 @@ export function PhaserExplorationView({
         private syncExplorationActorYDepths(): void {
           if (this.player?.active) {
             this.player.setDepth(this.player.y);
-            this.playerShadow?.setPosition(this.player.x + 1, this.player.y + 1);
+            this.playerShadow?.setPosition(this.player.x, this.player.y);
             this.playerShadow?.setDepth(this.player.y - 0.05);
             this.playerShadow?.setVisible(this.player.visible && this.player.alpha > 0.08);
+            if (EXPLORATION_AUTHORING_DEBUG && this.time.now - this.lastAuthoringDepthLogAt > 1200) {
+              this.lastAuthoringDepthLogAt = this.time.now;
+              console.info('[LhAuthoring] actor foot depth', {
+                actor: 'Traveler',
+                x: Math.round(this.player.x),
+                y: Math.round(this.player.y),
+                depth: this.player.depth,
+              });
+            }
           }
           this.portalSprites.forEach((sp) => {
             if (sp.active) sp.setDepth(sp.y);
@@ -2522,7 +2691,7 @@ export function PhaserExplorationView({
             const shadow = this.lostEchoShadows.get(r.id);
             if (r.sprite.active) {
               r.sprite.setDepth(r.sprite.y);
-              shadow?.setPosition(r.sprite.x + 1, r.sprite.y + 1);
+              shadow?.setPosition(r.sprite.x, r.sprite.y);
               shadow?.setDepth(r.sprite.y - 0.05);
               shadow?.setVisible(r.sprite.visible && r.sprite.alpha > 0.08 && r.state !== 'dead');
             } else {
@@ -2619,6 +2788,9 @@ export function PhaserExplorationView({
               publicAssetUrl(`assets/maps/${variant.file}`),
               { frameWidth: MAIA_PORTAL_FRAME.width, frameHeight: MAIA_PORTAL_FRAME.height },
             );
+          }
+          for (const [kind, url] of Object.entries(SHADOW_ASSET_BY_KIND)) {
+            this.load.image(SHADOW_TEXTURE_BY_KIND[kind], publicAssetUrl(url));
           }
           this.load.spritesheet(
             MASTER_SCRIBE_IDLE_KEY,
@@ -3072,16 +3244,18 @@ export function PhaserExplorationView({
           const maxSpd = Math.max(TRAVELER_MOVE_SPEED_PX, TRAVELER_SPRINT_SPEED_PX) * 1.1;
           this.player.setMaxVelocity(maxSpd, maxSpd);
           this.player.setDepth(this.player.y);
-          this.playerShadow = this.add
-            .ellipse(
-              this.player.x + 1,
-              this.player.y + 1,
-              hasTraveler ? 18 : 12,
-              hasTraveler ? 6 : 5,
-              EXPLORATION_SHADOW_COLOR,
-              EXPLORATION_CONTACT_SHADOW_ALPHA,
-            )
-            .setDepth(this.player.y - 0.05);
+          this.playerShadow = EXPLORATION_PROCEDURAL_SHADOWS_ENABLED
+            ? this.add
+                .ellipse(
+                  this.player.x,
+                  this.player.y,
+                  hasTraveler ? 12 : 10,
+                  hasTraveler ? 4 : 4,
+                  EXPLORATION_SHADOW_COLOR,
+                  EXPLORATION_CONTACT_SHADOW_ALPHA,
+                )
+                .setDepth(this.player.y - 0.05)
+            : undefined;
 
           this.physics.add.collider(this.player, this.fogStatics);
           this.physics.add.collider(this.player, this.solidStatics);
