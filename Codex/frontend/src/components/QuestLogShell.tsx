@@ -9,14 +9,15 @@ type Props = {
   onClose: () => void;
   quests: QuestDefinition[];
   onMarkQuestTurnedIn?: (questId: string) => void;
-  /** Guild endgame — optional note when application is in breather / review. */
   guildPathBreatherNote?: string | null;
+  currentRequiredNextAction?: string | null;
 };
 
 const GROUP_LABEL: Record<QuestLogGroupKey, string> = {
   main: 'Main path',
   side: 'Side quests',
-  guild: 'Guild',
+  guild: 'Guild trials',
+  system: 'System & classroom',
   completed: 'Completed & turned in',
 };
 
@@ -28,10 +29,6 @@ function QuestCard({
   onMarkQuestTurnedIn?: (id: string) => void;
 }) {
   const terminal = q.status === 'completed' || q.status === 'turned_in';
-  const prereqNote =
-    q.prerequisite_quest_ids?.length && q.status === 'locked'
-      ? `Requires: ${q.prerequisite_quest_ids.join(', ')}`
-      : null;
 
   return (
     <li
@@ -43,7 +40,6 @@ function QuestCard({
         <span className={`lh-badge lh-badge--status-${q.status}`}>{q.status.replace(/_/g, ' ')}</span>
       </div>
       <p className="lh-quest-list__objective">{q.objective_short}</p>
-      {prereqNote ? <p className="lh-quest-list__prereq">{prereqNote}</p> : null}
       {q.status === 'completed' && onMarkQuestTurnedIn ? (
         <button type="button" className="lh-button lh-button--ghost lh-button--small" onClick={() => onMarkQuestTurnedIn(q.quest_id)}>
           Mark turned in to facilitator
@@ -53,13 +49,21 @@ function QuestCard({
   );
 }
 
-export function QuestLogShell({ open, onClose, quests, onMarkQuestTurnedIn, guildPathBreatherNote }: Props) {
+export function QuestLogShell({
+  open,
+  onClose,
+  quests,
+  onMarkQuestTurnedIn,
+  guildPathBreatherNote,
+  currentRequiredNextAction,
+}: Props) {
   const groups = useMemo(() => groupQuestsForQuestLog(quests), [quests]);
+  const lockedCount = useMemo(() => quests.filter((q) => q.status === 'locked').length, [quests]);
   useEscapeToClose(open, onClose);
 
   if (!open) return null;
 
-  const sectionOrder: QuestLogGroupKey[] = ['main', 'side', 'guild', 'completed'];
+  const sectionOrder: QuestLogGroupKey[] = ['main', 'side', 'guild', 'system', 'completed'];
 
   return (
     <div className="lh-overlay" role="presentation">
@@ -71,9 +75,14 @@ export function QuestLogShell({ open, onClose, quests, onMarkQuestTurnedIn, guil
           </button>
         </header>
         <p className="lh-quest-log__intro">
-          Objectives are grouped the same way your facilitator sees them in data — main path first, then side and guild
-          work, then finished rows.
+          Objectives shown here are active or available now. Locked future rows stay hidden until prerequisites are met.
         </p>
+        {currentRequiredNextAction ? (
+          <aside className="lh-quest-log__next-action" role="note">
+            <span>Current next action</span>
+            <strong>{currentRequiredNextAction}</strong>
+          </aside>
+        ) : null}
         <div className="lh-quest-log-sections">
           {sectionOrder.map((key) => {
             const list = groups[key];
@@ -100,9 +109,10 @@ export function QuestLogShell({ open, onClose, quests, onMarkQuestTurnedIn, guil
         ) : null}
         <footer className="lh-quest-log__footer">
           <p>
-            Stuck? Use <strong>Pause → World map</strong> for realms and fog, and <strong>Research worksheets</strong> for
+            Stuck? Use <strong>Pause - World map</strong> for realms and fog, and <strong>Research worksheets</strong> for
             written tasks. Your directive on the exploration HUD is always the next in-world step.
           </p>
+          {import.meta.env.DEV && lockedCount ? <p>DEV: {lockedCount} locked quest row(s) hidden from student view.</p> : null}
         </footer>
       </div>
     </div>

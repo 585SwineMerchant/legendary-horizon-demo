@@ -7,6 +7,7 @@ import { WorldMapOverlay } from './components/WorldMapOverlay';
 import { AcademicWorksheetsOverlay } from './components/AcademicWorksheetsOverlay';
 import { InventoryOverlay } from './components/InventoryOverlay';
 import { QuestLogShell } from './components/QuestLogShell';
+import { SystemToastOverlay } from './components/SystemToastOverlay';
 import { ModuleHostOverlay } from './components/ModuleHostOverlay';
 import { useLhAccessibilityPrefs } from './hooks/useLhAccessibilityPrefs';
 import { useNightOneFlow } from './hooks/useNightOneFlow';
@@ -268,12 +269,12 @@ export function App() {
           parsedMap={parsedMap}
           demoGuidance={demoGuidance}
           renderer="phaser"
-          saveFeedback={saveFeedback}
+          saveFeedback={null}
           maiaHandoffActive={maiaHandoffActive}
           maiaHandoffPromptActive={maiaHandoffPromptActive}
           onOpenMaiaHandoff={openMaiaHandoffWindow}
           onReturnFromMaiaHandoff={forceReturnFromMaia}
-          onDismissSaveFeedback={saveFeedback ? navigate.dismissSaveFeedback : undefined}
+          onDismissSaveFeedback={undefined}
           onPause={navigate.openPause}
           onOpenQuestLog={navigate.openQuestLog}
           onOpenInventory={navigate.openInventory}
@@ -378,6 +379,10 @@ export function App() {
         facilitatorTools={facilitatorToolsProps ? <TeacherToolsPanel {...facilitatorToolsProps} /> : null}
       /> : null}
 
+      {!teacherDashboardOpen ? (
+        <SystemToastOverlay message={saveFeedback} onConsumed={navigate.dismissSaveFeedback} />
+      ) : null}
+
       {!teacherDashboardOpen && inventoryOpen && player ? (
         <InventoryOverlay open={inventoryOpen} onClose={navigate.closeInventory} player={player} />
       ) : null}
@@ -441,6 +446,7 @@ export function App() {
         onClose={navigate.closeQuestLog}
         onMarkQuestTurnedIn={markQuestTurnedIn}
         guildPathBreatherNote={guildPathQuestLogNote}
+        currentRequiredNextAction={player?.required_next_action ?? null}
       /> : null}
 
       {!teacherDashboardOpen ? <ModuleHostOverlay

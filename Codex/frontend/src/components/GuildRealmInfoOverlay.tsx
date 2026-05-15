@@ -102,7 +102,7 @@ export function GuildRealmInfoOverlay({
   const realmQuests = realm ? filterQuestsForRealm(quests, realm.realm_id) : [];
   const careerSpotlightUrl = realm ? getGuildRealmCareerOneStopUrl(realm.realm_id) : undefined;
   const titleParts = realm ? getGuildRealmTitleParts(realm) : { lead: '', highlight: null as string | null };
-  const decor = realm ? SLUG_DECOR[realm.slug] ?? '✦' : '✦';
+  const decor = realm ? SLUG_DECOR[realm.slug] ?? 'LH' : 'LH';
 
   if (!open || !realm) return null;
 
@@ -159,7 +159,7 @@ export function GuildRealmInfoOverlay({
             </div>
           )}
 
-          {visited ? (
+          {false && visited ? (
             <p className="lh-guild-realm-modal__badge" role="status">
               Charter trail — this realm appears in your expedition notes
             </p>
@@ -169,7 +169,7 @@ export function GuildRealmInfoOverlay({
 
           <div className="lh-guild-realm-modal__grid">
             <div className="lh-guild-realm-modal__box">
-              <h3 className="lh-guild-realm-modal__box-label">Path interests</h3>
+              <h3 className="lh-guild-realm-modal__box-label">Realm intelligence</h3>
               {pathTags.length ? (
                 <ul className="lh-guild-realm-modal__diamond-list">
                   {pathTags.map((t) => (
@@ -184,7 +184,7 @@ export function GuildRealmInfoOverlay({
             </div>
 
             <div className="lh-guild-realm-modal__box">
-              <h3 className="lh-guild-realm-modal__box-label">Stories in play</h3>
+              <h3 className="lh-guild-realm-modal__box-label">Quest ties</h3>
               {realmQuests.length ? (
                 <ul className="lh-guild-realm-modal__diamond-list">
                   {realmQuests.slice(0, 8).map((q) => (
@@ -197,7 +197,7 @@ export function GuildRealmInfoOverlay({
             </div>
 
             <div className="lh-guild-realm-modal__box lh-guild-realm-modal__box--wide">
-              <h3 className="lh-guild-realm-modal__box-label">Fantasy — career cluster</h3>
+              <h3 className="lh-guild-realm-modal__box-label">Career cluster</h3>
               <p className="lh-guild-realm-modal__cluster-line">{cluster}</p>
               {careerSpotlightUrl ? (
                 <a
@@ -209,6 +209,14 @@ export function GuildRealmInfoOverlay({
                   Explore cluster on CareerOneStop
                 </a>
               ) : null}
+            </div>
+            <div className="lh-guild-realm-modal__box lh-guild-realm-modal__box--wide">
+              <h3 className="lh-guild-realm-modal__box-label">Research focus</h3>
+              <ul className="lh-guild-realm-modal__diamond-list">
+                <li>What real careers belong to this cluster?</li>
+                <li>What training, credentials, or apprenticeships appear most often?</li>
+                <li>Which working conditions fit or clash with your Maia signals?</li>
+              </ul>
             </div>
           </div>
 

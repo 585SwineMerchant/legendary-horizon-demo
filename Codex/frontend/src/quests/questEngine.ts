@@ -3,7 +3,7 @@ import type { QuestDefinition } from '../domain/lh-contract';
 const TIERS = new Set<string>(['main', 'side', 'guild']);
 const STATUSES = new Set<string>(['active', 'available', 'locked', 'completed', 'turned_in']);
 
-export type QuestLogGroupKey = 'main' | 'side' | 'guild' | 'completed';
+export type QuestLogGroupKey = 'main' | 'side' | 'guild' | 'system' | 'completed';
 
 export function isTerminalQuestStatus(status: QuestDefinition['status']): boolean {
   return status === 'completed' || status === 'turned_in';
@@ -105,11 +105,17 @@ export function groupQuestsForQuestLog(quests: QuestDefinition[]): Record<QuestL
   const main: QuestDefinition[] = [];
   const side: QuestDefinition[] = [];
   const guild: QuestDefinition[] = [];
+  const system: QuestDefinition[] = [];
   const completed: QuestDefinition[] = [];
 
   for (const q of quests) {
     if (isTerminalQuestStatus(q.status)) {
       completed.push(q);
+      continue;
+    }
+    if (q.status === 'locked') continue;
+    if (q.quest_id.startsWith('sys_') || q.title.toLowerCase().includes('save')) {
+      system.push(q);
       continue;
     }
     if (q.tier === 'guild') guild.push(q);
@@ -120,7 +126,8 @@ export function groupQuestsForQuestLog(quests: QuestDefinition[]): Record<QuestL
   main.sort(sortQuestsForDisplay);
   side.sort(sortQuestsForDisplay);
   guild.sort(sortQuestsForDisplay);
+  system.sort(sortQuestsForDisplay);
   completed.sort(sortQuestsForDisplay);
 
-  return { main, side, guild, completed };
+  return { main, side, guild, system, completed };
 }

@@ -102,6 +102,43 @@ export function PauseMenu({
               {fullscreenHint}
             </p>
           ) : null}
+          <section className="lh-pause-section lh-pause-section--controls" aria-label="How to play">
+            <h3 className="lh-pause-section__label">How to play</h3>
+            <dl className="lh-controls-list">
+              <div>
+                <dt>Move</dt>
+                <dd>Arrow keys</dd>
+              </div>
+              <div>
+                <dt>Interact / speak</dt>
+                <dd>E or Enter</dd>
+              </div>
+              <div>
+                <dt>Face the Lost Echo</dt>
+                <dd>Enter when prompted</dd>
+              </div>
+              <div>
+                <dt>Action / attack</dt>
+                <dd>A</dd>
+              </div>
+              <div>
+                <dt>Sprint</dt>
+                <dd>Hold R while moving</dd>
+              </div>
+              <div>
+                <dt>Pause menu</dt>
+                <dd>Space</dd>
+              </div>
+              <div>
+                <dt>Save</dt>
+                <dd>Pause - Save</dd>
+              </div>
+              <div>
+                <dt>Fullscreen</dt>
+                <dd>Pause - Enter Fullscreen</dd>
+              </div>
+            </dl>
+          </section>
           <button type="button" className="lh-button lh-button--secondary" onClick={onSave}>
             Save
           </button>

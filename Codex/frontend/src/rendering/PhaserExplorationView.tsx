@@ -302,6 +302,7 @@ const REACTIVE_GRASS_SQUASH_Y = 0.95;
 const EXPLORATION_SHADOW_COLOR = 0x111827;
 const EXPLORATION_CONTACT_SHADOW_ALPHA = 0.18;
 const EXPLORATION_STATIC_SHADOW_ALPHA = 0.14;
+const EXPLORATION_VISUAL_GRADE_ENABLED = import.meta.env.VITE_LH_VISUAL_GRADE !== 'false';
 
 /** How far in front of the Traveler the A-button swing extends, and how wide the swing arc is. */
 const PLAYER_ATTACK_RANGE_PX = 64;
@@ -1465,6 +1466,21 @@ export function PhaserExplorationView({
           if (r.state === 'dead') return;
           if (!r.sprite?.active || !r.sprite.scene) return;
           r.hp = Math.max(0, r.hp - 1);
+          r.sprite.setTint(0xfff1a8);
+          this.time.delayedCall(90, () => {
+            if (r.sprite?.active) r.sprite.clearTint();
+          });
+          const impact = this.add
+            .circle(r.sprite.x, r.sprite.y - 22, 7, 0xfbbf24, 0.58)
+            .setDepth(r.sprite.depth + 0.2);
+          this.tweens.add({
+            targets: impact,
+            alpha: 0,
+            scale: 1.8,
+            duration: 180,
+            ease: 'Quad.easeOut',
+            onComplete: () => impact.destroy(),
+          });
           // Cancel any pending swing — getting hit interrupts the windup.
           r.attackPending = false;
           // Clear the resolve marker too so the carry-across-pause logic doesn't bump a stale
@@ -1552,6 +1568,10 @@ export function PhaserExplorationView({
           });
 
           this.playTravelerOneShot('hurt', 380);
+          this.player.setTint(0xfca5a5);
+          this.time.delayedCall(120, () => {
+            if (this.player?.active) this.player.clearTint();
+          });
 
           // Subtle invuln flash so the grace window is visible.
           this.tweens.add({
@@ -4019,7 +4039,6 @@ export function PhaserExplorationView({
             if ((m.activation_mode ?? 'interaction') !== 'interaction') return false;
             // Never show the prompt for portal-like or encounter triggers.
             if (m.kind === 'maia_portal') return false;
-            if (m.kind === 'combat_encounter' || m.kind === 'vocab_battle') return false;
             if (Boolean(_completionById.current.get(m.interactable_id))) return false;
             return true;
           })?.meta;
@@ -4035,10 +4054,15 @@ export function PhaserExplorationView({
           if (promptHit && !dialogueOpen && !nearSessionSpawn) {
             const cx = promptHit.x + promptHit.w / 2;
             const y = promptHit.y - 10;
-            const label =
+            let label =
               promptHit.kind === 'npc_dialogue'
                 ? 'Press Enter to Speak'
                 : 'Enter / E — Interact';
+            if (promptHit.kind === 'combat_encounter') {
+              label = 'Press Enter to face the Lost Echo';
+            } else if (promptHit.kind === 'vocab_battle') {
+              label = 'Press Enter to begin the word trial';
+            }
             this.interactionPromptText?.setText(label);
             const padX = 10;
             const padY = 6;
@@ -4181,6 +4205,7 @@ export function PhaserExplorationView({
   return (
     <div
       ref={hostRef}
+      className={EXPLORATION_VISUAL_GRADE_ENABLED ? 'lh-phaser-host lh-phaser-host--graded' : 'lh-phaser-host'}
       style={{
         flex: 1,
         minHeight: '0',
