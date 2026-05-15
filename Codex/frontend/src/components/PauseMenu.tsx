@@ -57,10 +57,6 @@ export function PauseMenu({
   useEscapeToClose(open, onResume);
   useFocusOnOpen(open, panelRef);
 
-  if (!open) return null;
-
-  const musicMuted = Boolean(displayPreferences?.musicMuted);
-  const onMusicMutedChange = displayPreferences?.onMusicMutedChange;
   const enterFullscreen = useCallback(async () => {
     setFullscreenHint(null);
     try {
@@ -81,6 +77,11 @@ export function PauseMenu({
       }
     }
   }, []);
+
+  if (!open) return null;
+
+  const musicMuted = Boolean(displayPreferences?.musicMuted);
+  const onMusicMutedChange = displayPreferences?.onMusicMutedChange;
 
   return (
     <div className="lh-overlay lh-overlay--dim" role="dialog" aria-modal="true" aria-labelledby="pause-title">

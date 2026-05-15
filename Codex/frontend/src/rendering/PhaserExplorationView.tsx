@@ -300,7 +300,7 @@ const REACTIVE_GRASS_BEND_PX = 1.6;
 const REACTIVE_GRASS_BEND_DEG = 3.5;
 const REACTIVE_GRASS_SQUASH_Y = 0.95;
 const EXPLORATION_SHADOW_COLOR = 0x111827;
-const EXPLORATION_CONTACT_SHADOW_ALPHA = 0.24;
+const EXPLORATION_CONTACT_SHADOW_ALPHA = 0.18;
 const EXPLORATION_STATIC_SHADOW_ALPHA = 0.14;
 
 /** How far in front of the Traveler the A-button swing extends, and how wide the swing arc is. */
@@ -1219,7 +1219,7 @@ export function PhaserExplorationView({
               sprite.setScale(ROAMING_LOST_ECHO_SCALE);
               sprite.setDepth(y);
               const shadow = this.add
-                .ellipse(x + 3, y + 3, 24, 8, EXPLORATION_SHADOW_COLOR, EXPLORATION_CONTACT_SHADOW_ALPHA)
+                .ellipse(x + 1, y + 1, 20, 6, EXPLORATION_SHADOW_COLOR, EXPLORATION_CONTACT_SHADOW_ALPHA)
                 .setDepth(y - 0.04);
               // Tight body around the feet so collisions feel grounded and the wide sprite frame
               // (192×128) doesn't snag on terrain it visually clears.
@@ -2477,7 +2477,7 @@ export function PhaserExplorationView({
         private syncExplorationActorYDepths(): void {
           if (this.player?.active) {
             this.player.setDepth(this.player.y);
-            this.playerShadow?.setPosition(this.player.x + 3, this.player.y + 4);
+            this.playerShadow?.setPosition(this.player.x + 1, this.player.y + 1);
             this.playerShadow?.setDepth(this.player.y - 0.05);
             this.playerShadow?.setVisible(this.player.visible && this.player.alpha > 0.08);
           }
@@ -2502,7 +2502,7 @@ export function PhaserExplorationView({
             const shadow = this.lostEchoShadows.get(r.id);
             if (r.sprite.active) {
               r.sprite.setDepth(r.sprite.y);
-              shadow?.setPosition(r.sprite.x + 3, r.sprite.y + 3);
+              shadow?.setPosition(r.sprite.x + 1, r.sprite.y + 1);
               shadow?.setDepth(r.sprite.y - 0.05);
               shadow?.setVisible(r.sprite.visible && r.sprite.alpha > 0.08 && r.state !== 'dead');
             } else {
@@ -3053,7 +3053,14 @@ export function PhaserExplorationView({
           this.player.setMaxVelocity(maxSpd, maxSpd);
           this.player.setDepth(this.player.y);
           this.playerShadow = this.add
-            .ellipse(this.player.x + 3, this.player.y + 4, hasTraveler ? 22 : 14, hasTraveler ? 8 : 6, EXPLORATION_SHADOW_COLOR, EXPLORATION_CONTACT_SHADOW_ALPHA)
+            .ellipse(
+              this.player.x + 1,
+              this.player.y + 1,
+              hasTraveler ? 18 : 12,
+              hasTraveler ? 6 : 5,
+              EXPLORATION_SHADOW_COLOR,
+              EXPLORATION_CONTACT_SHADOW_ALPHA,
+            )
             .setDepth(this.player.y - 0.05);
 
           this.physics.add.collider(this.player, this.fogStatics);
