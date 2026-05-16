@@ -1150,29 +1150,105 @@ code.lh-code-inline {
   min-height: 0;
   width: 100%;
   box-sizing: border-box;
-  padding: 0.65rem 0.85rem 0.85rem;
+  padding: 0.4rem 0.65rem 0.55rem;
+  gap: 0.35rem;
   background: radial-gradient(ellipse 120% 80% at 50% 0%, rgba(30, 41, 59, 0.35), rgba(5, 6, 10, 0.96));
 }
 
-.lh-world-atlas__header {
+.lh-world-atlas__toolbar {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.75rem 1rem;
+  gap: 0.5rem 0.85rem;
   flex-shrink: 0;
-  margin-bottom: 0.5rem;
-  padding: 0.75rem 0.85rem;
-  border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  background: #070b14;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
 }
 
-.lh-world-atlas__lede {
-  margin-top: 0.35rem;
-  font-size: 0.82rem;
-  line-height: 1.45;
-  max-width: 62rem;
+.lh-world-atlas__toolbar-text {
+  min-width: 0;
+}
+
+.lh-world-atlas__toolbar-eyebrow {
+  margin: 0;
+}
+
+.lh-world-atlas__title {
+  margin: 0.1rem 0 0;
+  font-family: var(--lh-guild-display, 'Cinzel', serif);
+  font-size: clamp(1rem, 2.8vmin, 1.35rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #f1f5f9;
+}
+
+.lh-world-atlas__tagline {
+  margin: 0.3rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.42;
+}
+
+.lh-world-atlas__close {
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+.lh-world-atlas__guide {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  border-radius: 11px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(7, 11, 20, 0.55);
+  overflow: hidden;
+}
+
+.lh-world-atlas__guide-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 0.45rem 0.72rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #cbd5e1;
+  user-select: none;
+}
+
+.lh-world-atlas__guide-summary::-webkit-details-marker {
+  display: none;
+}
+
+.lh-world-atlas__guide-summary::after {
+  content: '';
+  margin-left: 0.55rem;
+  display: inline-block;
+  vertical-align: 0.1em;
+  border: solid rgba(226, 232, 240, 0.5);
+  border-width: 0 1.6px 1.6px 0;
+  padding: 0.18rem;
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+}
+
+.lh-world-atlas__guide[open] > .lh-world-atlas__guide-summary::after {
+  transform: rotate(-135deg);
+  margin-top: 0.08rem;
+}
+
+.lh-world-atlas__guide-body {
+  padding: 0 0.72rem 0.72rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.lh-world-atlas__guide-body .lh-world-atlas__lede {
+  margin-top: 0.6rem;
+  font-size: 0.8rem;
+  line-height: 1.46;
+}
+
+.lh-overlay--atlas-full .lh-atlas__map-plate--world-art {
+  /* Let flex sizing own height so the atlas art uses all remaining viewport space. */
+  min-height: 0;
 }
 
 .lh-atlas__map-shell--world-fill {
@@ -1276,6 +1352,10 @@ code.lh-code-inline {
   backdrop-filter: blur(12px) grayscale(0.5) brightness(0.6) sepia(0.2);
   -webkit-backdrop-filter: blur(12px) grayscale(0.5) brightness(0.6) sepia(0.2);
   transition: opacity 2.5s ease;
+}
+
+.lh-atlas__proto-fog--drifting {
+  will-change: transform;
 }
 
 .lh-atlas__map-empty-hint {

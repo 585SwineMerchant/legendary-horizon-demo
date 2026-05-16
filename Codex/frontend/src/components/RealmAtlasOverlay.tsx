@@ -14,46 +14,27 @@ import { tryPlayCatalogAudioAsset } from '../lib/lhCatalogAudio';
 import type { ClassroomToolHandlers } from '../services/classroomToolLaunches';
 import type { MediaAssetRecord, QuestDefinition, RealmDefinition } from '../types';
 import { buildRealmAtlasImageSrcCandidates, getAtlasPinPlacementForRealm } from '../realm/atlasWorldMap';
+import { atlasFogRevealCirclePiece, resolveRealmFogPiece } from '../realm/atlasFogPieces';
 import { sortRealmsCanon } from '../realm/realmRegistry';
 import type { RealmProgressMap } from '../realm/realmProgress';
 
-function hash32(input: string): number {
-  // FNV-1a 32-bit
-  let h = 0x811c9dc5;
-  for (let i = 0; i < input.length; i += 1) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return h >>> 0;
-}
-
-function mulberry32(seed: number): () => number {
-  let t = seed >>> 0;
-  return () => {
-    t += 0x6d2b79f5;
-    let x = Math.imul(t ^ (t >>> 15), 1 | t);
-    x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
-    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-type FogBlobCircle = { dxPct: number; dyPct: number; rPct: number; delayMs?: number };
 type AtlasRenderedBounds = { width: number; height: number; offsetX: number; offsetY: number };
 
-function buildFogBlob(seedKey: string, kind: 'static' | 'reveal'): FogBlobCircle[] {
-  const rand = mulberry32(hash32(`${seedKey}:${kind}`));
-  const count = kind === 'reveal' ? 9 : 7;
-  const circles: FogBlobCircle[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const a = rand() * Math.PI * 2;
-    const dist = (kind === 'reveal' ? 3.8 : 3.1) * Math.pow(rand(), 0.7); // cluster toward center
-    const dxPct = Math.cos(a) * dist;
-    const dyPct = Math.sin(a) * dist;
-    const rPct = (kind === 'reveal' ? 2.8 : 2.4) + rand() * (kind === 'reveal' ? 6.4 : 5.8);
-    const delayMs = kind === 'reveal' ? Math.round(rand() * 260) : undefined;
-    circles.push({ dxPct, dyPct, rPct, delayMs });
-  }
-  return circles;
+const FOG_REVEAL_DURATION_MS = 3400;
+
+function easeOutPow(t: number, power = 3): number {
+  const x = Math.max(0, Math.min(1, t));
+  return 1 - (1 - x) ** power;
+}
+
+function fogPieceOrFallback(realmId: string, indexInCanonOrder: number, totalRealms: number) {
+  return (
+    resolveRealmFogPiece(realmId) ??
+    atlasFogRevealCirclePiece(
+      getAtlasPinPlacementForRealm(realmId, indexInCanonOrder, totalRealms).leftPct,
+      getAtlasPinPlacementForRealm(realmId, indexInCanonOrder, totalRealms).topPct,
+    )
+  );
 }
 
 type Props = {
@@ -183,16 +164,6 @@ export function RealmAtlasOverlay({
     return () => ro.disconnect();
   }, [open, atlasImgSrc, updateAtlasBounds]);
 
-  const fogPinPlacement = useMemo(() => {
-    const total = n || 1;
-    // If the atlas just opened from a trigger, `revealedSet` can briefly lag the intent;
-    // still aim the lift at the canonical placement so the fog reads correctly.
-    if (!frId) return { leftPct: 50, topPct: 50 };
-    const idx = ordered.findIndex((r) => r.realm_id === frId);
-    const i = idx >= 0 ? idx : 0;
-    return getAtlasPinPlacementForRealm(frId, i, total);
-  }, [frId, n, ordered]);
-
   const completeFogReveal = useCallback(() => {
     setFogLiftAnimating(false);
     setFogAnimProgress(1);
@@ -200,16 +171,15 @@ export function RealmAtlasOverlay({
     onFogRevealConsumed?.();
   }, [onFogRevealConsumed]);
 
-  // Animate the fog reveal over 1.5s using requestAnimationFrame.
+  // Animate reveal: longer ease-out + soft edge (mask blur in SVG) + gentle drift (see component style).
   useEffect(() => {
     if (!fogLiftAnimating) return;
     fogAnimStartRef.current = performance.now();
     setFogAnimProgress(0);
     let raf = 0;
-    const duration = 1500;
     const tick = () => {
       const elapsed = performance.now() - fogAnimStartRef.current;
-      const t = Math.min(elapsed / duration, 1);
+      const t = Math.min(elapsed / FOG_REVEAL_DURATION_MS, 1);
       setFogAnimProgress(t);
       if (t < 1) {
         raf = requestAnimationFrame(tick);
@@ -246,7 +216,7 @@ export function RealmAtlasOverlay({
     const t = window.setTimeout(() => {
       tryPlayCatalogAudioAsset(LH_MEDIA_ASSET_ID_FOG_CLEARING);
       setFogLiftAnimating(true);
-    }, 180);
+    }, 260);
     return () => window.clearTimeout(t);
   }, [open, guildInfoRealmId, frId, fogLiftFinished, fogLiftAnimating]);
 
@@ -294,41 +264,40 @@ export function RealmAtlasOverlay({
   const revealedCount = revealedSet.size;
 
   const fogMaskDataUri = useMemo(() => {
-    const circles: string[] = [];
-    // Static holes for all revealed realms.
+    const fmt = (v: number) => v.toFixed(4);
+    const staticHoles: string[] = [];
     for (const rid of revealedSet) {
-      // During animation, skip the animating realm's static blob — we draw it expanding instead.
       if (fogLiftAnimating && rid === frId) continue;
       const idx = ordered.findIndex((r) => r.realm_id === rid);
       const i = idx >= 0 ? idx : 0;
-      const { leftPct, topPct } = getAtlasPinPlacementForRealm(rid, i, n || 1);
-      const blob = buildFogBlob(rid, 'static');
-      for (const c of blob) {
-        circles.push(
-          `<circle cx="${(leftPct + c.dxPct).toFixed(2)}" cy="${(topPct + c.dyPct).toFixed(2)}" r="${c.rPct.toFixed(2)}" fill="black"/>`,
-        );
-      }
+      const piece = fogPieceOrFallback(rid, i, n || 1);
+      staticHoles.push(`<path fill="black" d="${piece.pathD}"/>`);
     }
-    // Animated reveal: expand the SAME static blob circles from 0 → full radius.
+
+    const te = easeOutPow(fogAnimProgress);
+    const blur = 6.6 * (1 - te) ** 1.15 + 0.45;
+    const scaleStart = 0.07;
+    const s = scaleStart + (1 - scaleStart) * te;
+    const fillOp = 0.18 + 0.82 * te;
+
+    let animFragment = '';
+    let filterDef = '';
     if (fogLiftAnimating && frId) {
-      const blob = buildFogBlob(frId, 'static');
-      for (const c of blob) {
-        const r = c.rPct * fogAnimProgress;
-        if (r > 0.01) {
-          circles.push(
-            `<circle cx="${(fogPinPlacement.leftPct + c.dxPct).toFixed(2)}" cy="${(fogPinPlacement.topPct + c.dyPct).toFixed(2)}" r="${r.toFixed(2)}" fill="black"/>`,
-          );
-        }
-      }
+      const idx = ordered.findIndex((r) => r.realm_id === frId);
+      const i = idx >= 0 ? idx : 0;
+      const pc = fogPieceOrFallback(frId, i, n || 1);
+      filterDef = `<filter id="lhfbr" filterUnits="userSpaceOnUse" x="-40" y="-40" width="180" height="180"><feGaussianBlur in="SourceGraphic" stdDeviation="${fmt(blur)}"/></filter>`;
+      animFragment = `<g transform="translate(${fmt(pc.cx)} ${fmt(pc.cy)}) scale(${fmt(s)}) translate(${fmt(-pc.cx)} ${fmt(-pc.cy)})"><path fill="black" fill-opacity="${fmt(fillOp)}" filter="url(#lhfbr)" d="${pc.pathD}"/></g>`;
     }
+
     const svg = [
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">`,
-      `<defs><mask id="h"><rect width="100" height="100" fill="white"/>${circles.join('')}</mask></defs>`,
-      `<rect width="100" height="100" fill="white" mask="url(#h)"/>`,
+      `<defs>${filterDef}<mask id="lfm"><rect width="100" height="100" fill="white"/>${staticHoles.join('')}${animFragment}</mask></defs>`,
+      `<rect width="100" height="100" fill="white" mask="url(#lfm)"/>`,
       `</svg>`,
     ].join('');
     return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-  }, [revealedSet, ordered, n, fogLiftAnimating, fogAnimProgress, frId, fogPinPlacement]);
+  }, [revealedSet, ordered, n, fogLiftAnimating, fogAnimProgress, frId]);
 
   const atlasLayerStyle = atlasBounds
     ? ({
@@ -352,39 +321,50 @@ export function RealmAtlasOverlay({
     [atlasBounds],
   );
 
+  const breezeX = fogLiftAnimating ? 2.4 * Math.sin(fogAnimProgress * Math.PI * 2.15) : 0;
+  const breezeY = fogLiftAnimating ? -1.65 * Math.sin(fogAnimProgress * Math.PI * 1.55) : 0;
+
   if (!open) return null;
 
   return (
     <div className="lh-overlay lh-overlay--dim lh-overlay--atlas-full" role="dialog" aria-label="World Atlas">
       <div className="lh-world-atlas">
-        <header className="lh-world-atlas__header">
-          <div>
-            <p className="lh-eyebrow">World Atlas</p>
-            <h2 className="lh-heading-md">Fog of the Unknown</h2>
-            <p className="lh-atlas__meta lh-world-atlas__lede">
-              Your illustrated reference map for the whole world. Shrouded markers are halls not yet charted; bright pins
-              are unlocked research entries (Act III guild HQs are research hubs only here — not manager trials). Tap a
-              revealed pin for the full guild research sheet. Fog applies only on this atlas. Use Pause → Charter & HQ
-              ledger for charter focus and notes.
+        <header className="lh-world-atlas__toolbar">
+          <div className="lh-world-atlas__toolbar-text">
+            <p className="lh-eyebrow lh-world-atlas__toolbar-eyebrow">World Atlas</p>
+            <h2 className="lh-world-atlas__title">Fog of the Unknown</h2>
+            <p className="lh-world-atlas__tagline lh-atlas__meta">
+              Charted guild halls shine as pins. What is still masked is Fog of the Unknown — only on this atlas.
             </p>
-            <p className="lh-atlas__meta lh-atlas__journal-strip" aria-live="polite">
+          </div>
+          <button type="button" className="lh-button lh-button--ghost lh-world-atlas__close" onClick={onClose}>
+            Close
+          </button>
+        </header>
+
+        <details className="lh-world-atlas__guide lh-atlas__meta">
+          <summary className="lh-world-atlas__guide-summary">Atlas guide · expedition notes</summary>
+          <div className="lh-world-atlas__guide-body">
+            <p className="lh-world-atlas__lede">
+              Your illustrated reference for the whole world. Shrouded markers are not yet chartered; revealed pins unlock
+              the guild research sheet (Act&nbsp;III hubs are journals here — manager trials stay in play spaces). Pause →
+              Charter &amp; HQ ledger holds charter-focused notes elsewhere.
+            </p>
+            <p className="lh-atlas__journal-strip" aria-live="polite">
               <strong>Expedition record:</strong> {chartedCanonCount} of {n} canon halls charted ·{' '}
               <strong>Charter trail:</strong> {charterTrailCanonCount} realm(s) carry session notes from past focus
             </p>
             {signpostSet.size ? (
-              <p className="lh-atlas__meta lh-atlas__signpost-strip" role="note">
+              <p className="lh-atlas__signpost-strip" role="note">
                 <strong>Foretold Signposts (Scroll):</strong>{' '}
                 {foretoldSignpostRealmIds
                   .map((id) => ordered.find((r) => r.realm_id === id)?.display_name ?? id)
                   .join(' · ')}
-                . Chart these halls on the atlas first when they appear.
+                . Chart these halls first when they appear on your Scroll.
               </p>
             ) : null}
           </div>
-          <button type="button" className="lh-button lh-button--ghost" onClick={onClose}>
-            Close
-          </button>
-        </header>
+        </details>
 
         <div className="lh-atlas__map-shell lh-atlas__map-shell--world-fill">
           <div
@@ -410,9 +390,10 @@ export function RealmAtlasOverlay({
             <div className="lh-atlas__map-plate__veil" aria-hidden="true" />
             {/* Prototype-parity Fog of the Unknown: backdrop-filter + inline SVG data URI mask. */}
             <div
-              className="lh-atlas__proto-fog"
+              className={`lh-atlas__proto-fog${fogLiftAnimating ? ' lh-atlas__proto-fog--drifting' : ''}`}
               style={{
                 ...atlasLayerStyle,
+                transform: `translate(${breezeX}px, ${breezeY}px)`,
                 WebkitMaskImage: fogMaskDataUri,
                 maskImage: fogMaskDataUri,
                 WebkitMaskSize: '100% 100%',
