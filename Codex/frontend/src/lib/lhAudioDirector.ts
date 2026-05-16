@@ -25,9 +25,11 @@ function isAudioEnabled(): boolean {
 /**
  * Music-only mute (independent of the broader `data-lh-audio` toggle that silences SFX too).
  * When `data-lh-music === 'muted'` we treat all music lanes as silenced even if `isAudioEnabled()` is true.
+ * `data-lh-intro-music-bypass`: during the intro cinematic, title-handoff music plays regardless of saved mute prefs.
  */
 function isMusicEnabled(): boolean {
   if (typeof document === 'undefined') return false;
+  if (document.documentElement.dataset.lhIntroMusicBypass === '1') return true;
   if (!isAudioEnabled()) return false;
   return document.documentElement.dataset.lhMusic !== 'muted';
 }

@@ -20,6 +20,11 @@ import { TeacherDashboardScreen } from './screens/TeacherDashboardScreen';
 import { isTerminalQuestStatus } from './quests/questEngine';
 import { sortRealmsCanon } from './realm/realmRegistry';
 import { getLhAudioDirector } from './lib/lhAudioDirector';
+import {
+  exitLhEmbedFullscreen,
+  isLhFullscreenActive,
+  requestLhEmbedFullscreen,
+} from './lib/lhEmbedFullscreen';
 import { auditCoreyRequiredMedia } from './lib/lhMissingMediaAudit';
 import { playLhSfx } from './lib/lhSfx';
 
@@ -180,6 +185,92 @@ export function App() {
   useEffect(() => {
     getLhAudioDirector().refreshAudibility();
   }, [a11y.musicMuted, a11y.audioMuted]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (screen === 'intro') {
+      root.dataset.lhIntroMusicBypass = '1';
+    } else {
+      delete root.dataset.lhIntroMusicBypass;
+    }
+    getLhAudioDirector().refreshAudibility(400);
+  }, [screen]);
+
+  useEffect(() => {
+    const toggleFs = async () => {
+      try {
+        if (isLhFullscreenActive()) await exitLhEmbedFullscreen();
+        else await requestLhEmbedFullscreen(document.getElementById('root'));
+      } catch {
+        /* fullscreen may be blocked in embedded contexts */
+      }
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.repeat) return;
+      const el = e.target as HTMLElement | null;
+      if (el?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+
+      const k = e.key;
+      if ((k === 'f' || k === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        void toggleFs();
+        return;
+      }
+      if ((k === 'm' || k === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        a11y.setMusicMuted(!a11y.musicMuted);
+        getLhAudioDirector().refreshAudibility(200);
+        return;
+      }
+      if (k !== 'Enter' || e.ctrlKey || e.metaKey) return;
+
+      if (teacherDashboardOpen) return;
+      if (
+        pauseOpen ||
+        realmAtlasOpen ||
+        worldMapOpen ||
+        inventoryOpen ||
+        questLogOpen ||
+        academicWorksheetsOpen ||
+        moduleHostOpen
+      ) {
+        return;
+      }
+
+      if (screen === 'title' && bootstrapPhase !== 'loading') {
+        e.preventDefault();
+        navigate.beginDemo();
+        return;
+      }
+      if (screen === 'gameTitle') {
+        e.preventDefault();
+        document.querySelector<HTMLButtonElement>('.lh-screen--game-title .lh-button--primary')?.click();
+        return;
+      }
+      if (screen === 'intro') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('lh-global-continue'));
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [
+    a11y.setMusicMuted,
+    a11y.musicMuted,
+    teacherDashboardOpen,
+    pauseOpen,
+    realmAtlasOpen,
+    worldMapOpen,
+    inventoryOpen,
+    questLogOpen,
+    academicWorksheetsOpen,
+    moduleHostOpen,
+    screen,
+    bootstrapPhase,
+    navigate,
+  ]);
 
   const showMapDebug = import.meta.env.DEV || import.meta.env.VITE_LH_MAP_DEBUG === 'true';
   const showPauseGuildModuleShortcuts =

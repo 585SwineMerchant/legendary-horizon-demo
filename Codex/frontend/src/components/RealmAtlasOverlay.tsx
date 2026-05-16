@@ -72,6 +72,18 @@ function easeOutCubic(t: number): number {
   return 1 - (1 - x) ** 3;
 }
 
+/** `encodeURIComponent(svg)` breaks internal `url(#id)` refs (# → %23). Base64 keeps masks valid. */
+function svgMaskDataUrl(svg: string): string {
+  try {
+    if (typeof btoa !== 'undefined') {
+      return `url("data:image/svg+xml;base64,${btoa(svg)}")`;
+    }
+  } catch {
+    /* fall through */
+  }
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+}
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -347,7 +359,7 @@ export function RealmAtlasOverlay({
       `<rect width="100" height="100" fill="white" mask="url(#lfm)"/>`,
       `</svg>`,
     ].join('');
-    return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+    return svgMaskDataUrl(svg);
   }, [revealedSet, ordered, n, fogLiftAnimating, fogAnimProgress, frId]);
 
   const atlasLayerStyle = atlasBounds

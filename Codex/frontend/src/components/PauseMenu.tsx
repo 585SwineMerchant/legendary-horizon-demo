@@ -135,7 +135,11 @@ export function PauseMenu({
               </div>
               <div>
                 <dt>Fullscreen</dt>
-                <dd>Pause - Enter Fullscreen</dd>
+                <dd>F (any time) or Pause → Enter Fullscreen</dd>
+              </div>
+              <div>
+                <dt>Music on / off</dt>
+                <dd>M</dd>
               </div>
             </dl>
           </section>

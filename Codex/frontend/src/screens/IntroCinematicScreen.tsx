@@ -75,6 +75,19 @@ export function IntroCinematicScreen({ onStart, onResume }: Props) {
     return () => window.clearTimeout(t);
   }, [menuOpen]);
 
+  useEffect(() => {
+    const onContinue = () => {
+      if (menuOpen && menuReady) {
+        const btn = document.querySelector<HTMLButtonElement>(
+          '.lh-screen--intro-cinematic button.lh-button--primary',
+        );
+        btn?.click();
+      }
+    };
+    window.addEventListener('lh-global-continue', onContinue);
+    return () => window.removeEventListener('lh-global-continue', onContinue);
+  }, [menuOpen, menuReady]);
+
   return (
     <section className="lh-screen lh-screen--intro-cinematic" aria-label="Legendary Horizon intro cinematic">
       <iframe
