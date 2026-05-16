@@ -319,6 +319,8 @@ export function RealmAtlasOverlay({
     const s = reactId.replace(/[^a-zA-Z0-9_-]/g, '') || 'fog';
     return { grad: `lh-atlas-fog-grad-${s}`, mask: `lh-atlas-fog-mask-${s}` };
   }, [reactId]);
+  /** Same `<mask id>` as SVG — HTML layer uses CSS `mask-image` to share holes; tint stays SVG-native. */
+  const fogMaskFragmentUrl = useMemo(() => `url(#${fogSvgIds.mask})`, [fogSvgIds.mask]);
 
   const atlasLayerStyle = atlasBounds
     ? ({
@@ -352,6 +354,20 @@ export function RealmAtlasOverlay({
         ...atlasLayerStyle,
       }) as CSSProperties,
     [atlasLayerStyle],
+  );
+  const fogBackdropLayerStyle = useMemo(
+    () =>
+      ({
+        ...fogSvgLayerStyle,
+        zIndex: 11,
+        WebkitMaskImage: fogMaskFragmentUrl,
+        maskImage: fogMaskFragmentUrl,
+        WebkitMaskSize: '100% 100%',
+        maskSize: '100% 100%',
+        WebkitMaskRepeat: 'no-repeat',
+        maskRepeat: 'no-repeat',
+      }) as CSSProperties,
+    [fogMaskFragmentUrl, fogSvgLayerStyle],
   );
 
   if (!open) return null;
@@ -388,8 +404,8 @@ export function RealmAtlasOverlay({
             />
             <div className="lh-atlas__map-plate__veil" aria-hidden="true" />
             {/*
-              Fog uses native SVG <mask> + <rect mask="url(#…)">. CSS mask-image on HTML often fails to resolve or
-              interact with backdrop-filter; same-document SVG masking is reliable across Chromium/WebKit/Firefox.
+              Fog: (1) SVG rect + mask — reliable holes. (2) HTML layer shares the same mask id for backdrop-filter
+              blur/desaturate — tint alone was too subtle.
             */}
             <svg
               className="lh-atlas__fog-overlay"
@@ -450,7 +466,14 @@ export function RealmAtlasOverlay({
                 </mask>
               </defs>
               <rect className="lh-atlas__proto-fog-rect" width="100" height="100" mask={`url(#${fogSvgIds.mask})`} />
+              <rect
+                className="lh-atlas__proto-fog-veil-rect"
+                width="100"
+                height="100"
+                mask={`url(#${fogSvgIds.mask})`}
+              />
             </svg>
+            <div className="lh-atlas__proto-fog-backdrop" style={fogBackdropLayerStyle} aria-hidden="true" />
             {revealedCount === 0 ? (
               <div className="lh-atlas__map-empty-hint">
                 <p className="lh-atlas__map-empty-title">No halls charted yet</p>
