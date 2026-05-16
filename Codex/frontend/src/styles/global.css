@@ -1359,7 +1359,7 @@ code.lh-code-inline {
   background: radial-gradient(ellipse 90% 75% at 50% 50%, transparent 40%, rgba(10, 12, 16, 0.12) 100%);
 }
 
-/* Prototype-parity Fog of the Unknown (backdrop-filter + inline SVG data URI mask). */
+/* Prototype-parity Fog of the Unknown (backdrop-filter + same-document SVG mask). */
 .lh-atlas__proto-fog {
   pointer-events: none;
   position: absolute;

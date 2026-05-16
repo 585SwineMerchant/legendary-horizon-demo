@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -22,8 +23,6 @@ type AtlasRenderedBounds = { width: number; height: number; offsetX: number; off
 const FOG_REVEAL_DURATION_MS = 1500;
 /** Final hole radius in the same 0–100 user space as `viewBox` (prototype ends at 8%). */
 const FOG_HOLE_RADIUS = 8;
-/** `#fog-blur` in `Fog of the unknown.html` — `feGaussianBlur stdDeviation="30"`. */
-const FOG_MASK_BLUR = 30;
 const ATLAS_FOG_INTRO_DISMISSED_LS = 'lh.worldAtlas.fogIntroDismissed';
 const ATLAS_FOG_INTRO_PENDING_SS = 'lh.atlas.introAfterFog';
 
@@ -70,18 +69,6 @@ function readAtlasIntroPending(): boolean {
 function easeOutCubic(t: number): number {
   const x = Math.max(0, Math.min(1, t));
   return 1 - (1 - x) ** 3;
-}
-
-/** `encodeURIComponent(svg)` breaks internal `url(#id)` refs (# → %23). Base64 keeps masks valid. */
-function svgMaskDataUrl(svg: string): string {
-  try {
-    if (typeof btoa !== 'undefined') {
-      return `url("data:image/svg+xml;base64,${btoa(svg)}")`;
-    }
-  } catch {
-    /* fall through */
-  }
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
 type Props = {
@@ -327,40 +314,12 @@ export function RealmAtlasOverlay({
 
   const revealedCount = revealedSet.size;
 
-  const fogMaskDataUri = useMemo(() => {
-    const fmt = (v: number) => v.toFixed(4);
-    /** Prototype-style soft holes: black + heavy Gaussian blur in mask space. */
-    const filterDef = `<filter id="lhfog" filterUnits="userSpaceOnUse" x="-80" y="-80" width="260" height="260"><feGaussianBlur in="SourceGraphic" stdDeviation="${FOG_MASK_BLUR}"/></filter>`;
-
-    const staticHoles: string[] = [];
-    for (const rid of revealedSet) {
-      if (fogLiftAnimating && rid === frId) continue;
-      const idx = ordered.findIndex((r) => r.realm_id === rid);
-      const i = idx >= 0 ? idx : 0;
-      const { leftPct, topPct } = getAtlasPinPlacementForRealm(rid, i, n || 1);
-      staticHoles.push(
-        `<circle cx="${fmt(leftPct)}" cy="${fmt(topPct)}" r="${FOG_HOLE_RADIUS}" fill="black" filter="url(#lhfog)"/>`,
-      );
-    }
-
-    let animFragment = '';
-    if (fogLiftAnimating && frId) {
-      const idx = ordered.findIndex((r) => r.realm_id === frId);
-      const i = idx >= 0 ? idx : 0;
-      const { leftPct, topPct } = getAtlasPinPlacementForRealm(frId, i, n || 1);
-      const te = easeOutCubic(fogAnimProgress);
-      const r = FOG_HOLE_RADIUS * te;
-      animFragment = `<circle cx="${fmt(leftPct)}" cy="${fmt(topPct)}" r="${fmt(r)}" fill="black" filter="url(#lhfog)"/>`;
-    }
-
-    const svg = [
-      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none">`,
-      `<defs>${filterDef}<mask id="lfm"><rect width="100" height="100" fill="white"/>${staticHoles.join('')}${animFragment}</mask></defs>`,
-      `<rect width="100" height="100" fill="white" mask="url(#lfm)"/>`,
-      `</svg>`,
-    ].join('');
-    return svgMaskDataUrl(svg);
-  }, [revealedSet, ordered, n, fogLiftAnimating, fogAnimProgress, frId]);
+  const reactId = useId();
+  const fogSvgIds = useMemo(() => {
+    const s = reactId.replace(/[^a-zA-Z0-9_-]/g, '') || 'fog';
+    return { grad: `lh-atlas-fog-grad-${s}`, mask: `lh-atlas-fog-mask-${s}` };
+  }, [reactId]);
+  const fogMaskRef = `url(#${fogSvgIds.mask})`;
 
   const atlasLayerStyle = atlasBounds
     ? ({
@@ -417,13 +376,76 @@ export function RealmAtlasOverlay({
               }}
             />
             <div className="lh-atlas__map-plate__veil" aria-hidden="true" />
-            {/* Prototype-parity Fog of the Unknown: backdrop-filter + inline SVG data URI mask. */}
+            {/* Same-document SVG mask: data-URL masks often drop SVG filters/refs, so the fog reads as a solid sheet. */}
+            <svg
+              className="lh-atlas__fog-mask-defs"
+              width="0"
+              height="0"
+              aria-hidden
+              style={{ position: 'absolute', overflow: 'hidden', pointerEvents: 'none' }}
+            >
+              <defs>
+                <radialGradient id={fogSvgIds.grad} gradientUnits="objectBoundingBox" cx="0.5" cy="0.5" r="0.5">
+                  <stop offset="0%" stopColor="#000000" />
+                  <stop offset="55%" stopColor="#000000" />
+                  <stop offset="100%" stopColor="#ffffff" />
+                </radialGradient>
+                <mask
+                  id={fogSvgIds.mask}
+                  maskUnits="objectBoundingBox"
+                  maskContentUnits="objectBoundingBox"
+                  x="0"
+                  y="0"
+                  width="1"
+                  height="1"
+                >
+                  <rect width="1" height="1" fill="white" />
+                  {Array.from(revealedSet).map((rid) => {
+                    if (fogLiftAnimating && rid === frId) return null;
+                    const idx = ordered.findIndex((r) => r.realm_id === rid);
+                    const i = idx >= 0 ? idx : 0;
+                    const { leftPct, topPct } = getAtlasPinPlacementForRealm(rid, i, n || 1);
+                    const cx = leftPct / 100;
+                    const cy = topPct / 100;
+                    const r = FOG_HOLE_RADIUS / 100;
+                    return (
+                      <circle
+                        key={`hole-${rid}`}
+                        cx={cx}
+                        cy={cy}
+                        r={r}
+                        fill={`url(#${fogSvgIds.grad})`}
+                      />
+                    );
+                  })}
+                  {fogLiftAnimating && frId
+                    ? (() => {
+                        const idx = ordered.findIndex((r) => r.realm_id === frId);
+                        const i = idx >= 0 ? idx : 0;
+                        const { leftPct, topPct } = getAtlasPinPlacementForRealm(frId, i, n || 1);
+                        const te = easeOutCubic(fogAnimProgress);
+                        const r = (FOG_HOLE_RADIUS / 100) * Math.max(te, 0.001);
+                        return (
+                          <circle
+                            key="hole-anim"
+                            cx={leftPct / 100}
+                            cy={topPct / 100}
+                            r={r}
+                            fill={`url(#${fogSvgIds.grad})`}
+                          />
+                        );
+                      })()
+                    : null}
+                </mask>
+              </defs>
+            </svg>
+            {/* Prototype-parity Fog of the Unknown: backdrop-filter + mask holes at guild pins. */}
             <div
               className="lh-atlas__proto-fog"
               style={{
                 ...atlasLayerStyle,
-                WebkitMaskImage: fogMaskDataUri,
-                maskImage: fogMaskDataUri,
+                WebkitMaskImage: fogMaskRef,
+                maskImage: fogMaskRef,
                 WebkitMaskSize: '100% 100%',
                 maskSize: '100% 100%',
                 WebkitMaskRepeat: 'no-repeat',
