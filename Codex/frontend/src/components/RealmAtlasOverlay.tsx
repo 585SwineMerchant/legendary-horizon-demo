@@ -319,7 +319,6 @@ export function RealmAtlasOverlay({
     const s = reactId.replace(/[^a-zA-Z0-9_-]/g, '') || 'fog';
     return { grad: `lh-atlas-fog-grad-${s}`, mask: `lh-atlas-fog-mask-${s}` };
   }, [reactId]);
-  const fogMaskRef = `url(#${fogSvgIds.mask})`;
 
   const atlasLayerStyle = atlasBounds
     ? ({
@@ -341,6 +340,18 @@ export function RealmAtlasOverlay({
       };
     },
     [atlasBounds],
+  );
+
+  const fogSvgLayerStyle = useMemo(
+    () =>
+      ({
+        position: 'absolute',
+        zIndex: 10,
+        pointerEvents: 'none',
+        borderRadius: 'inherit',
+        ...atlasLayerStyle,
+      }) as CSSProperties,
+    [atlasLayerStyle],
   );
 
   if (!open) return null;
@@ -376,13 +387,16 @@ export function RealmAtlasOverlay({
               }}
             />
             <div className="lh-atlas__map-plate__veil" aria-hidden="true" />
-            {/* Same-document SVG mask: data-URL masks often drop SVG filters/refs, so the fog reads as a solid sheet. */}
+            {/*
+              Fog uses native SVG <mask> + <rect mask="url(#…)">. CSS mask-image on HTML often fails to resolve or
+              interact with backdrop-filter; same-document SVG masking is reliable across Chromium/WebKit/Firefox.
+            */}
             <svg
-              className="lh-atlas__fog-mask-defs"
-              width="0"
-              height="0"
+              className="lh-atlas__fog-overlay"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
               aria-hidden
-              style={{ position: 'absolute', overflow: 'hidden', pointerEvents: 'none' }}
+              style={fogSvgLayerStyle}
             >
               <defs>
                 <radialGradient id={fogSvgIds.grad} gradientUnits="objectBoundingBox" cx="0.5" cy="0.5" r="0.5">
@@ -392,28 +406,25 @@ export function RealmAtlasOverlay({
                 </radialGradient>
                 <mask
                   id={fogSvgIds.mask}
-                  maskUnits="objectBoundingBox"
-                  maskContentUnits="objectBoundingBox"
+                  maskUnits="userSpaceOnUse"
+                  maskContentUnits="userSpaceOnUse"
                   x="0"
                   y="0"
-                  width="1"
-                  height="1"
+                  width="100"
+                  height="100"
                 >
-                  <rect width="1" height="1" fill="white" />
+                  <rect width="100" height="100" fill="white" />
                   {Array.from(revealedSet).map((rid) => {
                     if (fogLiftAnimating && rid === frId) return null;
                     const idx = ordered.findIndex((r) => r.realm_id === rid);
                     const i = idx >= 0 ? idx : 0;
                     const { leftPct, topPct } = getAtlasPinPlacementForRealm(rid, i, n || 1);
-                    const cx = leftPct / 100;
-                    const cy = topPct / 100;
-                    const r = FOG_HOLE_RADIUS / 100;
                     return (
                       <circle
                         key={`hole-${rid}`}
-                        cx={cx}
-                        cy={cy}
-                        r={r}
+                        cx={leftPct}
+                        cy={topPct}
+                        r={FOG_HOLE_RADIUS}
                         fill={`url(#${fogSvgIds.grad})`}
                       />
                     );
@@ -424,12 +435,12 @@ export function RealmAtlasOverlay({
                         const i = idx >= 0 ? idx : 0;
                         const { leftPct, topPct } = getAtlasPinPlacementForRealm(frId, i, n || 1);
                         const te = easeOutCubic(fogAnimProgress);
-                        const r = (FOG_HOLE_RADIUS / 100) * Math.max(te, 0.001);
+                        const r = FOG_HOLE_RADIUS * Math.max(te, 0.001);
                         return (
                           <circle
                             key="hole-anim"
-                            cx={leftPct / 100}
-                            cy={topPct / 100}
+                            cx={leftPct}
+                            cy={topPct}
                             r={r}
                             fill={`url(#${fogSvgIds.grad})`}
                           />
@@ -438,21 +449,8 @@ export function RealmAtlasOverlay({
                     : null}
                 </mask>
               </defs>
+              <rect className="lh-atlas__proto-fog-rect" width="100" height="100" mask={`url(#${fogSvgIds.mask})`} />
             </svg>
-            {/* Prototype-parity Fog of the Unknown: backdrop-filter + mask holes at guild pins. */}
-            <div
-              className="lh-atlas__proto-fog"
-              style={{
-                ...atlasLayerStyle,
-                WebkitMaskImage: fogMaskRef,
-                maskImage: fogMaskRef,
-                WebkitMaskSize: '100% 100%',
-                maskSize: '100% 100%',
-                WebkitMaskRepeat: 'no-repeat',
-                maskRepeat: 'no-repeat',
-              } as CSSProperties}
-              aria-hidden="true"
-            />
             {revealedCount === 0 ? (
               <div className="lh-atlas__map-empty-hint">
                 <p className="lh-atlas__map-empty-title">No halls charted yet</p>
