@@ -319,8 +319,12 @@ export function RealmAtlasOverlay({
     const s = reactId.replace(/[^a-zA-Z0-9_-]/g, '') || 'fog';
     return { grad: `lh-atlas-fog-grad-${s}`, mask: `lh-atlas-fog-mask-${s}` };
   }, [reactId]);
-  /** Same `<mask id>` as SVG — HTML layer uses CSS `mask-image` to share holes; tint stays SVG-native. */
-  const fogMaskFragmentUrl = useMemo(() => `url(#${fogSvgIds.mask})`, [fogSvgIds.mask]);
+
+  /** Non-uniform SVG stretch (viewBox 100×100 → atlas box) turns circles into ovals; correct ry for round holes. */
+  const fogHoleRyScale = useMemo(() => {
+    if (!atlasBounds || atlasBounds.width <= 0 || atlasBounds.height <= 0) return 1;
+    return atlasBounds.width / atlasBounds.height;
+  }, [atlasBounds]);
 
   const atlasLayerStyle = atlasBounds
     ? ({
@@ -355,19 +359,19 @@ export function RealmAtlasOverlay({
       }) as CSSProperties,
     [atlasLayerStyle],
   );
-  const fogBackdropLayerStyle = useMemo(
-    () =>
-      ({
-        ...fogSvgLayerStyle,
-        zIndex: 11,
-        WebkitMaskImage: fogMaskFragmentUrl,
-        maskImage: fogMaskFragmentUrl,
-        WebkitMaskSize: '100% 100%',
-        maskSize: '100% 100%',
-        WebkitMaskRepeat: 'no-repeat',
-        maskRepeat: 'no-repeat',
-      }) as CSSProperties,
-    [fogMaskFragmentUrl, fogSvgLayerStyle],
+
+  const renderFogHole = useCallback(
+    (key: string, leftPct: number, topPct: number, r: number) => (
+      <ellipse
+        key={key}
+        cx={leftPct}
+        cy={topPct}
+        rx={r}
+        ry={r * fogHoleRyScale}
+        fill={`url(#${fogSvgIds.grad})`}
+      />
+    ),
+    [fogHoleRyScale, fogSvgIds.grad],
   );
 
   if (!open) return null;
@@ -404,8 +408,8 @@ export function RealmAtlasOverlay({
             />
             <div className="lh-atlas__map-plate__veil" aria-hidden="true" />
             {/*
-              Fog: (1) SVG rect + mask — reliable holes. (2) HTML layer shares the same mask id for backdrop-filter
-              blur/desaturate — tint alone was too subtle.
+              Fog is SVG-only. Do not apply mask-image: url(#id) on HTML — userSpaceOnUse masks often stick to ~100×100px
+              at the top-left (dark corner artifact). Holes use ellipses so they stay round when the atlas is letterboxed.
             */}
             <svg
               className="lh-atlas__fog-overlay"
@@ -435,15 +439,7 @@ export function RealmAtlasOverlay({
                     const idx = ordered.findIndex((r) => r.realm_id === rid);
                     const i = idx >= 0 ? idx : 0;
                     const { leftPct, topPct } = getAtlasPinPlacementForRealm(rid, i, n || 1);
-                    return (
-                      <circle
-                        key={`hole-${rid}`}
-                        cx={leftPct}
-                        cy={topPct}
-                        r={FOG_HOLE_RADIUS}
-                        fill={`url(#${fogSvgIds.grad})`}
-                      />
-                    );
+                    return renderFogHole(`hole-${rid}`, leftPct, topPct, FOG_HOLE_RADIUS);
                   })}
                   {fogLiftAnimating && frId
                     ? (() => {
@@ -452,15 +448,7 @@ export function RealmAtlasOverlay({
                         const { leftPct, topPct } = getAtlasPinPlacementForRealm(frId, i, n || 1);
                         const te = easeOutCubic(fogAnimProgress);
                         const r = FOG_HOLE_RADIUS * Math.max(te, 0.001);
-                        return (
-                          <circle
-                            key="hole-anim"
-                            cx={leftPct}
-                            cy={topPct}
-                            r={r}
-                            fill={`url(#${fogSvgIds.grad})`}
-                          />
-                        );
+                        return renderFogHole('hole-anim', leftPct, topPct, r);
                       })()
                     : null}
                 </mask>
@@ -473,7 +461,6 @@ export function RealmAtlasOverlay({
                 mask={`url(#${fogSvgIds.mask})`}
               />
             </svg>
-            <div className="lh-atlas__proto-fog-backdrop" style={fogBackdropLayerStyle} aria-hidden="true" />
             {revealedCount === 0 ? (
               <div className="lh-atlas__map-empty-hint">
                 <p className="lh-atlas__map-empty-title">No halls charted yet</p>
