@@ -1359,19 +1359,18 @@ code.lh-code-inline {
   background: radial-gradient(ellipse 90% 75% at 50% 50%, transparent 40%, rgba(10, 12, 16, 0.12) 100%);
 }
 
-/* World Atlas fog: masked SVG rects only (no HTML mask-image — avoids top-left mask bug). */
-.lh-atlas__fog-overlay {
+/* World Atlas fog: masked blurred duplicate of the chart (sharp map shows through mask holes). */
+.lh-atlas__fog-mask-defs {
+  position: absolute;
   overflow: hidden;
+  pointer-events: none;
 }
 
-.lh-atlas__proto-fog-rect {
-  fill: rgba(2, 4, 8, 0.78);
-  transition: opacity 2.5s ease;
-}
-
-.lh-atlas__proto-fog-veil-rect {
-  fill: rgba(0, 0, 0, 0.42);
-  transition: opacity 2.5s ease;
+.lh-atlas__map-plate-img--fog-blur {
+  transform: scale(1.04);
+  transform-origin: center center;
+  filter: blur(14px) saturate(0.62) brightness(0.88);
+  -webkit-filter: blur(14px) saturate(0.62) brightness(0.88);
 }
 
 .lh-atlas__map-empty-hint {

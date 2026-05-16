@@ -348,30 +348,39 @@ export function RealmAtlasOverlay({
     [atlasBounds],
   );
 
-  const fogSvgLayerStyle = useMemo(
-    () =>
-      ({
-        position: 'absolute',
-        zIndex: 10,
-        pointerEvents: 'none',
-        borderRadius: 'inherit',
-        ...atlasLayerStyle,
-      }) as CSSProperties,
-    [atlasLayerStyle],
-  );
-
+  /** Mask holes in 0–1 space so `mask-image: url(#id)` on the blurred img scales with the atlas box. */
   const renderFogHole = useCallback(
     (key: string, leftPct: number, topPct: number, r: number) => (
       <ellipse
         key={key}
-        cx={leftPct}
-        cy={topPct}
-        rx={r}
-        ry={r * fogHoleRyScale}
+        cx={leftPct / 100}
+        cy={topPct / 100}
+        rx={r / 100}
+        ry={(r * fogHoleRyScale) / 100}
         fill={`url(#${fogSvgIds.grad})`}
       />
     ),
     [fogHoleRyScale, fogSvgIds.grad],
+  );
+
+  const fogMaskUrl = `url(#${fogSvgIds.mask})`;
+
+  const fogBlurImgStyle = useMemo(
+    () =>
+      ({
+        position: 'absolute',
+        zIndex: 2,
+        pointerEvents: 'none',
+        objectFit: 'fill',
+        ...atlasLayerStyle,
+        WebkitMaskImage: fogMaskUrl,
+        maskImage: fogMaskUrl,
+        WebkitMaskSize: '100% 100%',
+        maskSize: '100% 100%',
+        WebkitMaskRepeat: 'no-repeat',
+        maskRepeat: 'no-repeat',
+      }) as CSSProperties,
+    [atlasLayerStyle, fogMaskUrl],
   );
 
   if (!open) return null;
@@ -408,16 +417,9 @@ export function RealmAtlasOverlay({
             />
             <div className="lh-atlas__map-plate__veil" aria-hidden="true" />
             {/*
-              Fog is SVG-only. Do not apply mask-image: url(#id) on HTML — userSpaceOnUse masks often stick to ~100×100px
-              at the top-left (dark corner artifact). Holes use ellipses so they stay round when the atlas is letterboxed.
+              Fog: sharp map + masked blurred duplicate (objectBoundingBox mask scales with the atlas art box).
             */}
-            <svg
-              className="lh-atlas__fog-overlay"
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-              aria-hidden
-              style={fogSvgLayerStyle}
-            >
+            <svg className="lh-atlas__fog-mask-defs" aria-hidden width={0} height={0}>
               <defs>
                 <radialGradient id={fogSvgIds.grad} gradientUnits="objectBoundingBox" cx="0.5" cy="0.5" r="0.5">
                   <stop offset="0%" stopColor="#000000" />
@@ -426,14 +428,14 @@ export function RealmAtlasOverlay({
                 </radialGradient>
                 <mask
                   id={fogSvgIds.mask}
-                  maskUnits="userSpaceOnUse"
-                  maskContentUnits="userSpaceOnUse"
+                  maskUnits="objectBoundingBox"
+                  maskContentUnits="objectBoundingBox"
                   x="0"
                   y="0"
-                  width="100"
-                  height="100"
+                  width="1"
+                  height="1"
                 >
-                  <rect width="100" height="100" fill="white" />
+                  <rect width="1" height="1" fill="white" />
                   {Array.from(revealedSet).map((rid) => {
                     if (fogLiftAnimating && rid === frId) return null;
                     const idx = ordered.findIndex((r) => r.realm_id === rid);
@@ -453,14 +455,17 @@ export function RealmAtlasOverlay({
                     : null}
                 </mask>
               </defs>
-              <rect className="lh-atlas__proto-fog-rect" width="100" height="100" mask={`url(#${fogSvgIds.mask})`} />
-              <rect
-                className="lh-atlas__proto-fog-veil-rect"
-                width="100"
-                height="100"
-                mask={`url(#${fogSvgIds.mask})`}
-              />
             </svg>
+            <img
+              className="lh-atlas__map-plate-img lh-atlas__map-plate-img--fog-blur"
+              src={atlasImgSrc}
+              alt=""
+              aria-hidden
+              decoding="async"
+              draggable={false}
+              referrerPolicy="no-referrer"
+              style={fogBlurImgStyle}
+            />
             {revealedCount === 0 ? (
               <div className="lh-atlas__map-empty-hint">
                 <p className="lh-atlas__map-empty-title">No halls charted yet</p>
