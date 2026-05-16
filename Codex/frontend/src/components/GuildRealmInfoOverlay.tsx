@@ -47,8 +47,8 @@ const SLUG_DECOR: Readonly<Record<string, string>> = {
 
 /**
  * Full-screen guild HQ discovery sheet — presentation aligned with the Realm Atlas HTML prototype
- * (`Project Documents/Fog of the unknown.html`): split lore column + featured HQ art, fantasy-career
- * tiles, and CareerOneStop cluster link.
+ * (`Project Documents/Fog of the unknown.html`): 16×9 slide, split lore column + HQ art bleed,
+ * fantasy tiles, CareerOneStop link on the guild header row.
  */
 export function GuildRealmInfoOverlay({
   open,
@@ -122,8 +122,6 @@ export function GuildRealmInfoOverlay({
 
       <div className="lh-guild-realm-modal">
         <div className="lh-guild-realm-modal__content">
-          <p className="lh-guild-realm-modal__eyebrow">Act III — Guild research hub</p>
-
           {careerSpotlightUrl ? (
             <a href={careerSpotlightUrl} className="lh-guild-realm-modal__header-link" target="_blank" rel="noopener noreferrer">
               <div className="lh-guild-realm-modal__guild-header">
@@ -140,7 +138,6 @@ export function GuildRealmInfoOverlay({
                   ) : null}
                 </h2>
               </div>
-              <span className="lh-guild-realm-modal__header-link-hint">Open real-world career cluster on CareerOneStop ↗</span>
             </a>
           ) : (
             <div className="lh-guild-realm-modal__guild-header">
@@ -169,7 +166,7 @@ export function GuildRealmInfoOverlay({
 
           <div className="lh-guild-realm-modal__grid">
             <div className="lh-guild-realm-modal__box">
-              <h3 className="lh-guild-realm-modal__box-label">Realm intelligence</h3>
+              <h3 className="lh-guild-realm-modal__box-label">Traveler interests</h3>
               {pathTags.length ? (
                 <ul className="lh-guild-realm-modal__diamond-list">
                   {pathTags.map((t) => (
@@ -184,7 +181,7 @@ export function GuildRealmInfoOverlay({
             </div>
 
             <div className="lh-guild-realm-modal__box">
-              <h3 className="lh-guild-realm-modal__box-label">Quest ties</h3>
+              <h3 className="lh-guild-realm-modal__box-label">Realm quests</h3>
               {realmQuests.length ? (
                 <ul className="lh-guild-realm-modal__diamond-list">
                   {realmQuests.slice(0, 8).map((q) => (
@@ -197,18 +194,8 @@ export function GuildRealmInfoOverlay({
             </div>
 
             <div className="lh-guild-realm-modal__box lh-guild-realm-modal__box--wide">
-              <h3 className="lh-guild-realm-modal__box-label">Career cluster</h3>
+              <h3 className="lh-guild-realm-modal__box-label">Guild professions (careers)</h3>
               <p className="lh-guild-realm-modal__cluster-line">{cluster}</p>
-              {careerSpotlightUrl ? (
-                <a
-                  className="lh-button lh-button--secondary lh-guild-realm-modal__cluster-cta"
-                  href={careerSpotlightUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Explore cluster on CareerOneStop
-                </a>
-              ) : null}
             </div>
             <div className="lh-guild-realm-modal__box lh-guild-realm-modal__box--wide">
               <h3 className="lh-guild-realm-modal__box-label">Research focus</h3>
