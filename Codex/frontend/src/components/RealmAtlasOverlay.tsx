@@ -14,13 +14,17 @@ import { tryPlayCatalogAudioAsset } from '../lib/lhCatalogAudio';
 import type { ClassroomToolHandlers } from '../services/classroomToolLaunches';
 import type { MediaAssetRecord, QuestDefinition, RealmDefinition } from '../types';
 import { buildRealmAtlasImageSrcCandidates, getAtlasPinPlacementForRealm } from '../realm/atlasWorldMap';
-import { atlasFogRevealCirclePiece, resolveRealmFogPiece } from '../realm/atlasFogPieces';
 import { sortRealmsCanon } from '../realm/realmRegistry';
 import type { RealmProgressMap } from '../realm/realmProgress';
 
 type AtlasRenderedBounds = { width: number; height: number; offsetX: number; offsetY: number };
 
-const FOG_REVEAL_DURATION_MS = 8400;
+/** Realm Atlas HTML prototype: `<animate r from="0%" to="8%" dur="1.5s"/>` on a blurred mask hole. */
+const FOG_REVEAL_DURATION_MS = 1500;
+/** Final hole radius in the same 0–100 user space as `viewBox` (prototype ends at 8%). */
+const FOG_HOLE_RADIUS = 8;
+/** `#fog-blur` in `Fog of the unknown.html` — `feGaussianBlur stdDeviation="30"`. */
+const FOG_MASK_BLUR = 30;
 const ATLAS_FOG_INTRO_DISMISSED_LS = 'lh.worldAtlas.fogIntroDismissed';
 const ATLAS_FOG_INTRO_PENDING_SS = 'lh.atlas.introAfterFog';
 
@@ -64,25 +68,9 @@ function readAtlasIntroPending(): boolean {
   }
 }
 
-/** Perceptual ease (smootherstep): slow start and end for “mist lifting” reads. */
-function smootherstep(t: number): number {
+function easeOutCubic(t: number): number {
   const x = Math.max(0, Math.min(1, t));
-  return x * x * x * (x * (x * 6 - 15) + 10);
-}
-
-function easeOutPow(t: number, power = 3): number {
-  const x = Math.max(0, Math.min(1, t));
-  return 1 - (1 - x) ** power;
-}
-
-function fogPieceOrFallback(realmId: string, indexInCanonOrder: number, totalRealms: number) {
-  return (
-    resolveRealmFogPiece(realmId) ??
-    atlasFogRevealCirclePiece(
-      getAtlasPinPlacementForRealm(realmId, indexInCanonOrder, totalRealms).leftPct,
-      getAtlasPinPlacementForRealm(realmId, indexInCanonOrder, totalRealms).topPct,
-    )
-  );
+  return 1 - (1 - x) ** 3;
 }
 
 type Props = {
@@ -219,7 +207,7 @@ export function RealmAtlasOverlay({
     }
   }, [onFogRevealConsumed]);
 
-  // Animate reveal: longer ease-out + soft edge (mask blur in SVG) + gentle drift (see component style).
+  // Animate reveal: matches prototype (expanding blurred circle only — no shape handoff).
   useEffect(() => {
     if (!fogLiftAnimating) return;
     fogAnimStartRef.current = performance.now();
@@ -282,7 +270,7 @@ export function RealmAtlasOverlay({
     const t = window.setTimeout(() => {
       tryPlayCatalogAudioAsset(LH_MEDIA_ASSET_ID_FOG_CLEARING);
       setFogLiftAnimating(true);
-    }, 400);
+    }, 0);
     return () => window.clearTimeout(t);
   }, [open, guildInfoRealmId, frId, fogLiftFinished, fogLiftAnimating]);
 
@@ -324,33 +312,28 @@ export function RealmAtlasOverlay({
 
   const fogMaskDataUri = useMemo(() => {
     const fmt = (v: number) => v.toFixed(4);
+    /** Prototype-style soft holes: black + heavy Gaussian blur in mask space. */
+    const filterDef = `<filter id="lhfog" filterUnits="userSpaceOnUse" x="-80" y="-80" width="260" height="260"><feGaussianBlur in="SourceGraphic" stdDeviation="${FOG_MASK_BLUR}"/></filter>`;
+
     const staticHoles: string[] = [];
     for (const rid of revealedSet) {
       if (fogLiftAnimating && rid === frId) continue;
       const idx = ordered.findIndex((r) => r.realm_id === rid);
       const i = idx >= 0 ? idx : 0;
-      const piece = fogPieceOrFallback(rid, i, n || 1);
-      staticHoles.push(`<path fill="black" d="${piece.pathD}"/>`);
+      const { leftPct, topPct } = getAtlasPinPlacementForRealm(rid, i, n || 1);
+      staticHoles.push(
+        `<circle cx="${fmt(leftPct)}" cy="${fmt(topPct)}" r="${FOG_HOLE_RADIUS}" fill="black" filter="url(#lhfog)"/>`,
+      );
     }
 
-    const tLin = fogAnimProgress;
-    /* Double perceptual easing: mist lifts slowly at first and dissolves softly at the end. */
-    const te = smootherstep(smootherstep(tLin));
-    const teBlur = easeOutPow(tLin, 1.35);
-    const blur = 10 * (1 - teBlur) ** 0.38 + 0.22;
-    const scaleStart = 0.965;
-    const s = scaleStart + (1 - scaleStart) * te;
-    /* Softer silhouette fill as the veil “burns away” rather than snapping open. */
-    const fillOp = Math.min(1, Math.max(0, 0.06 + 0.94 * (te * te * (3 - 2 * te))));
-
     let animFragment = '';
-    let filterDef = '';
     if (fogLiftAnimating && frId) {
       const idx = ordered.findIndex((r) => r.realm_id === frId);
       const i = idx >= 0 ? idx : 0;
-      const pc = fogPieceOrFallback(frId, i, n || 1);
-      filterDef = `<filter id="lhfbr" filterUnits="userSpaceOnUse" x="-40" y="-40" width="180" height="180"><feGaussianBlur in="SourceGraphic" stdDeviation="${fmt(blur)}"/></filter>`;
-      animFragment = `<g transform="translate(${fmt(pc.cx)} ${fmt(pc.cy)}) scale(${fmt(s)}) translate(${fmt(-pc.cx)} ${fmt(-pc.cy)})"><path fill="black" fill-opacity="${fmt(fillOp)}" filter="url(#lhfbr)" d="${pc.pathD}"/></g>`;
+      const { leftPct, topPct } = getAtlasPinPlacementForRealm(frId, i, n || 1);
+      const te = easeOutCubic(fogAnimProgress);
+      const r = FOG_HOLE_RADIUS * te;
+      animFragment = `<circle cx="${fmt(leftPct)}" cy="${fmt(topPct)}" r="${fmt(r)}" fill="black" filter="url(#lhfog)"/>`;
     }
 
     const svg = [
@@ -383,12 +366,6 @@ export function RealmAtlasOverlay({
     },
     [atlasBounds],
   );
-
-  const breezeX = fogLiftAnimating ? 0.85 * Math.sin(fogAnimProgress * Math.PI * 1.65) : 0;
-  const breezeY = fogLiftAnimating ? -0.65 * Math.sin(fogAnimProgress * Math.PI * 1.2) : 0;
-  const fogTe = smootherstep(smootherstep(fogAnimProgress));
-  /* Tint eases down with the lifting mist so reads as overlay fading rather than cutting. */
-  const fogLayerAlpha = fogLiftAnimating ? 0.52 * (1 - 0.55 * fogTe) : undefined;
 
   if (!open) return null;
 
@@ -425,11 +402,9 @@ export function RealmAtlasOverlay({
             <div className="lh-atlas__map-plate__veil" aria-hidden="true" />
             {/* Prototype-parity Fog of the Unknown: backdrop-filter + inline SVG data URI mask. */}
             <div
-              className={`lh-atlas__proto-fog${fogLiftAnimating ? ' lh-atlas__proto-fog--drifting' : ''}`}
+              className="lh-atlas__proto-fog"
               style={{
                 ...atlasLayerStyle,
-                transform: `translate(${breezeX}px, ${breezeY}px)`,
-                ...(fogLayerAlpha !== undefined ? { background: `rgba(10, 15, 20, ${fogLayerAlpha})` } : {}),
                 WebkitMaskImage: fogMaskDataUri,
                 maskImage: fogMaskDataUri,
                 WebkitMaskSize: '100% 100%',
