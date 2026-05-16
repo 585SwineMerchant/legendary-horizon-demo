@@ -1155,100 +1155,118 @@ code.lh-code-inline {
   background: radial-gradient(ellipse 120% 80% at 50% 0%, rgba(30, 41, 59, 0.35), rgba(5, 6, 10, 0.96));
 }
 
-.lh-world-atlas__toolbar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.5rem 0.85rem;
-  flex-shrink: 0;
-}
-
-.lh-world-atlas__toolbar-text {
-  min-width: 0;
-}
-
-.lh-world-atlas__toolbar-eyebrow {
-  margin: 0;
-}
-
-.lh-world-atlas__title {
-  margin: 0.1rem 0 0;
-  font-family: var(--lh-guild-display, 'Cinzel', serif);
-  font-size: clamp(1rem, 2.8vmin, 1.35rem);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #f1f5f9;
-}
-
-.lh-world-atlas__tagline {
-  margin: 0.3rem 0 0;
-  font-size: 0.76rem;
-  line-height: 1.42;
-}
-
-.lh-world-atlas__close {
-  flex-shrink: 0;
-  align-self: flex-start;
-}
-
-.lh-world-atlas__guide {
-  flex-shrink: 0;
-  margin: 0;
+.lh-world-atlas--map-focus {
   padding: 0;
-  border-radius: 11px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(7, 11, 20, 0.55);
-  overflow: hidden;
+  gap: 0;
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  background: radial-gradient(ellipse 100% 90% at 50% 42%, rgba(30, 41, 59, 0.18), rgba(1, 2, 6, 0.98));
 }
 
-.lh-world-atlas__guide-summary {
-  list-style: none;
+.lh-world-atlas__chrome {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  z-index: 24;
+  pointer-events: none;
+}
+
+.lh-world-atlas__chrome .lh-button {
+  pointer-events: auto;
+}
+
+.lh-world-atlas__close-fab {
+  font-size: 0.72rem;
+  padding: 0.36rem 0.82rem;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.32);
+  background: rgba(7, 11, 20, 0.88);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.lh-world-atlas__intro-stack {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: clamp(0.75rem, 3vw, 1.35rem);
+  padding-bottom: clamp(1.25rem, 5vh, 2rem);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.lh-world-atlas__intro-backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgba(2, 4, 10, 0.42);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   cursor: pointer;
-  padding: 0.45rem 0.72rem;
-  font-size: 0.74rem;
-  font-weight: 600;
+  pointer-events: auto;
+}
+
+.lh-world-atlas__intro-panel {
+  position: relative;
+  z-index: 1;
+  max-width: min(28rem, 94vw);
+  padding: 1rem 1.15rem 1.05rem;
+  border-radius: 14px;
+  border: 1px solid rgba(251, 191, 36, 0.38);
+  background: rgba(7, 10, 18, 0.96);
+  box-shadow:
+    0 22px 60px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  pointer-events: auto;
+}
+
+.lh-world-atlas__intro-eyebrow {
+  margin: 0 0 0.25rem;
+  color: #fbbf24;
+}
+
+.lh-world-atlas__intro-title {
+  margin: 0;
+  font-family: var(--lh-guild-display, 'Cinzel', serif);
+  font-size: 1.05rem;
+  font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #cbd5e1;
-  user-select: none;
+  color: #f8fafc;
 }
 
-.lh-world-atlas__guide-summary::-webkit-details-marker {
-  display: none;
-}
-
-.lh-world-atlas__guide-summary::after {
-  content: '';
-  margin-left: 0.55rem;
-  display: inline-block;
-  vertical-align: 0.1em;
-  border: solid rgba(226, 232, 240, 0.5);
-  border-width: 0 1.6px 1.6px 0;
-  padding: 0.18rem;
-  transform: rotate(45deg);
-  transition: transform 0.2s ease;
-}
-
-.lh-world-atlas__guide[open] > .lh-world-atlas__guide-summary::after {
-  transform: rotate(-135deg);
-  margin-top: 0.08rem;
-}
-
-.lh-world-atlas__guide-body {
-  padding: 0 0.72rem 0.72rem;
-  border-top: 1px solid rgba(148, 163, 184, 0.14);
-}
-
-.lh-world-atlas__guide-body .lh-world-atlas__lede {
-  margin-top: 0.6rem;
+.lh-world-atlas__intro-body {
+  margin: 0.65rem 0 0;
   font-size: 0.8rem;
-  line-height: 1.46;
+  line-height: 1.52;
+}
+
+.lh-world-atlas__intro-extra {
+  margin: 0.55rem 0 0 !important;
+  font-size: 0.78rem !important;
+}
+
+.lh-world-atlas__intro-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .lh-overlay--atlas-full .lh-atlas__map-plate--world-art {
   /* Let flex sizing own height so the atlas art uses all remaining viewport space. */
   min-height: 0;
+}
+
+/* Full atlas: chart plate hugs the viewport; art still letterboxes inside via `object-fit: contain`. */
+.lh-overlay--atlas-full .lh-world-atlas--map-focus .lh-atlas__map-plate {
+  border-radius: min(14px, 1.8vw);
+  flex: 1;
+  border-color: rgba(251, 191, 36, 0.16);
 }
 
 .lh-atlas__map-shell--world-fill {
@@ -1458,6 +1476,67 @@ code.lh-code-inline {
   border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #fde68a, #d97706 55%, #78350f);
   box-shadow: 0 0 6px rgba(251, 191, 36, 0.55);
+}
+
+/* Atlas — HQ control stays a small amber bead; guild name stays in tooltip / aria only. */
+.lh-atlas-pin--revealed-compact {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-width: 0;
+  max-width: none;
+  padding: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(251, 191, 36, 0.5);
+  background: radial-gradient(circle at 35% 30%, rgba(30, 41, 59, 0.45), rgba(8, 10, 16, 0.72));
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.45),
+    0 6px 16px rgba(0, 0, 0, 0.32);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.lh-atlas-pin--revealed-compact:hover {
+  border-color: rgba(253, 224, 71, 0.72);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.5),
+    0 10px 22px rgba(0, 0, 0, 0.4);
+  transform: scale(1.07);
+}
+
+.lh-atlas-pin--revealed-compact.lh-atlas-pin--selected {
+  transform: scale(1.06);
+  border-color: rgba(252, 211, 77, 0.78);
+  box-shadow:
+    0 0 0 2px rgba(251, 191, 36, 0.25),
+    0 0 14px rgba(251, 191, 36, 0.22),
+    0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.lh-atlas-pin__glyph--hq {
+  width: 13px;
+  height: 13px;
+  box-shadow:
+    0 0 4px rgba(251, 191, 36, 0.45),
+    0 0 10px rgba(253, 186, 116, 0.28);
+}
+
+.lh-atlas-pin--charter-compact {
+  outline: none;
+  box-shadow:
+    0 0 0 2px rgba(252, 211, 77, 0.38),
+    0 6px 16px rgba(0, 0, 0, 0.32);
+}
+
+.lh-atlas-pin--signpost-compact {
+  border-color: rgba(196, 181, 253, 0.55);
 }
 
 .lh-atlas-pin__label {

@@ -20,7 +20,55 @@ import type { RealmProgressMap } from '../realm/realmProgress';
 
 type AtlasRenderedBounds = { width: number; height: number; offsetX: number; offsetY: number };
 
-const FOG_REVEAL_DURATION_MS = 3400;
+const FOG_REVEAL_DURATION_MS = 8400;
+const ATLAS_FOG_INTRO_DISMISSED_LS = 'lh.worldAtlas.fogIntroDismissed';
+const ATLAS_FOG_INTRO_PENDING_SS = 'lh.atlas.introAfterFog';
+
+function readAtlasIntroDismissed(): boolean {
+  try {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(ATLAS_FOG_INTRO_DISMISSED_LS) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeAtlasIntroDismissed() {
+  try {
+    localStorage.setItem(ATLAS_FOG_INTRO_DISMISSED_LS, '1');
+  } catch {
+    /* ignore */
+  }
+}
+
+function markAtlasIntroPendingFromFogReveal() {
+  try {
+    sessionStorage.setItem(ATLAS_FOG_INTRO_PENDING_SS, '1');
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearAtlasIntroPending() {
+  try {
+    sessionStorage.removeItem(ATLAS_FOG_INTRO_PENDING_SS);
+  } catch {
+    /* ignore */
+  }
+}
+
+function readAtlasIntroPending(): boolean {
+  try {
+    return sessionStorage.getItem(ATLAS_FOG_INTRO_PENDING_SS) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** Perceptual ease (smootherstep): slow start and end for “mist lifting” reads. */
+function smootherstep(t: number): number {
+  const x = Math.max(0, Math.min(1, t));
+  return x * x * x * (x * (x * 6 - 15) + 10);
+}
 
 function easeOutPow(t: number, power = 3): number {
   const x = Math.max(0, Math.min(1, t));
@@ -62,11 +110,6 @@ type Props = {
   onFogRevealConsumed?: () => void;
 };
 
-function truncateLabel(name: string, max = 22): string {
-  const t = name.trim();
-  if (t.length <= max) return t;
-  return `${t.slice(0, max - 1)}…`;
-}
 
 export function RealmAtlasOverlay({
   open,
@@ -94,6 +137,7 @@ export function RealmAtlasOverlay({
     [foretoldSignpostRealmIds],
   );
   const [guildInfoRealmId, setGuildInfoRealmId] = useState<string | null>(null);
+  const [atlasIntroVisible, setAtlasIntroVisible] = useState(false);
   const [fogLiftFinished, setFogLiftFinished] = useState(false);
   const [fogLiftAnimating, setFogLiftAnimating] = useState(false);
   const [fogAnimProgress, setFogAnimProgress] = useState(0);
@@ -169,6 +213,10 @@ export function RealmAtlasOverlay({
     setFogAnimProgress(1);
     setFogLiftFinished(true);
     onFogRevealConsumed?.();
+    if (!readAtlasIntroDismissed()) {
+      markAtlasIntroPendingFromFogReveal();
+      setAtlasIntroVisible(true);
+    }
   }, [onFogRevealConsumed]);
 
   // Animate reveal: longer ease-out + soft edge (mask blur in SVG) + gentle drift (see component style).
@@ -203,6 +251,24 @@ export function RealmAtlasOverlay({
     setFogLiftAnimating(true);
   }, [guildInfoRealmId, frId, revealedSet, fogLiftFinished, fogLiftAnimating]);
 
+  const dismissAtlasIntro = useCallback(() => {
+    writeAtlasIntroDismissed();
+    clearAtlasIntroPending();
+    setAtlasIntroVisible(false);
+  }, []);
+
+  const onAtlasOverlayEscape = useCallback(() => {
+    if (guildInfoRealmId) {
+      handleGuildInfoClose();
+      return;
+    }
+    if (atlasIntroVisible) {
+      dismissAtlasIntro();
+      return;
+    }
+    onClose();
+  }, [guildInfoRealmId, atlasIntroVisible, handleGuildInfoClose, dismissAtlasIntro, onClose]);
+
   // Kickoff: when the atlas opens from the guild trigger, ensure the fog + lift + SFX happens deterministically.
   useEffect(() => {
     if (typeof console !== 'undefined') console.info('[FogReveal] kickoff check', { open, fogLiftKickoffOnce: fogLiftKickoffOnceRef.current, guildInfoRealmId, frId, fogLiftFinished, fogLiftAnimating });
@@ -216,7 +282,7 @@ export function RealmAtlasOverlay({
     const t = window.setTimeout(() => {
       tryPlayCatalogAudioAsset(LH_MEDIA_ASSET_ID_FOG_CLEARING);
       setFogLiftAnimating(true);
-    }, 260);
+    }, 400);
     return () => window.clearTimeout(t);
   }, [open, guildInfoRealmId, frId, fogLiftFinished, fogLiftAnimating]);
 
@@ -228,7 +294,11 @@ export function RealmAtlasOverlay({
       setFogLiftFinished(false);
       setFogLiftAnimating(false);
       setFogAnimProgress(0);
+      setAtlasIntroVisible(false);
       return;
+    }
+    if (!readAtlasIntroDismissed() && readAtlasIntroPending()) {
+      setAtlasIntroVisible(true);
     }
     if (initialGuildInfoHandledRef.current) return;
     const raw = String(initialGuildInfoRealmId ?? '').trim();
@@ -243,23 +313,12 @@ export function RealmAtlasOverlay({
     if (open) setAtlasSrcIndex(0);
   }, [open]);
 
-  const { chartedCanonCount, charterTrailCanonCount } = useMemo(() => {
-    let charted = 0;
-    let trail = 0;
-    for (const r of ordered) {
-      if (revealedSet.has(r.realm_id)) charted += 1;
-      if (realmProgress[r.realm_id]?.entered) trail += 1;
-    }
-    return { chartedCanonCount: charted, charterTrailCanonCount: trail };
-  }, [ordered, revealedSet, realmProgress]);
-
   const guildInfoRealm = useMemo(() => {
     if (!guildInfoRealmId) return null;
     return ordered.find((r) => r.realm_id === guildInfoRealmId) ?? null;
   }, [ordered, guildInfoRealmId]);
 
-  useEscapeToClose(open && !guildInfoRealmId, onClose);
-  useEscapeToClose(open && Boolean(guildInfoRealmId), handleGuildInfoClose);
+  useEscapeToClose(open, onAtlasOverlayEscape);
 
   const revealedCount = revealedSet.size;
 
@@ -274,11 +333,15 @@ export function RealmAtlasOverlay({
       staticHoles.push(`<path fill="black" d="${piece.pathD}"/>`);
     }
 
-    const te = easeOutPow(fogAnimProgress);
-    const blur = 6.6 * (1 - te) ** 1.15 + 0.45;
-    const scaleStart = 0.07;
+    const tLin = fogAnimProgress;
+    /* Double perceptual easing: mist lifts slowly at first and dissolves softly at the end. */
+    const te = smootherstep(smootherstep(tLin));
+    const teBlur = easeOutPow(tLin, 1.35);
+    const blur = 10 * (1 - teBlur) ** 0.38 + 0.22;
+    const scaleStart = 0.965;
     const s = scaleStart + (1 - scaleStart) * te;
-    const fillOp = 0.18 + 0.82 * te;
+    /* Softer silhouette fill as the veil “burns away” rather than snapping open. */
+    const fillOp = Math.min(1, Math.max(0, 0.06 + 0.94 * (te * te * (3 - 2 * te))));
 
     let animFragment = '';
     let filterDef = '';
@@ -321,50 +384,22 @@ export function RealmAtlasOverlay({
     [atlasBounds],
   );
 
-  const breezeX = fogLiftAnimating ? 2.4 * Math.sin(fogAnimProgress * Math.PI * 2.15) : 0;
-  const breezeY = fogLiftAnimating ? -1.65 * Math.sin(fogAnimProgress * Math.PI * 1.55) : 0;
+  const breezeX = fogLiftAnimating ? 0.85 * Math.sin(fogAnimProgress * Math.PI * 1.65) : 0;
+  const breezeY = fogLiftAnimating ? -0.65 * Math.sin(fogAnimProgress * Math.PI * 1.2) : 0;
+  const fogTe = smootherstep(smootherstep(fogAnimProgress));
+  /* Tint eases down with the lifting mist so reads as overlay fading rather than cutting. */
+  const fogLayerAlpha = fogLiftAnimating ? 0.52 * (1 - 0.55 * fogTe) : undefined;
 
   if (!open) return null;
 
   return (
     <div className="lh-overlay lh-overlay--dim lh-overlay--atlas-full" role="dialog" aria-label="World Atlas">
-      <div className="lh-world-atlas">
-        <header className="lh-world-atlas__toolbar">
-          <div className="lh-world-atlas__toolbar-text">
-            <p className="lh-eyebrow lh-world-atlas__toolbar-eyebrow">World Atlas</p>
-            <h2 className="lh-world-atlas__title">Fog of the Unknown</h2>
-            <p className="lh-world-atlas__tagline lh-atlas__meta">
-              Charted guild halls shine as pins. What is still masked is Fog of the Unknown — only on this atlas.
-            </p>
-          </div>
-          <button type="button" className="lh-button lh-button--ghost lh-world-atlas__close" onClick={onClose}>
+      <div className="lh-world-atlas lh-world-atlas--map-focus">
+        <div className="lh-world-atlas__chrome">
+          <button type="button" className="lh-button lh-button--ghost lh-world-atlas__close-fab" onClick={onClose}>
             Close
           </button>
-        </header>
-
-        <details className="lh-world-atlas__guide lh-atlas__meta">
-          <summary className="lh-world-atlas__guide-summary">Atlas guide · expedition notes</summary>
-          <div className="lh-world-atlas__guide-body">
-            <p className="lh-world-atlas__lede">
-              Your illustrated reference for the whole world. Shrouded markers are not yet chartered; revealed pins unlock
-              the guild research sheet (Act&nbsp;III hubs are journals here — manager trials stay in play spaces). Pause →
-              Charter &amp; HQ ledger holds charter-focused notes elsewhere.
-            </p>
-            <p className="lh-atlas__journal-strip" aria-live="polite">
-              <strong>Expedition record:</strong> {chartedCanonCount} of {n} canon halls charted ·{' '}
-              <strong>Charter trail:</strong> {charterTrailCanonCount} realm(s) carry session notes from past focus
-            </p>
-            {signpostSet.size ? (
-              <p className="lh-atlas__signpost-strip" role="note">
-                <strong>Foretold Signposts (Scroll):</strong>{' '}
-                {foretoldSignpostRealmIds
-                  .map((id) => ordered.find((r) => r.realm_id === id)?.display_name ?? id)
-                  .join(' · ')}
-                . Chart these halls first when they appear on your Scroll.
-              </p>
-            ) : null}
-          </div>
-        </details>
+        </div>
 
         <div className="lh-atlas__map-shell lh-atlas__map-shell--world-fill">
           <div
@@ -394,6 +429,7 @@ export function RealmAtlasOverlay({
               style={{
                 ...atlasLayerStyle,
                 transform: `translate(${breezeX}px, ${breezeY}px)`,
+                ...(fogLayerAlpha !== undefined ? { background: `rgba(10, 15, 20, ${fogLayerAlpha})` } : {}),
                 WebkitMaskImage: fogMaskDataUri,
                 maskImage: fogMaskDataUri,
                 WebkitMaskSize: '100% 100%',
@@ -438,23 +474,58 @@ export function RealmAtlasOverlay({
                 <div key={r.realm_id} className="lh-atlas-pin-slot" style={slotStyle}>
                   <button
                     type="button"
-                    role="listitem"
-                    className={`lh-atlas-pin lh-atlas-pin--revealed ${infoOpen ? 'lh-atlas-pin--selected' : ''} ${isCurrent ? 'lh-atlas-pin--charter' : ''} ${signpostSet.has(r.realm_id) ? 'lh-atlas-pin--signpost' : ''}`}
-                    title={`${r.display_name} — ${r.guild_headquarters}`}
+                    className={`lh-atlas-pin lh-atlas-pin--revealed-compact ${infoOpen ? 'lh-atlas-pin--selected' : ''} ${isCurrent ? 'lh-atlas-pin--charter-compact' : ''} ${signpostSet.has(r.realm_id) ? 'lh-atlas-pin--signpost-compact' : ''}`}
+                    title={`Open guild research — ${r.guild_headquarters}`}
+                    aria-label={`Open guild research for ${r.display_name}, ${r.guild_headquarters}`}
                     onClick={() => setGuildInfoRealmId(r.realm_id)}
                   >
-                    <span className="lh-atlas-pin__glyph" aria-hidden="true" />
-                    <span className="lh-atlas-pin__label">{truncateLabel(r.display_name)}</span>
-                    {isCurrent ? <span className="lh-atlas-pin__ribbon">Charter</span> : null}
-                    {signpostSet.has(r.realm_id) ? (
-                      <span className="lh-atlas-pin__ribbon lh-atlas-pin__ribbon--signpost">Scroll</span>
-                    ) : null}
+                    <span className="lh-atlas-pin__glyph lh-atlas-pin__glyph--hq" aria-hidden="true" />
                   </button>
                 </div>
               );
             })}
           </div>
         </div>
+
+        {atlasIntroVisible ? (
+          <div className="lh-world-atlas__intro-stack">
+            <button
+              type="button"
+              className="lh-world-atlas__intro-backdrop"
+              aria-label="Dismiss atlas introduction"
+              onClick={dismissAtlasIntro}
+            />
+            <div
+              className="lh-world-atlas__intro-panel"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="lh-atlas-intro-title"
+            >
+              <p className="lh-eyebrow lh-world-atlas__intro-eyebrow">Fog of the Unknown</p>
+              <h3 id="lh-atlas-intro-title" className="lh-world-atlas__intro-title">
+                Charting guild halls on the atlas
+              </h3>
+              <p className="lh-world-atlas__intro-body lh-atlas__meta">
+                Each revealed territory is keyed to a guild headquarters. Tap the amber mark at that hall to reopen the
+                guild research hub. The mist only gathers on this map — Pause still holds charter notes elsewhere.
+              </p>
+              {signpostSet.size ? (
+                <p className="lh-atlas__signpost-strip lh-world-atlas__intro-extra" role="note">
+                  <strong>Foretold Signposts (Scroll):</strong>{' '}
+                  {foretoldSignpostRealmIds
+                    .map((rid) => ordered.find((re) => re.realm_id === rid)?.display_name ?? rid)
+                    .join(' · ')}
+                  .
+                </p>
+              ) : null}
+              <div className="lh-world-atlas__intro-actions">
+                <button type="button" className="lh-button lh-button--primary" onClick={dismissAtlasIntro}>
+                  Got it
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <GuildRealmInfoOverlay
