@@ -64,6 +64,50 @@ export const ATLAS_WORLD_PIN_PCT: Readonly<Record<string, { leftPct: number; top
   realm_odyssey_harbor: { leftPct: 57.29, topPct: 86.61 },
 };
 
+/**
+ * Inner landscape plate (rectangular border on the parchment raster). Fog/blur is clipped here;
+ * rolled scroll edges and title band stay sharp. Tune against `realm-atlas-world.png` if art shifts.
+ */
+export const ATLAS_LANDSCAPE_FRAME_PCT = {
+  left: 15.25,
+  top: 12.75,
+  width: 69.5,
+  height: 78.75,
+} as const;
+
+export type AtlasRenderedBounds = { width: number; height: number; offsetX: number; offsetY: number };
+
+/** Pixel box for the landscape frame inside the letterboxed atlas `<img>` bounds. */
+export function computeAtlasLandscapeLayerStyle(
+  atlasBounds: AtlasRenderedBounds | null,
+): { left: string; top: string; width: string; height: string } | { inset: 0 } {
+  if (!atlasBounds) return { inset: 0 };
+  const f = ATLAS_LANDSCAPE_FRAME_PCT;
+  return {
+    left: `${atlasBounds.offsetX + (atlasBounds.width * f.left) / 100}px`,
+    top: `${atlasBounds.offsetY + (atlasBounds.height * f.top) / 100}px`,
+    width: `${(atlasBounds.width * f.width) / 100}px`,
+    height: `${(atlasBounds.height * f.height) / 100}px`,
+  };
+}
+
+/** Guild pin % (full raster) → % inside the landscape frame (0–100). */
+export function atlasFullPctToLandscapePct(
+  leftPct: number,
+  topPct: number,
+): { leftPct: number; topPct: number } {
+  const f = ATLAS_LANDSCAPE_FRAME_PCT;
+  return {
+    leftPct: ((leftPct - f.left) / f.width) * 100,
+    topPct: ((topPct - f.top) / f.height) * 100,
+  };
+}
+
+/** Hole radius in full-raster % → radius in landscape-local % (width-normalized). */
+export function atlasFogHoleRadiusInLandscapePct(radiusFullPct: number): number {
+  return (radiusFullPct / ATLAS_LANDSCAPE_FRAME_PCT.width) * 100;
+}
+
 /** Pin position on the illustrated atlas, or ellipse fallback for unknown ids. */
 export function getAtlasPinPlacementForRealm(
   realmId: string,

@@ -1359,7 +1359,11 @@ code.lh-code-inline {
   background: radial-gradient(ellipse 90% 75% at 50% 50%, transparent 40%, rgba(10, 12, 16, 0.12) 100%);
 }
 
-/* World Atlas fog: masked blurred duplicate of the chart (sharp map shows through mask holes). */
+/* World Atlas fog: blurred chart clipped to inner landscape frame (scroll rollers stay sharp). */
+.lh-atlas__fog-landscape {
+  z-index: 2;
+}
+
 .lh-atlas__fog-mask-defs {
   position: absolute;
   overflow: hidden;

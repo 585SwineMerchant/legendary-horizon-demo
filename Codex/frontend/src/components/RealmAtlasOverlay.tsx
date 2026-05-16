@@ -13,7 +13,14 @@ import { GuildRealmInfoOverlay } from './GuildRealmInfoOverlay';
 import { LH_MEDIA_ASSET_ID_FOG_CLEARING, LH_MEDIA_ASSET_ID_SCROLL_UNFURLING } from '../lib/mediaConstants';
 import { tryPlayCatalogAudioAsset } from '../lib/lhCatalogAudio';
 import type { MediaAssetRecord, QuestDefinition, RealmDefinition } from '../types';
-import { buildRealmAtlasImageSrcCandidates, getAtlasPinPlacementForRealm } from '../realm/atlasWorldMap';
+import {
+  ATLAS_LANDSCAPE_FRAME_PCT,
+  atlasFogHoleRadiusInLandscapePct,
+  atlasFullPctToLandscapePct,
+  buildRealmAtlasImageSrcCandidates,
+  computeAtlasLandscapeLayerStyle,
+  getAtlasPinPlacementForRealm,
+} from '../realm/atlasWorldMap';
 import { sortRealmsCanon } from '../realm/realmRegistry';
 import type { RealmProgressMap } from '../realm/realmProgress';
 
@@ -320,20 +327,28 @@ export function RealmAtlasOverlay({
     return { grad: `lh-atlas-fog-grad-${s}`, mask: `lh-atlas-fog-mask-${s}` };
   }, [reactId]);
 
-  /** Non-uniform SVG stretch (viewBox 100×100 → atlas box) turns circles into ovals; correct ry for round holes. */
+  const landscapeLayerStyle = useMemo(
+    () =>
+      ({
+        position: 'absolute',
+        zIndex: 2,
+        pointerEvents: 'none',
+        overflow: 'hidden',
+        borderRadius: 2,
+        ...computeAtlasLandscapeLayerStyle(atlasBounds),
+      }) as CSSProperties,
+    [atlasBounds],
+  );
+
+  /** Round holes when the landscape frame is letterboxed inside the atlas box. */
   const fogHoleRyScale = useMemo(() => {
     if (!atlasBounds || atlasBounds.width <= 0 || atlasBounds.height <= 0) return 1;
-    return atlasBounds.width / atlasBounds.height;
+    const f = ATLAS_LANDSCAPE_FRAME_PCT;
+    const w = (atlasBounds.width * f.width) / 100;
+    const h = (atlasBounds.height * f.height) / 100;
+    if (h <= 0) return 1;
+    return w / h;
   }, [atlasBounds]);
-
-  const atlasLayerStyle = atlasBounds
-    ? ({
-        left: `${atlasBounds.offsetX}px`,
-        top: `${atlasBounds.offsetY}px`,
-        width: `${atlasBounds.width}px`,
-        height: `${atlasBounds.height}px`,
-      } as CSSProperties)
-    : ({ inset: 0 } as CSSProperties);
 
   const mapPctToRenderedStyle = useCallback(
     (leftPct: number, topPct: number): CSSProperties => {
@@ -350,38 +365,42 @@ export function RealmAtlasOverlay({
 
   /** Mask holes in 0–1 space so `mask-image: url(#id)` on the blurred img scales with the atlas box. */
   const renderFogHole = useCallback(
-    (key: string, leftPct: number, topPct: number, r: number) => (
-      <ellipse
-        key={key}
-        cx={leftPct / 100}
-        cy={topPct / 100}
-        rx={r / 100}
-        ry={(r * fogHoleRyScale) / 100}
-        fill={`url(#${fogSvgIds.grad})`}
-      />
-    ),
+    (key: string, fullLeftPct: number, fullTopPct: number, radiusFullPct: number) => {
+      const { leftPct, topPct } = atlasFullPctToLandscapePct(fullLeftPct, fullTopPct);
+      const r = atlasFogHoleRadiusInLandscapePct(radiusFullPct);
+      return (
+        <ellipse
+          key={key}
+          cx={leftPct / 100}
+          cy={topPct / 100}
+          rx={r / 100}
+          ry={(r * fogHoleRyScale) / 100}
+          fill={`url(#${fogSvgIds.grad})`}
+        />
+      );
+    },
     [fogHoleRyScale, fogSvgIds.grad],
   );
 
   const fogMaskUrl = `url(#${fogSvgIds.mask})`;
 
-  const fogBlurImgStyle = useMemo(
-    () =>
-      ({
-        position: 'absolute',
-        zIndex: 2,
-        pointerEvents: 'none',
-        objectFit: 'fill',
-        ...atlasLayerStyle,
-        WebkitMaskImage: fogMaskUrl,
-        maskImage: fogMaskUrl,
-        WebkitMaskSize: '100% 100%',
-        maskSize: '100% 100%',
-        WebkitMaskRepeat: 'no-repeat',
-        maskRepeat: 'no-repeat',
-      }) as CSSProperties,
-    [atlasLayerStyle, fogMaskUrl],
-  );
+  const fogBlurImgStyle = useMemo(() => {
+    const f = ATLAS_LANDSCAPE_FRAME_PCT;
+    return {
+      position: 'absolute',
+      left: `${-(f.left / f.width) * 100}%`,
+      top: `${-(f.top / f.height) * 100}%`,
+      width: `${(100 / f.width) * 100}%`,
+      height: `${(100 / f.height) * 100}%`,
+      objectFit: 'fill',
+      WebkitMaskImage: fogMaskUrl,
+      maskImage: fogMaskUrl,
+      WebkitMaskSize: '100% 100%',
+      maskSize: '100% 100%',
+      WebkitMaskRepeat: 'no-repeat',
+      maskRepeat: 'no-repeat',
+    } as CSSProperties;
+  }, [fogMaskUrl]);
 
   if (!open) return null;
 
@@ -417,55 +436,57 @@ export function RealmAtlasOverlay({
             />
             <div className="lh-atlas__map-plate__veil" aria-hidden="true" />
             {/*
-              Fog: sharp map + masked blurred duplicate (objectBoundingBox mask scales with the atlas art box).
+              Fog: masked blur only inside ATLAS_LANDSCAPE_FRAME_PCT (rectangular border); parchment rollers stay sharp.
             */}
-            <svg className="lh-atlas__fog-mask-defs" aria-hidden width={0} height={0}>
-              <defs>
-                <radialGradient id={fogSvgIds.grad} gradientUnits="objectBoundingBox" cx="0.5" cy="0.5" r="0.5">
-                  <stop offset="0%" stopColor="#000000" />
-                  <stop offset="55%" stopColor="#000000" />
-                  <stop offset="100%" stopColor="#ffffff" />
-                </radialGradient>
-                <mask
-                  id={fogSvgIds.mask}
-                  maskUnits="objectBoundingBox"
-                  maskContentUnits="objectBoundingBox"
-                  x="0"
-                  y="0"
-                  width="1"
-                  height="1"
-                >
-                  <rect width="1" height="1" fill="white" />
-                  {Array.from(revealedSet).map((rid) => {
-                    if (fogLiftAnimating && rid === frId) return null;
-                    const idx = ordered.findIndex((r) => r.realm_id === rid);
-                    const i = idx >= 0 ? idx : 0;
-                    const { leftPct, topPct } = getAtlasPinPlacementForRealm(rid, i, n || 1);
-                    return renderFogHole(`hole-${rid}`, leftPct, topPct, FOG_HOLE_RADIUS);
-                  })}
-                  {fogLiftAnimating && frId
-                    ? (() => {
-                        const idx = ordered.findIndex((r) => r.realm_id === frId);
-                        const i = idx >= 0 ? idx : 0;
-                        const { leftPct, topPct } = getAtlasPinPlacementForRealm(frId, i, n || 1);
-                        const te = easeOutCubic(fogAnimProgress);
-                        const r = FOG_HOLE_RADIUS * Math.max(te, 0.001);
-                        return renderFogHole('hole-anim', leftPct, topPct, r);
-                      })()
-                    : null}
-                </mask>
-              </defs>
-            </svg>
-            <img
-              className="lh-atlas__map-plate-img lh-atlas__map-plate-img--fog-blur"
-              src={atlasImgSrc}
-              alt=""
-              aria-hidden
-              decoding="async"
-              draggable={false}
-              referrerPolicy="no-referrer"
-              style={fogBlurImgStyle}
-            />
+            <div className="lh-atlas__fog-landscape" style={landscapeLayerStyle} aria-hidden>
+              <svg className="lh-atlas__fog-mask-defs" aria-hidden width={0} height={0}>
+                <defs>
+                  <radialGradient id={fogSvgIds.grad} gradientUnits="objectBoundingBox" cx="0.5" cy="0.5" r="0.5">
+                    <stop offset="0%" stopColor="#000000" />
+                    <stop offset="55%" stopColor="#000000" />
+                    <stop offset="100%" stopColor="#ffffff" />
+                  </radialGradient>
+                  <mask
+                    id={fogSvgIds.mask}
+                    maskUnits="objectBoundingBox"
+                    maskContentUnits="objectBoundingBox"
+                    x="0"
+                    y="0"
+                    width="1"
+                    height="1"
+                  >
+                    <rect width="1" height="1" fill="white" />
+                    {Array.from(revealedSet).map((rid) => {
+                      if (fogLiftAnimating && rid === frId) return null;
+                      const idx = ordered.findIndex((r) => r.realm_id === rid);
+                      const i = idx >= 0 ? idx : 0;
+                      const { leftPct, topPct } = getAtlasPinPlacementForRealm(rid, i, n || 1);
+                      return renderFogHole(`hole-${rid}`, leftPct, topPct, FOG_HOLE_RADIUS);
+                    })}
+                    {fogLiftAnimating && frId
+                      ? (() => {
+                          const idx = ordered.findIndex((r) => r.realm_id === frId);
+                          const i = idx >= 0 ? idx : 0;
+                          const { leftPct, topPct } = getAtlasPinPlacementForRealm(frId, i, n || 1);
+                          const te = easeOutCubic(fogAnimProgress);
+                          const r = FOG_HOLE_RADIUS * Math.max(te, 0.001);
+                          return renderFogHole('hole-anim', leftPct, topPct, r);
+                        })()
+                      : null}
+                  </mask>
+                </defs>
+              </svg>
+              <img
+                className="lh-atlas__map-plate-img lh-atlas__map-plate-img--fog-blur"
+                src={atlasImgSrc}
+                alt=""
+                aria-hidden
+                decoding="async"
+                draggable={false}
+                referrerPolicy="no-referrer"
+                style={fogBlurImgStyle}
+              />
+            </div>
             {revealedCount === 0 ? (
               <div className="lh-atlas__map-empty-hint">
                 <p className="lh-atlas__map-empty-title">No halls charted yet</p>
