@@ -2,11 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { LhCatalogImage } from './LhCatalogImage';
-import { ClassroomToolsButtonRow } from './ClassroomToolsButtonRow';
-import type { ClassroomToolHandlers } from '../services/classroomToolLaunches';
 import type { MediaAssetRecord, QuestDefinition, RealmDefinition } from '../types';
 import { getGuildRealmCareerOneStopUrl } from '../realm/guildRealmCareerOneStopUrl';
-import { listGuildGalleryImageAssets, resolveGuildHqHeroAsset } from '../realm/guildHqHeroAsset';
+import { resolveGuildHqHeroAsset } from '../realm/guildHqHeroAsset';
 import { getGuildHqWorkbookHeroDisplay } from '../realm/guildHqWorkbookHero';
 import { getGuildRealmTitleParts, getRealmPathInterestTags } from '../realm/guildRealmTitleParts';
 import {
@@ -23,7 +21,6 @@ export type GuildRealmInfoOverlayProps = {
   quests: QuestDefinition[];
   mediaCatalog: readonly MediaAssetRecord[];
   realmProgress: RealmProgressMap;
-  classroomTools: ClassroomToolHandlers | null;
 };
 
 const SLUG_DECOR: Readonly<Record<string, string>> = {
@@ -57,7 +54,6 @@ export function GuildRealmInfoOverlay({
   quests,
   mediaCatalog,
   realmProgress,
-  classroomTools,
 }: GuildRealmInfoOverlayProps) {
   useEscapeToClose(open, onClose);
 
@@ -94,10 +90,6 @@ export function GuildRealmInfoOverlay({
     [realm, mediaCatalog],
   );
   const hasHeroVisual = Boolean(workbookHeroSrc || heroAsset);
-  const extraImageAssets = useMemo(
-    () => (realm ? listGuildGalleryImageAssets(realm, mediaCatalog, heroAsset?.asset_id ?? null) : []),
-    [realm, mediaCatalog, heroAsset?.asset_id],
-  );
   const pathTags = realm ? getRealmPathInterestTags(realm) : [];
   const realmQuests = realm ? filterQuestsForRealm(quests, realm.realm_id) : [];
   const careerSpotlightUrl = realm ? getGuildRealmCareerOneStopUrl(realm.realm_id) : undefined;
@@ -202,32 +194,10 @@ export function GuildRealmInfoOverlay({
               <ul className="lh-guild-realm-modal__diamond-list">
                 <li>What real careers belong to this cluster?</li>
                 <li>What training, credentials, or apprenticeships appear most often?</li>
-                <li>Which working conditions fit or clash with your Maia signals?</li>
+                <li>Which working conditions fit your expedition style?</li>
               </ul>
             </div>
           </div>
-
-          <section className="lh-guild-realm-modal__research" aria-label="Classroom research tools">
-            <h3 className="lh-guild-realm-modal__box-label">Your research desk</h3>
-            <p className="lh-guild-realm-modal__box-muted">Open classroom tools in a new tab while you read this hall.</p>
-            {classroomTools ? <ClassroomToolsButtonRow handlers={classroomTools} layout="pause" /> : null}
-          </section>
-
-          {extraImageAssets.length ? (
-            <div className="lh-guild-realm-modal__gallery" aria-label="Additional guild artwork from catalog">
-              {extraImageAssets.map((m) => (
-                <div key={m.asset_id} className="lh-guild-realm-modal__gallery-cell">
-                  <LhCatalogImage
-                    assetId={m.asset_id}
-                    alt={m.description || m.asset_id}
-                    catalog={mediaCatalog}
-                    loading="lazy"
-                    className="lh-guild-realm-modal__gallery-img"
-                  />
-                </div>
-              ))}
-            </div>
-          ) : null}
         </div>
 
         <div

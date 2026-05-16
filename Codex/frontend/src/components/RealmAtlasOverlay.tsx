@@ -11,7 +11,6 @@ import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { GuildRealmInfoOverlay } from './GuildRealmInfoOverlay';
 import { LH_MEDIA_ASSET_ID_FOG_CLEARING, LH_MEDIA_ASSET_ID_SCROLL_UNFURLING } from '../lib/mediaConstants';
 import { tryPlayCatalogAudioAsset } from '../lib/lhCatalogAudio';
-import type { ClassroomToolHandlers } from '../services/classroomToolLaunches';
 import type { MediaAssetRecord, QuestDefinition, RealmDefinition } from '../types';
 import { buildRealmAtlasImageSrcCandidates, getAtlasPinPlacementForRealm } from '../realm/atlasWorldMap';
 import { sortRealmsCanon } from '../realm/realmRegistry';
@@ -85,8 +84,6 @@ type Props = {
   guildHqAtlasRevealedRealmIds: readonly string[];
   /** Scroll of Destiny — Foretold Signposts (canon `realm_id`s); emphasizes revealed pins. */
   foretoldSignpostRealmIds?: readonly string[];
-  /** External research / classroom shortcuts (journal layer only). */
-  classroomTools: ClassroomToolHandlers | null;
   /**
    * When the World Atlas opens, optionally show this realm’s Guild Info full-screen first (must already be revealed).
    * Parent should clear via `onInitialGuildInfoConsumed` after mount so reopening the atlas does not replay the sheet.
@@ -109,7 +106,6 @@ export function RealmAtlasOverlay({
   realmProgress,
   guildHqAtlasRevealedRealmIds,
   foretoldSignpostRealmIds = [],
-  classroomTools,
   initialGuildInfoRealmId = null,
   onInitialGuildInfoConsumed,
   fogRevealRealmId = null,
@@ -257,22 +253,31 @@ export function RealmAtlasOverlay({
     onClose();
   }, [guildInfoRealmId, atlasIntroVisible, handleGuildInfoClose, dismissAtlasIntro, onClose]);
 
-  // Kickoff: when the atlas opens from the guild trigger, ensure the fog + lift + SFX happens deterministically.
+  // Kickoff: fog + SFX when there is no guild sheet, or when sheet is for a different realm than the fog intent.
+  // IMPORTANT: when `initialGuildInfoRealmId === fogRevealRealmId` (HQ flow), we must NOT run here — that effect
+  // used to fire on the first frame while `guildInfoRealmId` was still null, so the 1.5s reveal finished *behind*
+  // the modal and looked/sounded like it "never triggered". `handleGuildInfoClose` starts fog in that case.
   useEffect(() => {
-    if (typeof console !== 'undefined') console.info('[FogReveal] kickoff check', { open, fogLiftKickoffOnce: fogLiftKickoffOnceRef.current, guildInfoRealmId, frId, fogLiftFinished, fogLiftAnimating });
     if (!open) return;
     if (fogLiftKickoffOnceRef.current) return;
     if (guildInfoRealmId) return;
     if (!frId) return;
     if (fogLiftFinished || fogLiftAnimating) return;
-    if (typeof console !== 'undefined') console.info('[FogReveal] kickoff FIRING — playing audio + starting animation');
+    const initial = String(initialGuildInfoRealmId ?? '').trim();
+    if (initial && initial === frId) {
+      return;
+    }
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.info('[FogReveal] kickoff (no guild sheet blocking)', { frId });
+    }
     fogLiftKickoffOnceRef.current = true;
     const t = window.setTimeout(() => {
       tryPlayCatalogAudioAsset(LH_MEDIA_ASSET_ID_FOG_CLEARING);
       setFogLiftAnimating(true);
     }, 0);
     return () => window.clearTimeout(t);
-  }, [open, guildInfoRealmId, frId, fogLiftFinished, fogLiftAnimating]);
+  }, [open, guildInfoRealmId, frId, fogLiftFinished, fogLiftAnimating, initialGuildInfoRealmId]);
 
   useEffect(() => {
     if (!open) {
@@ -510,7 +515,6 @@ export function RealmAtlasOverlay({
         quests={quests}
         mediaCatalog={mediaCatalog}
         realmProgress={realmProgress}
-        classroomTools={classroomTools}
       />
     </div>
   );

@@ -409,7 +409,6 @@ export function App() {
           realmProgress={realmProgress}
           guildHqAtlasRevealedRealmIds={exploration.guild_hq_atlas_revealed_realm_ids ?? []}
           foretoldSignpostRealmIds={exploration.foretold_signpost_realm_ids ?? []}
-          classroomTools={classroomTools}
           initialGuildInfoRealmId={realmAtlasInitialGuildRealmId}
           onInitialGuildInfoConsumed={consumeRealmAtlasInitialGuildIntent}
           fogRevealRealmId={realmAtlasFogRevealRealmId}

@@ -1828,7 +1828,8 @@ code.lh-code-inline {
 }
 
 .lh-guild-realm-modal__lore {
-  margin: 1rem 0 0;
+  margin: 0.85rem 0 0;
+  flex-shrink: 0;
   font-family: var(--lh-guild-lore);
   font-style: italic;
   font-weight: 500;
@@ -1841,7 +1842,7 @@ code.lh-code-inline {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.65rem 0.85rem;
-  margin-top: 0.95rem;
+  margin-top: 1.1rem;
   flex: 1;
   min-height: 0;
   align-content: start;
