@@ -11,7 +11,7 @@ import {
   LH_WINDOW_PHASER_GUILD_RESEARCH_EXIT,
   type LhPhaserGuildResearchBridgeDetail,
 } from '../lib/lhPhaserGuildResearchBridge';
-import { playLhSfx, playLhSfxRandomOf } from '../lib/lhSfx';
+import { playLhLostEchoSwingSfx, playLhSfx, playLhTravelerSwingSfx } from '../lib/lhSfx';
 import { publicAssetUrl } from '../lib/publicAssetUrl';
 import {
   LH_WINDOW_KNOWLEDGE_BATTLE_PRESENTATION,
@@ -1467,7 +1467,7 @@ export function PhaserExplorationView({
                 // so one swing produces exactly one sound. Multiple roamers swinging in the same
                 // tick still each play (no group key); a tiny 30 ms guard de-dupes any same-frame
                 // double dispatch from the AI tick.
-                playLhSfx('lost_echo_swing', { minIntervalMs: 30 });
+                playLhLostEchoSwingSfx();
               } else if (this.anims.exists(LOST_ECHO_IDLE_ANIM_KEY) && !r.attackPending && r.sprite.anims.currentAnim?.key !== LOST_ECHO_IDLE_ANIM_KEY) {
                 r.sprite.play(LOST_ECHO_IDLE_ANIM_KEY);
               }
@@ -2226,10 +2226,12 @@ export function PhaserExplorationView({
               }
               break;
             case 'wrong':
+              playLhLostEchoSwingSfx();
               this.playBattleLostEchoAnimation('lh_lost_echo_attack2');
               this.playBattleTravelerOneShot('hurt', 520);
               break;
             case 'correct':
+              playLhTravelerSwingSfx();
               this.playBattleLostEchoAnimation('lh_lost_echo_hurt');
               this.playBattleTravelerOneShot(this.takeAlternateTravelerStrike(), 620);
               break;
@@ -3420,11 +3422,13 @@ export function PhaserExplorationView({
             return;
           }
           if (detail.phase === 'wrong') {
+            playLhLostEchoSwingSfx();
             this.playLostEchoAnimation(detail.interactableId, 'lh_lost_echo_attack2');
             this.playTravelerOneShot('hurt', 520);
             return;
           }
           if (detail.phase === 'correct') {
+            playLhTravelerSwingSfx();
             this.playLostEchoAnimation(detail.interactableId, 'lh_lost_echo_hurt');
             this.playTravelerOneShot(this.takeAlternateTravelerStrike(), 620);
             return;
@@ -4163,10 +4167,7 @@ export function PhaserExplorationView({
             // cooldown prevents audible stacking when A is mashed faster than the swing
             // animation can play out (Phaser's `JustDown` already fires once per press, but
             // very rapid taps would still layer multiple short clips).
-            playLhSfxRandomOf(['traveler_swing_1', 'traveler_swing_2'], {
-              minIntervalMs: 90,
-              groupKey: 'traveler_swing',
-            });
+            playLhTravelerSwingSfx();
             // Resolve hits against any roaming Lost Echo inside the swing AABB BEFORE the
             // animation kicks off — gives crisper feel (impact lands on first frame of the swing).
             this.resolvePlayerSwingAgainstRoamers();

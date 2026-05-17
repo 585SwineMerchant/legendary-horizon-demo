@@ -199,3 +199,16 @@ export function playLhSfxRandomOf(ids: readonly LhSfxId[], opts?: PlayLhSfxOptio
   if (!merged.groupKey) merged.groupKey = `random:${ids.join('|')}`;
   playLhSfx(pick, merged);
 }
+
+/** Traveler sword swing — same alternation/cooldown as exploration A-button combat. */
+export function playLhTravelerSwingSfx(): void {
+  playLhSfxRandomOf(['traveler_swing_1', 'traveler_swing_2'], {
+    minIntervalMs: 90,
+    groupKey: 'traveler_swing',
+  });
+}
+
+/** Lost Echo melee swing — same clip as roaming hack-and-slash combat. */
+export function playLhLostEchoSwingSfx(): void {
+  playLhSfx('lost_echo_swing', { minIntervalMs: 30 });
+}

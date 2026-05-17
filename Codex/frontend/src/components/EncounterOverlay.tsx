@@ -109,7 +109,6 @@ export function EncounterOverlay({ payload, onWin, onRetreat }: Props) {
       if (idx !== currentKnowledge.roundAnswerIndex) {
         setKnowledgeWrong(true);
         dispatchKnowledgeCombatVisual({ interactableId: payload.interactableId, phase: 'wrong' });
-        playLhSfx('lost_echo_attack');
         return;
       }
 
@@ -117,7 +116,6 @@ export function EncounterOverlay({ payload, onWin, onRetreat }: Props) {
       setKnowledgeCorrect(nextCorrect);
       setKnowledgeWrong(false);
       dispatchKnowledgeCombatVisual({ interactableId: payload.interactableId, phase: 'correct' });
-      playLhSfx('traveler_attack');
       if (nextCorrect >= KNOWLEDGE_COMBAT_CORRECT_REQUIRED) {
         setKnowledgePhase('won');
         dispatchKnowledgeCombatVisual({ interactableId: payload.interactableId, phase: 'victory' });

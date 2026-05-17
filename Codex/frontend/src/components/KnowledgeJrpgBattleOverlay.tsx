@@ -103,7 +103,6 @@ export function KnowledgeJrpgBattleOverlay({ payload, onWin, onRetreat }: Props)
         setEchoSurge((s) => Math.min(100, s + 22));
         setFeedback('The Echo lashes back — resolve slips, surge rises.');
         dispatchKnowledgeCombatVisual({ interactableId: payload.interactableId, phase: 'wrong' });
-        playLhSfx('lost_echo_attack');
         releaseLockAfter(FB_WRONG_MS);
         return;
       }
@@ -112,8 +111,6 @@ export function KnowledgeJrpgBattleOverlay({ payload, onWin, onRetreat }: Props)
       const nextCorrect = knowledgeCorrect + 1;
       setKnowledgeCorrect(nextCorrect);
       dispatchKnowledgeCombatVisual({ interactableId: payload.interactableId, phase: 'correct' });
-      playLhSfx('traveler_attack');
-
       if (nextCorrect >= KNOWLEDGE_COMBAT_CORRECT_REQUIRED) {
         setFeedback('Your resolve cuts through the mist.');
         window.setTimeout(() => {
