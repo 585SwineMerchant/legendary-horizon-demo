@@ -1410,12 +1410,14 @@ code.lh-code-inline {
 
 .lh-atlas-fog-calibrator {
   position: fixed;
-  left: 50%;
+  right: 1rem;
   bottom: 1rem;
+  left: auto;
   z-index: 120;
-  transform: translateX(-50%);
-  width: min(32rem, calc(100vw - 2rem));
-  padding: 0.85rem 1rem;
+  width: min(22rem, calc(100vw - 2rem));
+  max-height: min(70vh, 28rem);
+  overflow: auto;
+  padding: 0;
   border-radius: 12px;
   border: 1px solid rgba(251, 191, 36, 0.35);
   background: rgba(15, 23, 42, 0.94);
@@ -1423,14 +1425,65 @@ code.lh-code-inline {
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
 }
 
+.lh-atlas-fog-calibrator__drag-handle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.2);
+  border-radius: 12px 12px 0 0;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.lh-atlas-fog-calibrator__drag-handle:active {
+  cursor: grabbing;
+}
+
+.lh-atlas-fog-calibrator__drag-grip {
+  font-size: 0.7rem;
+  letter-spacing: -0.12em;
+  color: rgba(226, 232, 240, 0.55);
+  line-height: 1;
+}
+
+.lh-atlas-fog-calibrator__drag-hint {
+  margin-left: auto;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(226, 232, 240, 0.45);
+}
+
+.lh-atlas-fog-calibrator__hint,
+.lh-atlas-fog-calibrator__row,
+.lh-atlas-fog-calibrator__coords,
+.lh-atlas-fog-calibrator__check,
+.lh-atlas-fog-calibrator__actions,
+.lh-atlas-fog-calibrator__export {
+  margin-left: 0.85rem;
+  margin-right: 0.85rem;
+}
+
+.lh-atlas-fog-calibrator__hint {
+  margin-top: 0.65rem;
+}
+
+.lh-atlas-fog-calibrator__export {
+  margin-bottom: 0.85rem;
+}
+
 .lh-atlas-fog-calibrator__title {
-  margin: 0 0 0.35rem;
+  margin: 0;
+  flex: 1;
   font-weight: 600;
   font-size: 0.95rem;
 }
 
 .lh-atlas-fog-calibrator__hint {
-  margin: 0 0 0.65rem;
+  margin-bottom: 0.65rem;
   font-size: 0.8rem;
   line-height: 1.35;
   color: rgba(226, 232, 240, 0.82);
