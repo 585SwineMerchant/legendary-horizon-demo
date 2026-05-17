@@ -69,10 +69,10 @@ export const ATLAS_WORLD_PIN_PCT: Readonly<Record<string, { leftPct: number; top
  * rolled scroll edges and title band stay sharp. Tune against `realm-atlas-world.png` if art shifts.
  */
 export const ATLAS_LANDSCAPE_FRAME_PCT = {
-  left: 15.25,
+  left: 11.5,
   top: 12.75,
-  width: 69.5,
-  height: 78.75,
+  width: 77,
+  height: 75.75,
 } as const;
 
 export type AtlasRenderedBounds = { width: number; height: number; offsetX: number; offsetY: number };
