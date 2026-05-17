@@ -163,6 +163,15 @@ export function atlasPinPctToFogMask01(leftPct: number, topPct: number): { cx: n
   };
 }
 
+/** Fog-hole center on full raster → mask 0–1 (no nudge; use calibrator placements). */
+export function atlasFogHoleFullPctToMask01(leftPct: number, topPct: number): { cx: number; cy: number } {
+  const box = fogMaskBoxPct();
+  return {
+    cx: (leftPct - box.left) / box.width,
+    cy: (topPct - box.top) / box.height,
+  };
+}
+
 /** Hole radius in full-raster % → radius in fog-mask-local % (width-normalized). */
 export function atlasFogHoleRadiusInMaskPct(radiusFullPct: number): number {
   return (radiusFullPct / fogMaskBoxPct().width) * 100;

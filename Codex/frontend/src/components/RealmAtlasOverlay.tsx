@@ -1,33 +1,39 @@
 import {
   useCallback,
   useEffect,
-  useId,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
 } from 'react';
 
+import { AtlasFogHoleCalibrator } from './AtlasFogHoleCalibrator';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { GuildRealmInfoOverlay } from './GuildRealmInfoOverlay';
 import { LH_MEDIA_ASSET_ID_FOG_CLEARING, LH_MEDIA_ASSET_ID_SCROLL_UNFURLING } from '../lib/mediaConstants';
 import { tryPlayCatalogAudioAsset } from '../lib/lhCatalogAudio';
 import type { MediaAssetRecord, QuestDefinition, RealmDefinition } from '../types';
 import {
+  fogHoleOverridesOnly,
+  getAtlasFogHolePlacementForRealm,
+  isAtlasFogCalibrateEnabled,
+  mergeFogHolePlacements,
+  readFogHoleOverridesFromStorage,
+  writeFogHoleOverridesToStorage,
+} from '../realm/atlasFogHoles';
+import { buildAtlasFogMaskDataUrl, type AtlasFogMaskHole01 } from '../realm/atlasFogMaskCanvas';
+import {
   ATLAS_FOG_BLEED_PCT,
-  ATLAS_FOG_EDGE_FADE_WIDTH,
-  ATLAS_FOG_MASK_BLUR,
   ATLAS_LANDSCAPE_FRAME_PCT,
+  atlasFogHoleFullPctToMask01,
   atlasFogHoleRadiusInMaskPct,
-  atlasPinPctToFogMask01,
   buildRealmAtlasImageSrcCandidates,
   computeAtlasLandscapeLayerStyle,
   getAtlasPinPlacementForRealm,
+  type AtlasRenderedBounds,
 } from '../realm/atlasWorldMap';
 import { sortRealmsCanon } from '../realm/realmRegistry';
 import type { RealmProgressMap } from '../realm/realmProgress';
-
-type AtlasRenderedBounds = { width: number; height: number; offsetX: number; offsetY: number };
 
 /** Realm Atlas HTML prototype: `<animate r from="0%" to="8%" dur="1.5s"/>` on a blurred mask hole. */
 const FOG_REVEAL_DURATION_MS = 1500;
@@ -142,6 +148,12 @@ export function RealmAtlasOverlay({
   const [atlasBounds, setAtlasBounds] = useState<AtlasRenderedBounds | null>(null);
   const atlasSrcCandidates = useMemo(() => buildRealmAtlasImageSrcCandidates(), []);
   const [atlasSrcIndex, setAtlasSrcIndex] = useState(0);
+  const fogCalibrate = isAtlasFogCalibrateEnabled();
+  const [fogHoleStorage, setFogHoleStorage] = useState(readFogHoleOverridesFromStorage);
+  const fogHolePlacements = useMemo(() => mergeFogHolePlacements(fogHoleStorage), [fogHoleStorage]);
+  const [calibrateRealmId, setCalibrateRealmId] = useState('');
+  const [calibrateActive, setCalibrateActive] = useState(true);
+  const [previewAllHoles, setPreviewAllHoles] = useState(true);
 
   const frId = String(fogRevealRealmId ?? '').trim();
   const n = ordered.length;
@@ -315,6 +327,51 @@ export function RealmAtlasOverlay({
     if (open) setAtlasSrcIndex(0);
   }, [open]);
 
+  useEffect(() => {
+    if (!open || !fogCalibrate) return;
+    const id = String(currentRealmId || ordered[0]?.realm_id || '').trim();
+    if (id) setCalibrateRealmId(id);
+  }, [open, fogCalibrate, currentRealmId, ordered]);
+
+  const handleFogPlacementsChange = useCallback((next: Record<string, { leftPct: number; topPct: number }>) => {
+    const overrides = fogHoleOverridesOnly(next);
+    setFogHoleStorage(overrides);
+    writeFogHoleOverridesToStorage(overrides);
+  }, []);
+
+  const handleCalibrateMapClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (!fogCalibrate || !calibrateActive || !atlasBounds || !mapPlateRef.current) return;
+      const plate = mapPlateRef.current.getBoundingClientRect();
+      const x = e.clientX - plate.left;
+      const y = e.clientY - plate.top;
+      if (
+        x < atlasBounds.offsetX ||
+        y < atlasBounds.offsetY ||
+        x > atlasBounds.offsetX + atlasBounds.width ||
+        y > atlasBounds.offsetY + atlasBounds.height
+      ) {
+        return;
+      }
+      const id = String(calibrateRealmId || '').trim();
+      if (!id) return;
+      const leftPct = Math.round(((x - atlasBounds.offsetX) / atlasBounds.width) * 10000) / 100;
+      const topPct = Math.round(((y - atlasBounds.offsetY) / atlasBounds.height) * 10000) / 100;
+      handleFogPlacementsChange({
+        ...fogHolePlacements,
+        [id]: { leftPct, topPct },
+      });
+    },
+    [
+      fogCalibrate,
+      calibrateActive,
+      atlasBounds,
+      calibrateRealmId,
+      fogHolePlacements,
+      handleFogPlacementsChange,
+    ],
+  );
+
   const guildInfoRealm = useMemo(() => {
     if (!guildInfoRealmId) return null;
     return ordered.find((r) => r.realm_id === guildInfoRealmId) ?? null;
@@ -324,15 +381,13 @@ export function RealmAtlasOverlay({
 
   const revealedCount = revealedSet.size;
 
-  const reactId = useId();
-  const fogSvgIds = useMemo(() => {
-    const s = reactId.replace(/[^a-zA-Z0-9_-]/g, '') || 'fog';
-    return {
-      grad: `lh-atlas-fog-grad-${s}`,
-      mask: `lh-atlas-fog-mask-${s}`,
-      soft: `lh-atlas-fog-soft-${s}`,
-    };
-  }, [reactId]);
+  const fogMaskBoxAspect = useMemo(() => {
+    const f = ATLAS_LANDSCAPE_FRAME_PCT;
+    const b = ATLAS_FOG_BLEED_PCT;
+    const boxW = f.width + b.left + b.right;
+    const boxH = f.height + b.top + b.bottom;
+    return boxH / boxW;
+  }, []);
 
   const landscapeLayerStyle = useMemo(
     () =>
@@ -371,28 +426,56 @@ export function RealmAtlasOverlay({
     [atlasBounds],
   );
 
-  /** Mask holes in 0–1 space so `mask-image: url(#id)` on the blurred img scales with the atlas box. */
-  const renderFogHole = useCallback(
-    (key: string, fullLeftPct: number, fullTopPct: number, radiusFullPct: number) => {
-      const { cx, cy } = atlasPinPctToFogMask01(fullLeftPct, fullTopPct);
+  const fogHoleRealmIds = useMemo(() => {
+    if (fogCalibrate && previewAllHoles) {
+      return ordered.map((r) => r.realm_id);
+    }
+    const ids: string[] = [];
+    for (const rid of revealedSet) {
+      if (fogLiftAnimating && rid === frId) continue;
+      ids.push(rid);
+    }
+    return ids;
+  }, [fogCalibrate, previewAllHoles, ordered, revealedSet, fogLiftAnimating, frId]);
+
+  const fogMaskHoles = useMemo(() => {
+    const holes: AtlasFogMaskHole01[] = [];
+    const addHole = (rid: string, radiusFullPct: number) => {
+      const idx = ordered.findIndex((r) => r.realm_id === rid);
+      const i = idx >= 0 ? idx : 0;
+      const { leftPct, topPct } = getAtlasFogHolePlacementForRealm(rid, i, n || 1, fogHolePlacements);
+      const { cx, cy } = atlasFogHoleFullPctToMask01(leftPct, topPct);
       const r = atlasFogHoleRadiusInMaskPct(radiusFullPct) / 100;
-      return (
-        <ellipse
-          key={key}
-          cx={cx}
-          cy={cy}
-          rx={r}
-          ry={r * fogHoleRyScale}
-          fill={`url(#${fogSvgIds.grad})`}
-        />
-      );
-    },
-    [fogHoleRyScale, fogSvgIds.grad],
-  );
+      holes.push({ cx, cy, r, ry: r * fogHoleRyScale });
+    };
+    for (const rid of fogHoleRealmIds) {
+      addHole(rid, FOG_HOLE_RADIUS);
+    }
+    if (fogLiftAnimating && frId) {
+      const te = easeOutCubic(fogAnimProgress);
+      addHole(frId, FOG_HOLE_RADIUS * Math.max(te, 0.001));
+    }
+    return holes;
+  }, [
+    fogHoleRealmIds,
+    ordered,
+    n,
+    fogHolePlacements,
+    fogHoleRyScale,
+    fogLiftAnimating,
+    frId,
+    fogAnimProgress,
+  ]);
 
-  const fogEdgeFade = ATLAS_FOG_EDGE_FADE_WIDTH;
-
-  const fogMaskUrl = `url(#${fogSvgIds.mask})`;
+  const fogMaskDataUrl = useMemo(() => {
+    const w = 640;
+    return buildAtlasFogMaskDataUrl(fogMaskHoles, {
+      width: w,
+      height: Math.round(w * fogMaskBoxAspect),
+      edgeMargin: 0.035,
+      edgeBlurPx: 48,
+    });
+  }, [fogMaskHoles, fogMaskBoxAspect]);
 
   const fogBlurImgStyle = useMemo(() => {
     const f = ATLAS_LANDSCAPE_FRAME_PCT;
@@ -401,6 +484,7 @@ export function RealmAtlasOverlay({
     const boxTop = f.top - b.top;
     const boxWidth = f.width + b.left + b.right;
     const boxHeight = f.height + b.top + b.bottom;
+    const maskUrl = fogMaskDataUrl ? `url("${fogMaskDataUrl}")` : undefined;
     return {
       position: 'absolute',
       left: `${-(boxLeft / boxWidth) * 100}%`,
@@ -408,14 +492,14 @@ export function RealmAtlasOverlay({
       width: `${(100 / boxWidth) * 100}%`,
       height: `${(100 / boxHeight) * 100}%`,
       objectFit: 'fill',
-      WebkitMaskImage: fogMaskUrl,
-      maskImage: fogMaskUrl,
+      WebkitMaskImage: maskUrl,
+      maskImage: maskUrl,
       WebkitMaskSize: '100% 100%',
       maskSize: '100% 100%',
       WebkitMaskRepeat: 'no-repeat',
       maskRepeat: 'no-repeat',
     } as CSSProperties;
-  }, [fogMaskUrl]);
+  }, [fogMaskDataUrl]);
 
   if (!open) return null;
 
@@ -450,79 +534,17 @@ export function RealmAtlasOverlay({
               }}
             />
             <div className="lh-atlas__map-plate__veil" aria-hidden="true" />
+            {fogCalibrate && calibrateActive ? (
+              <div
+                className="lh-atlas-fog-calibrator__click-layer lh-atlas-fog-calibrator__click-layer--active"
+                role="presentation"
+                onClick={handleCalibrateMapClick}
+              />
+            ) : null}
             {/*
               Fog: masked blur only inside ATLAS_LANDSCAPE_FRAME_PCT (rectangular border); parchment rollers stay sharp.
             */}
             <div className="lh-atlas__fog-landscape" style={landscapeLayerStyle} aria-hidden>
-              <svg className="lh-atlas__fog-mask-defs" aria-hidden width={0} height={0}>
-                <defs>
-                  <radialGradient id={fogSvgIds.grad} gradientUnits="objectBoundingBox" cx="0.5" cy="0.5" r="0.5">
-                    <stop offset="0%" stopColor="#000000" />
-                    <stop offset="55%" stopColor="#000000" />
-                    <stop offset="100%" stopColor="#ffffff" />
-                  </radialGradient>
-                  <filter
-                    id={fogSvgIds.soft}
-                    filterUnits="objectBoundingBox"
-                    x="-0.12"
-                    y="-0.12"
-                    width="1.24"
-                    height="1.24"
-                  >
-                    <feGaussianBlur stdDeviation={ATLAS_FOG_MASK_BLUR} />
-                  </filter>
-                  <linearGradient id={`${fogSvgIds.mask}-fade-l`} gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0" stopColor="#000000" />
-                    <stop offset="1" stopColor="#ffffff" />
-                  </linearGradient>
-                  <linearGradient id={`${fogSvgIds.mask}-fade-r`} gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0" stopColor="#ffffff" />
-                    <stop offset="1" stopColor="#000000" />
-                  </linearGradient>
-                  <linearGradient id={`${fogSvgIds.mask}-fade-t`} gradientUnits="objectBoundingBox" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stopColor="#000000" />
-                    <stop offset="1" stopColor="#ffffff" />
-                  </linearGradient>
-                  <linearGradient id={`${fogSvgIds.mask}-fade-b`} gradientUnits="objectBoundingBox" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0" stopColor="#ffffff" />
-                    <stop offset="1" stopColor="#000000" />
-                  </linearGradient>
-                  <mask
-                    id={fogSvgIds.mask}
-                    maskUnits="objectBoundingBox"
-                    maskContentUnits="objectBoundingBox"
-                    x="0"
-                    y="0"
-                    width="1"
-                    height="1"
-                  >
-                    <g filter={`url(#${fogSvgIds.soft})`}>
-                      <rect width="1" height="1" fill="white" />
-                      <rect x="0" y="0" width={fogEdgeFade} height="1" fill={`url(#${fogSvgIds.mask}-fade-l)`} />
-                      <rect x={1 - fogEdgeFade} y="0" width={fogEdgeFade} height="1" fill={`url(#${fogSvgIds.mask}-fade-r)`} />
-                      <rect x="0" y="0" width="1" height={fogEdgeFade} fill={`url(#${fogSvgIds.mask}-fade-t)`} />
-                      <rect x="0" y={1 - fogEdgeFade} width="1" height={fogEdgeFade} fill={`url(#${fogSvgIds.mask}-fade-b)`} />
-                      {Array.from(revealedSet).map((rid) => {
-                        if (fogLiftAnimating && rid === frId) return null;
-                        const idx = ordered.findIndex((r) => r.realm_id === rid);
-                        const i = idx >= 0 ? idx : 0;
-                        const { leftPct, topPct } = getAtlasPinPlacementForRealm(rid, i, n || 1);
-                        return renderFogHole(`hole-${rid}`, leftPct, topPct, FOG_HOLE_RADIUS);
-                      })}
-                      {fogLiftAnimating && frId
-                        ? (() => {
-                            const idx = ordered.findIndex((r) => r.realm_id === frId);
-                            const i = idx >= 0 ? idx : 0;
-                            const { leftPct, topPct } = getAtlasPinPlacementForRealm(frId, i, n || 1);
-                            const te = easeOutCubic(fogAnimProgress);
-                            const r = FOG_HOLE_RADIUS * Math.max(te, 0.001);
-                            return renderFogHole('hole-anim', leftPct, topPct, r);
-                          })()
-                        : null}
-                    </g>
-                  </mask>
-                </defs>
-              </svg>
               <img
                 className="lh-atlas__map-plate-img lh-atlas__map-plate-img--fog-blur"
                 src={atlasImgSrc}
@@ -534,6 +556,26 @@ export function RealmAtlasOverlay({
                 style={fogBlurImgStyle}
               />
             </div>
+            {fogCalibrate
+              ? ordered.map((r, idx) => {
+                  const { leftPct, topPct } = getAtlasFogHolePlacementForRealm(
+                    r.realm_id,
+                    idx,
+                    n || 1,
+                    fogHolePlacements,
+                  );
+                  const markerStyle = mapPctToRenderedStyle(leftPct, topPct);
+                  const selected = r.realm_id === calibrateRealmId;
+                  return (
+                    <div
+                      key={`fog-hole-marker-${r.realm_id}`}
+                      className={`lh-atlas-fog-hole-marker${selected ? ' lh-atlas-fog-hole-marker--selected' : ''}`}
+                      style={markerStyle}
+                      aria-hidden
+                    />
+                  );
+                })
+              : null}
             {revealedCount === 0 ? (
               <div className="lh-atlas__map-empty-hint">
                 <p className="lh-atlas__map-empty-title">No halls charted yet</p>
@@ -622,6 +664,19 @@ export function RealmAtlasOverlay({
           </div>
         ) : null}
       </div>
+
+      {fogCalibrate ? (
+        <AtlasFogHoleCalibrator
+          realms={ordered}
+          selectedRealmId={calibrateRealmId || ordered[0]?.realm_id || ''}
+          onSelectRealmId={setCalibrateRealmId}
+          placements={fogHolePlacements}
+          previewAllHoles={previewAllHoles}
+          onPreviewAllHolesChange={setPreviewAllHoles}
+          calibrateActive={calibrateActive}
+          onCalibrateActiveChange={setCalibrateActive}
+        />
+      ) : null}
 
       <GuildRealmInfoOverlay
         open={Boolean(guildInfoRealm)}
