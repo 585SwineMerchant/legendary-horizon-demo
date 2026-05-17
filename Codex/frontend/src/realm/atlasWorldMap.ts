@@ -69,22 +69,31 @@ export const ATLAS_WORLD_PIN_PCT: Readonly<Record<string, { leftPct: number; top
  * rolled scroll edges and title band stay sharp. Tune against `realm-atlas-world.png` if art shifts.
  */
 export const ATLAS_LANDSCAPE_FRAME_PCT = {
-  left: 10.25,
+  left: 9.75,
   top: 12.75,
-  width: 79.5,
+  width: 80.25,
   height: 77.5,
 } as const;
 
-/** Extra reach past the inner border so fog feathering can fade naturally (still clipped to landscape shell). */
+/** Extra reach past the inner border so fog can feather without a hard clip. */
 export const ATLAS_FOG_BLEED_PCT = {
-  left: 1.1,
-  top: 0,
-  right: 1.1,
-  bottom: 1.35,
+  left: 2,
+  top: 0.85,
+  right: 2,
+  bottom: 2.1,
 } as const;
 
-/** `feGaussianBlur` on mask base rect, in objectBoundingBox units (0–1). */
-export const ATLAS_FOG_MASK_EDGE_SOFTNESS = 0.024;
+/** Width of each edge ramp in mask space (0–1) — black→white so fog fades at the border. */
+export const ATLAS_FOG_EDGE_FADE_WIDTH = 0.09;
+
+/** Fine-tune hole center vs guild pin anchor on the raster (full-image %). */
+export const ATLAS_FOG_HOLE_NUDGE_PCT = {
+  left: -2.15,
+  top: -1.35,
+} as const;
+
+/** Extra soften on hole rims after edge ramps (objectBoundingBox units). */
+export const ATLAS_FOG_MASK_BLUR = 0.018;
 
 export type AtlasRenderedBounds = { width: number; height: number; offsetX: number; offsetY: number };
 
@@ -138,10 +147,19 @@ export function atlasFullPctToFogMaskPct(
   leftPct: number,
   topPct: number,
 ): { leftPct: number; topPct: number } {
+  const { cx, cy } = atlasPinPctToFogMask01(leftPct, topPct);
+  return { leftPct: cx * 100, topPct: cy * 100 };
+}
+
+/** Guild pin on full raster → hole center in fog-mask 0–1 (with nudge). */
+export function atlasPinPctToFogMask01(leftPct: number, topPct: number): { cx: number; cy: number } {
   const box = fogMaskBoxPct();
+  const n = ATLAS_FOG_HOLE_NUDGE_PCT;
+  const x = leftPct + n.left;
+  const y = topPct + n.top;
   return {
-    leftPct: ((leftPct - box.left) / box.width) * 100,
-    topPct: ((topPct - box.top) / box.height) * 100,
+    cx: (x - box.left) / box.width,
+    cy: (y - box.top) / box.height,
   };
 }
 

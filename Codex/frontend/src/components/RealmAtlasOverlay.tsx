@@ -15,10 +15,11 @@ import { tryPlayCatalogAudioAsset } from '../lib/lhCatalogAudio';
 import type { MediaAssetRecord, QuestDefinition, RealmDefinition } from '../types';
 import {
   ATLAS_FOG_BLEED_PCT,
-  ATLAS_FOG_MASK_EDGE_SOFTNESS,
+  ATLAS_FOG_EDGE_FADE_WIDTH,
+  ATLAS_FOG_MASK_BLUR,
   ATLAS_LANDSCAPE_FRAME_PCT,
   atlasFogHoleRadiusInMaskPct,
-  atlasFullPctToFogMaskPct,
+  atlasPinPctToFogMask01,
   buildRealmAtlasImageSrcCandidates,
   computeAtlasLandscapeLayerStyle,
   getAtlasPinPlacementForRealm,
@@ -30,8 +31,8 @@ type AtlasRenderedBounds = { width: number; height: number; offsetX: number; off
 
 /** Realm Atlas HTML prototype: `<animate r from="0%" to="8%" dur="1.5s"/>` on a blurred mask hole. */
 const FOG_REVEAL_DURATION_MS = 1500;
-/** Final hole radius in the same 0–100 user space as `viewBox` (prototype ends at 8%). */
-const FOG_HOLE_RADIUS = 8;
+/** Final hole radius in full-raster % (prototype ~8%; slightly larger so labels sit inside the clear disc). */
+const FOG_HOLE_RADIUS = 9.25;
 const ATLAS_FOG_INTRO_DISMISSED_LS = 'lh.worldAtlas.fogIntroDismissed';
 const ATLAS_FOG_INTRO_PENDING_SS = 'lh.atlas.introAfterFog';
 
@@ -339,7 +340,7 @@ export function RealmAtlasOverlay({
         position: 'absolute',
         zIndex: 2,
         pointerEvents: 'none',
-        overflow: 'hidden',
+        overflow: 'visible',
         borderRadius: 2,
         ...computeAtlasLandscapeLayerStyle(atlasBounds, { bleed: true }),
       }) as CSSProperties,
@@ -373,21 +374,23 @@ export function RealmAtlasOverlay({
   /** Mask holes in 0–1 space so `mask-image: url(#id)` on the blurred img scales with the atlas box. */
   const renderFogHole = useCallback(
     (key: string, fullLeftPct: number, fullTopPct: number, radiusFullPct: number) => {
-      const { leftPct, topPct } = atlasFullPctToFogMaskPct(fullLeftPct, fullTopPct);
-      const r = atlasFogHoleRadiusInMaskPct(radiusFullPct);
+      const { cx, cy } = atlasPinPctToFogMask01(fullLeftPct, fullTopPct);
+      const r = atlasFogHoleRadiusInMaskPct(radiusFullPct) / 100;
       return (
         <ellipse
           key={key}
-          cx={leftPct / 100}
-          cy={topPct / 100}
-          rx={r / 100}
-          ry={(r * fogHoleRyScale) / 100}
+          cx={cx}
+          cy={cy}
+          rx={r}
+          ry={r * fogHoleRyScale}
           fill={`url(#${fogSvgIds.grad})`}
         />
       );
     },
     [fogHoleRyScale, fogSvgIds.grad],
   );
+
+  const fogEdgeFade = ATLAS_FOG_EDGE_FADE_WIDTH;
 
   const fogMaskUrl = `url(#${fogSvgIds.mask})`;
 
@@ -461,13 +464,29 @@ export function RealmAtlasOverlay({
                   <filter
                     id={fogSvgIds.soft}
                     filterUnits="objectBoundingBox"
-                    x="-0.08"
-                    y="-0.08"
-                    width="1.16"
-                    height="1.16"
+                    x="-0.12"
+                    y="-0.12"
+                    width="1.24"
+                    height="1.24"
                   >
-                    <feGaussianBlur stdDeviation={ATLAS_FOG_MASK_EDGE_SOFTNESS} />
+                    <feGaussianBlur stdDeviation={ATLAS_FOG_MASK_BLUR} />
                   </filter>
+                  <linearGradient id={`${fogSvgIds.mask}-fade-l`} gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stopColor="#000000" />
+                    <stop offset="1" stopColor="#ffffff" />
+                  </linearGradient>
+                  <linearGradient id={`${fogSvgIds.mask}-fade-r`} gradientUnits="objectBoundingBox" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stopColor="#ffffff" />
+                    <stop offset="1" stopColor="#000000" />
+                  </linearGradient>
+                  <linearGradient id={`${fogSvgIds.mask}-fade-t`} gradientUnits="objectBoundingBox" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stopColor="#000000" />
+                    <stop offset="1" stopColor="#ffffff" />
+                  </linearGradient>
+                  <linearGradient id={`${fogSvgIds.mask}-fade-b`} gradientUnits="objectBoundingBox" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stopColor="#ffffff" />
+                    <stop offset="1" stopColor="#000000" />
+                  </linearGradient>
                   <mask
                     id={fogSvgIds.mask}
                     maskUnits="objectBoundingBox"
@@ -477,24 +496,30 @@ export function RealmAtlasOverlay({
                     width="1"
                     height="1"
                   >
-                    <rect width="1" height="1" fill="white" filter={`url(#${fogSvgIds.soft})`} />
-                    {Array.from(revealedSet).map((rid) => {
-                      if (fogLiftAnimating && rid === frId) return null;
-                      const idx = ordered.findIndex((r) => r.realm_id === rid);
-                      const i = idx >= 0 ? idx : 0;
-                      const { leftPct, topPct } = getAtlasPinPlacementForRealm(rid, i, n || 1);
-                      return renderFogHole(`hole-${rid}`, leftPct, topPct, FOG_HOLE_RADIUS);
-                    })}
-                    {fogLiftAnimating && frId
-                      ? (() => {
-                          const idx = ordered.findIndex((r) => r.realm_id === frId);
-                          const i = idx >= 0 ? idx : 0;
-                          const { leftPct, topPct } = getAtlasPinPlacementForRealm(frId, i, n || 1);
-                          const te = easeOutCubic(fogAnimProgress);
-                          const r = FOG_HOLE_RADIUS * Math.max(te, 0.001);
-                          return renderFogHole('hole-anim', leftPct, topPct, r);
-                        })()
-                      : null}
+                    <g filter={`url(#${fogSvgIds.soft})`}>
+                      <rect width="1" height="1" fill="white" />
+                      <rect x="0" y="0" width={fogEdgeFade} height="1" fill={`url(#${fogSvgIds.mask}-fade-l)`} />
+                      <rect x={1 - fogEdgeFade} y="0" width={fogEdgeFade} height="1" fill={`url(#${fogSvgIds.mask}-fade-r)`} />
+                      <rect x="0" y="0" width="1" height={fogEdgeFade} fill={`url(#${fogSvgIds.mask}-fade-t)`} />
+                      <rect x="0" y={1 - fogEdgeFade} width="1" height={fogEdgeFade} fill={`url(#${fogSvgIds.mask}-fade-b)`} />
+                      {Array.from(revealedSet).map((rid) => {
+                        if (fogLiftAnimating && rid === frId) return null;
+                        const idx = ordered.findIndex((r) => r.realm_id === rid);
+                        const i = idx >= 0 ? idx : 0;
+                        const { leftPct, topPct } = getAtlasPinPlacementForRealm(rid, i, n || 1);
+                        return renderFogHole(`hole-${rid}`, leftPct, topPct, FOG_HOLE_RADIUS);
+                      })}
+                      {fogLiftAnimating && frId
+                        ? (() => {
+                            const idx = ordered.findIndex((r) => r.realm_id === frId);
+                            const i = idx >= 0 ? idx : 0;
+                            const { leftPct, topPct } = getAtlasPinPlacementForRealm(frId, i, n || 1);
+                            const te = easeOutCubic(fogAnimProgress);
+                            const r = FOG_HOLE_RADIUS * Math.max(te, 0.001);
+                            return renderFogHole('hole-anim', leftPct, topPct, r);
+                          })()
+                        : null}
+                    </g>
                   </mask>
                 </defs>
               </svg>
