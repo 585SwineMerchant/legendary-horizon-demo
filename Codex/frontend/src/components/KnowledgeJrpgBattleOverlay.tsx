@@ -12,6 +12,7 @@ import {
   dispatchKnowledgeBattlePresentation,
   dispatchKnowledgeCombatVisual,
 } from '../lib/lhKnowledgeCombatBridge';
+import { getLhAudioDirector } from '../lib/lhAudioDirector';
 import { playLhSfx } from '../lib/lhSfx';
 
 import type { EncounterLaunchPayload } from './EncounterOverlay';
@@ -65,6 +66,9 @@ export function KnowledgeJrpgBattleOverlay({ payload, onWin, onRetreat }: Props)
       enemyTemplateId: payload.enemyTemplateId,
     });
     dispatchKnowledgeCombatVisual({ interactableId: payload.interactableId, phase: 'start' });
+    const dir = getLhAudioDirector();
+    dir.setLane('battle');
+    dir.refreshAudibility(400);
     return () => {
       if (!explicitExitDone.current) {
         dispatchKnowledgeBattlePresentation({ action: 'exit', victory: false });
@@ -236,7 +240,7 @@ export function KnowledgeJrpgBattleOverlay({ payload, onWin, onRetreat }: Props)
               <p className="lh-jrpg-outcome-reward">
                 The Traveler&apos;s Resolve Deepens — Maximum Stamina Increased
               </p>
-              <button type="button" className="lh-button lh-button--primary" onClick={finishCombatWin}>
+              <button type="button" className="lh-button lh-button--primary" data-lh-continue onClick={finishCombatWin}>
                 Continue
               </button>
             </div>

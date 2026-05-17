@@ -54,6 +54,7 @@ export function PauseMenu({
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [fullscreenHint, setFullscreenHint] = useState<string | null>(null);
+  const [controlsOpen, setControlsOpen] = useState(false);
   useEscapeToClose(open, onResume);
   useFocusOnOpen(open, panelRef);
 
@@ -91,7 +92,13 @@ export function PauseMenu({
         </h2>
 
         <div className="lh-stack">
-          <button type="button" className="lh-button lh-button--primary" onClick={onResume} data-lh-autofocus>
+          <button
+            type="button"
+            className="lh-button lh-button--primary"
+            onClick={onResume}
+            data-lh-autofocus
+            data-lh-continue
+          >
             Resume
           </button>
           <button type="button" className="lh-button lh-button--secondary" onClick={() => void enterFullscreen()}>
@@ -102,9 +109,17 @@ export function PauseMenu({
               {fullscreenHint}
             </p>
           ) : null}
-          <section className="lh-pause-section lh-pause-section--controls" aria-label="How to play">
-            <h3 className="lh-pause-section__label">How to play</h3>
-            <dl className="lh-controls-list">
+          <div className="lh-pause-section lh-pause-section--controls">
+            <button
+              type="button"
+              className="lh-button lh-button--secondary lh-pause-controls-toggle"
+              aria-expanded={controlsOpen}
+              onClick={() => setControlsOpen((v) => !v)}
+            >
+              Controls
+            </button>
+            {controlsOpen ? (
+            <dl className="lh-controls-list" aria-label="Controls">
               <div>
                 <dt>Move</dt>
                 <dd>Arrow keys</dd>
@@ -130,8 +145,12 @@ export function PauseMenu({
                 <dd>Space</dd>
               </div>
               <div>
+                <dt>Continue / confirm</dt>
+                <dd>Enter</dd>
+              </div>
+              <div>
                 <dt>Save</dt>
-                <dd>Pause - Save</dd>
+                <dd>Pause → Save</dd>
               </div>
               <div>
                 <dt>Fullscreen</dt>
@@ -142,7 +161,8 @@ export function PauseMenu({
                 <dd>M</dd>
               </div>
             </dl>
-          </section>
+            ) : null}
+          </div>
           <button type="button" className="lh-button lh-button--secondary" onClick={onSave}>
             Save
           </button>

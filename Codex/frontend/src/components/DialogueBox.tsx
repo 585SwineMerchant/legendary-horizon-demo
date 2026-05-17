@@ -34,7 +34,7 @@ export function DialogueBox({
       </div>
       <p className="lh-dialogue__body">{body}</p>
       <div className="lh-dialogue__actions">
-        <button type="button" className="lh-button lh-button--primary" onClick={onPrimary}>
+        <button type="button" className="lh-button lh-button--primary" data-lh-continue onClick={onPrimary}>
           {primaryLabel}
         </button>
       </div>

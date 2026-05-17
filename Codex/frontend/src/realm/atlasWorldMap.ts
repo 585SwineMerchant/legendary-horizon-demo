@@ -69,25 +69,55 @@ export const ATLAS_WORLD_PIN_PCT: Readonly<Record<string, { leftPct: number; top
  * rolled scroll edges and title band stay sharp. Tune against `realm-atlas-world.png` if art shifts.
  */
 export const ATLAS_LANDSCAPE_FRAME_PCT = {
-  left: 11.5,
+  left: 10.25,
   top: 12.75,
-  width: 77,
-  height: 75.75,
+  width: 79.5,
+  height: 77.5,
 } as const;
 
+/** Extra reach past the inner border so fog feathering can fade naturally (still clipped to landscape shell). */
+export const ATLAS_FOG_BLEED_PCT = {
+  left: 1.1,
+  top: 0,
+  right: 1.1,
+  bottom: 1.35,
+} as const;
+
+/** `feGaussianBlur` on mask base rect, in objectBoundingBox units (0–1). */
+export const ATLAS_FOG_MASK_EDGE_SOFTNESS = 0.024;
+
 export type AtlasRenderedBounds = { width: number; height: number; offsetX: number; offsetY: number };
+
+type LandscapeBoxOpts = { bleed?: boolean };
 
 /** Pixel box for the landscape frame inside the letterboxed atlas `<img>` bounds. */
 export function computeAtlasLandscapeLayerStyle(
   atlasBounds: AtlasRenderedBounds | null,
+  opts?: LandscapeBoxOpts,
 ): { left: string; top: string; width: string; height: string } | { inset: 0 } {
   if (!atlasBounds) return { inset: 0 };
   const f = ATLAS_LANDSCAPE_FRAME_PCT;
+  const b = opts?.bleed ? ATLAS_FOG_BLEED_PCT : { left: 0, top: 0, right: 0, bottom: 0 };
+  const leftPct = f.left - b.left;
+  const topPct = f.top - b.top;
+  const widthPct = f.width + b.left + b.right;
+  const heightPct = f.height + b.top + b.bottom;
   return {
-    left: `${atlasBounds.offsetX + (atlasBounds.width * f.left) / 100}px`,
-    top: `${atlasBounds.offsetY + (atlasBounds.height * f.top) / 100}px`,
-    width: `${(atlasBounds.width * f.width) / 100}px`,
-    height: `${(atlasBounds.height * f.height) / 100}px`,
+    left: `${atlasBounds.offsetX + (atlasBounds.width * leftPct) / 100}px`,
+    top: `${atlasBounds.offsetY + (atlasBounds.height * topPct) / 100}px`,
+    width: `${(atlasBounds.width * widthPct) / 100}px`,
+    height: `${(atlasBounds.height * heightPct) / 100}px`,
+  };
+}
+
+function fogMaskBoxPct() {
+  const f = ATLAS_LANDSCAPE_FRAME_PCT;
+  const b = ATLAS_FOG_BLEED_PCT;
+  return {
+    left: f.left - b.left,
+    top: f.top - b.top,
+    width: f.width + b.left + b.right,
+    height: f.height + b.top + b.bottom,
   };
 }
 
@@ -103,7 +133,24 @@ export function atlasFullPctToLandscapePct(
   };
 }
 
-/** Hole radius in full-raster % → radius in landscape-local % (width-normalized). */
+/** Pin % → mask space for the fog layer (includes edge bleed for soft edges). */
+export function atlasFullPctToFogMaskPct(
+  leftPct: number,
+  topPct: number,
+): { leftPct: number; topPct: number } {
+  const box = fogMaskBoxPct();
+  return {
+    leftPct: ((leftPct - box.left) / box.width) * 100,
+    topPct: ((topPct - box.top) / box.height) * 100,
+  };
+}
+
+/** Hole radius in full-raster % → radius in fog-mask-local % (width-normalized). */
+export function atlasFogHoleRadiusInMaskPct(radiusFullPct: number): number {
+  return (radiusFullPct / fogMaskBoxPct().width) * 100;
+}
+
+/** @deprecated Use `atlasFogHoleRadiusInMaskPct` for fog holes. */
 export function atlasFogHoleRadiusInLandscapePct(radiusFullPct: number): number {
   return (radiusFullPct / ATLAS_LANDSCAPE_FRAME_PCT.width) * 100;
 }

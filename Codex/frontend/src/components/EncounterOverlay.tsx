@@ -215,7 +215,7 @@ export function EncounterOverlay({ payload, onWin, onRetreat }: Props) {
             {knowledgePhase === 'won' ? (
               <div className="lh-encounter__outcome">
                 <p className="lh-encounter__outcome-text">The Lost Echo dissolves. The Traveler's Resolve Deepens — Maximum Stamina Increased.</p>
-                <button type="button" className="lh-button lh-button--primary" onClick={finishCombatWin}>
+                <button type="button" className="lh-button lh-button--primary" data-lh-continue onClick={finishCombatWin}>
                   Claim reward
                 </button>
               </div>

@@ -1362,6 +1362,9 @@ code.lh-code-inline {
 /* World Atlas fog: blurred chart clipped to inner landscape frame (scroll rollers stay sharp). */
 .lh-atlas__fog-landscape {
   z-index: 2;
+  box-shadow:
+    inset 0 0 28px 12px rgba(8, 10, 14, 0.55),
+    inset 0 0 64px 28px rgba(8, 10, 14, 0.28);
 }
 
 .lh-atlas__fog-mask-defs {
@@ -3127,6 +3130,10 @@ button:focus-visible {
   border-radius: 8px;
   border: 1px solid rgba(148, 163, 184, 0.22);
   background: rgba(15, 23, 42, 0.45);
+}
+
+.lh-pause-controls-toggle {
+  width: 100%;
 }
 
 .lh-controls-list {

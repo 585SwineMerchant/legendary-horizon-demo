@@ -104,6 +104,7 @@ export function TitleScreen({
           <button
             type="button"
             className="lh-button lh-button--primary"
+            data-lh-continue
             onClick={onContinue}
             disabled={loading}
           >

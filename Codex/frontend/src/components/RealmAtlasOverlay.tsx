@@ -14,9 +14,11 @@ import { LH_MEDIA_ASSET_ID_FOG_CLEARING, LH_MEDIA_ASSET_ID_SCROLL_UNFURLING } fr
 import { tryPlayCatalogAudioAsset } from '../lib/lhCatalogAudio';
 import type { MediaAssetRecord, QuestDefinition, RealmDefinition } from '../types';
 import {
+  ATLAS_FOG_BLEED_PCT,
+  ATLAS_FOG_MASK_EDGE_SOFTNESS,
   ATLAS_LANDSCAPE_FRAME_PCT,
-  atlasFogHoleRadiusInLandscapePct,
-  atlasFullPctToLandscapePct,
+  atlasFogHoleRadiusInMaskPct,
+  atlasFullPctToFogMaskPct,
   buildRealmAtlasImageSrcCandidates,
   computeAtlasLandscapeLayerStyle,
   getAtlasPinPlacementForRealm,
@@ -324,7 +326,11 @@ export function RealmAtlasOverlay({
   const reactId = useId();
   const fogSvgIds = useMemo(() => {
     const s = reactId.replace(/[^a-zA-Z0-9_-]/g, '') || 'fog';
-    return { grad: `lh-atlas-fog-grad-${s}`, mask: `lh-atlas-fog-mask-${s}` };
+    return {
+      grad: `lh-atlas-fog-grad-${s}`,
+      mask: `lh-atlas-fog-mask-${s}`,
+      soft: `lh-atlas-fog-soft-${s}`,
+    };
   }, [reactId]);
 
   const landscapeLayerStyle = useMemo(
@@ -335,17 +341,18 @@ export function RealmAtlasOverlay({
         pointerEvents: 'none',
         overflow: 'hidden',
         borderRadius: 2,
-        ...computeAtlasLandscapeLayerStyle(atlasBounds),
+        ...computeAtlasLandscapeLayerStyle(atlasBounds, { bleed: true }),
       }) as CSSProperties,
     [atlasBounds],
   );
 
-  /** Round holes when the landscape frame is letterboxed inside the atlas box. */
+  /** Round holes when the fog mask box is letterboxed inside the atlas art. */
   const fogHoleRyScale = useMemo(() => {
     if (!atlasBounds || atlasBounds.width <= 0 || atlasBounds.height <= 0) return 1;
     const f = ATLAS_LANDSCAPE_FRAME_PCT;
-    const w = (atlasBounds.width * f.width) / 100;
-    const h = (atlasBounds.height * f.height) / 100;
+    const b = ATLAS_FOG_BLEED_PCT;
+    const w = (atlasBounds.width * (f.width + b.left + b.right)) / 100;
+    const h = (atlasBounds.height * (f.height + b.top + b.bottom)) / 100;
     if (h <= 0) return 1;
     return w / h;
   }, [atlasBounds]);
@@ -366,8 +373,8 @@ export function RealmAtlasOverlay({
   /** Mask holes in 0–1 space so `mask-image: url(#id)` on the blurred img scales with the atlas box. */
   const renderFogHole = useCallback(
     (key: string, fullLeftPct: number, fullTopPct: number, radiusFullPct: number) => {
-      const { leftPct, topPct } = atlasFullPctToLandscapePct(fullLeftPct, fullTopPct);
-      const r = atlasFogHoleRadiusInLandscapePct(radiusFullPct);
+      const { leftPct, topPct } = atlasFullPctToFogMaskPct(fullLeftPct, fullTopPct);
+      const r = atlasFogHoleRadiusInMaskPct(radiusFullPct);
       return (
         <ellipse
           key={key}
@@ -386,12 +393,17 @@ export function RealmAtlasOverlay({
 
   const fogBlurImgStyle = useMemo(() => {
     const f = ATLAS_LANDSCAPE_FRAME_PCT;
+    const b = ATLAS_FOG_BLEED_PCT;
+    const boxLeft = f.left - b.left;
+    const boxTop = f.top - b.top;
+    const boxWidth = f.width + b.left + b.right;
+    const boxHeight = f.height + b.top + b.bottom;
     return {
       position: 'absolute',
-      left: `${-(f.left / f.width) * 100}%`,
-      top: `${-(f.top / f.height) * 100}%`,
-      width: `${(100 / f.width) * 100}%`,
-      height: `${(100 / f.height) * 100}%`,
+      left: `${-(boxLeft / boxWidth) * 100}%`,
+      top: `${-(boxTop / boxHeight) * 100}%`,
+      width: `${(100 / boxWidth) * 100}%`,
+      height: `${(100 / boxHeight) * 100}%`,
       objectFit: 'fill',
       WebkitMaskImage: fogMaskUrl,
       maskImage: fogMaskUrl,
@@ -446,6 +458,16 @@ export function RealmAtlasOverlay({
                     <stop offset="55%" stopColor="#000000" />
                     <stop offset="100%" stopColor="#ffffff" />
                   </radialGradient>
+                  <filter
+                    id={fogSvgIds.soft}
+                    filterUnits="objectBoundingBox"
+                    x="-0.08"
+                    y="-0.08"
+                    width="1.16"
+                    height="1.16"
+                  >
+                    <feGaussianBlur stdDeviation={ATLAS_FOG_MASK_EDGE_SOFTNESS} />
+                  </filter>
                   <mask
                     id={fogSvgIds.mask}
                     maskUnits="objectBoundingBox"
@@ -455,7 +477,7 @@ export function RealmAtlasOverlay({
                     width="1"
                     height="1"
                   >
-                    <rect width="1" height="1" fill="white" />
+                    <rect width="1" height="1" fill="white" filter={`url(#${fogSvgIds.soft})`} />
                     {Array.from(revealedSet).map((rid) => {
                       if (fogLiftAnimating && rid === frId) return null;
                       const idx = ordered.findIndex((r) => r.realm_id === rid);
@@ -567,7 +589,7 @@ export function RealmAtlasOverlay({
                 </p>
               ) : null}
               <div className="lh-world-atlas__intro-actions">
-                <button type="button" className="lh-button lh-button--primary" onClick={dismissAtlasIntro}>
+                <button type="button" className="lh-button lh-button--primary" data-lh-continue onClick={dismissAtlasIntro}>
                   Got it
                 </button>
               </div>

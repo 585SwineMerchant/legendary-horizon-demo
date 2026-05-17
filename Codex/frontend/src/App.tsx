@@ -26,6 +26,7 @@ import {
   requestLhEmbedFullscreen,
 } from './lib/lhEmbedFullscreen';
 import { auditCoreyRequiredMedia } from './lib/lhMissingMediaAudit';
+import { activateLhGlobalContinue } from './lib/lhGlobalContinue';
 import { playLhSfx } from './lib/lhSfx';
 
 /**
@@ -164,6 +165,7 @@ export function App() {
     }
     if (screen === 'explore' && activeEncounter) {
       dir.setLane('battle');
+      dir.refreshAudibility(400);
       return;
     }
     if (screen === 'explore') {
@@ -225,32 +227,17 @@ export function App() {
       }
       if (k !== 'Enter' || e.ctrlKey || e.metaKey) return;
 
-      if (teacherDashboardOpen) return;
-      if (
-        pauseOpen ||
-        realmAtlasOpen ||
-        worldMapOpen ||
-        inventoryOpen ||
-        questLogOpen ||
-        academicWorksheetsOpen ||
-        moduleHostOpen
-      ) {
+      if (activateLhGlobalContinue()) {
+        e.preventDefault();
         return;
       }
+
+      if (teacherDashboardOpen) return;
 
       if (screen === 'title' && bootstrapPhase !== 'loading') {
         e.preventDefault();
         navigate.beginDemo();
         return;
-      }
-      if (screen === 'gameTitle') {
-        e.preventDefault();
-        document.querySelector<HTMLButtonElement>('.lh-screen--game-title .lh-button--primary')?.click();
-        return;
-      }
-      if (screen === 'intro') {
-        e.preventDefault();
-        window.dispatchEvent(new CustomEvent('lh-global-continue'));
       }
     };
 
