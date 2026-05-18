@@ -15,6 +15,11 @@ import {
   type ExplorationLoopState,
 } from '../exploration/explorationTypes';
 import { ensureDemoGuidanceState, mergeDemoGuidanceState, applyDemoObjectiveToPlayer } from './demoGuidance';
+import {
+  isDemoRemoteSavePreferred,
+  loadCanonicalDemoPersistedSession,
+  loadCanonicalDemoPersistedSessionForResume,
+} from './demoCanonicalSave';
 
 export const DEMO_LOAD_AUDIT =
   import.meta.env.DEV ||
@@ -27,6 +32,8 @@ export function logDemoLoadAudit(tag: string, payload: Record<string, unknown>):
 }
 
 export type DemoPersistedLoadSource =
+  | 'canonical_demo_fixture'
+  | 'canonical_resume_local_cache'
   | 'remote_apps_script_ok'
   | 'remote_failed_local_cache'
   | 'remote_failed_empty_then_fixture'
@@ -53,14 +60,38 @@ function webSaveConfigured(): boolean {
   );
 }
 
+export type FetchPersistedDemoSessionOpts = {
+  /** When true (Resume), use browser cache before bundled demo save. Start/boot always uses bundled only. */
+  allowLocalCache?: boolean;
+  /** Explicit button intent. `canonical` is fresh demo; `remote_strict` is the Sheets-backed load button. */
+  mode?: 'default' | 'canonical' | 'remote_strict';
+};
+
 /**
- * Loads player / quests / exploration / realm progress / visited triggers from the same
- * sources as `beginDemo` (Apps Script remote, else local full-state cache, else fixture-only).
+ * Loads player / quests / exploration / realm progress / visited triggers.
+ * Default: bundled `demo_save_state.json`. Optional: remote Sheets when `VITE_LH_DEMO_USE_REMOTE_SAVE=true`.
  */
 export async function fetchPersistedDemoSession(
   seededPlayer: PlayerSave,
   seededQuests: QuestDefinition[],
+  opts?: FetchPersistedDemoSessionOpts,
 ): Promise<DemoPersistedSessionPayload> {
+  const mode = opts?.mode ?? 'default';
+
+  if (mode === 'canonical') {
+    if (opts?.allowLocalCache) {
+      return loadCanonicalDemoPersistedSessionForResume(seededPlayer);
+    }
+    return loadCanonicalDemoPersistedSession(seededPlayer);
+  }
+
+  if (!isDemoRemoteSavePreferred() && mode !== 'remote_strict') {
+    if (opts?.allowLocalCache) {
+      return loadCanonicalDemoPersistedSessionForResume(seededPlayer);
+    }
+    return loadCanonicalDemoPersistedSession(seededPlayer);
+  }
+
   let nextPlayer = deepClone(seededPlayer);
   let nextQuests = seededQuests.map(deepClone);
   let explorationAfterCoerce = createEmptyExplorationLoopState();
@@ -85,6 +116,9 @@ export async function fetchPersistedDemoSession(
         realmProgressInit = mergeRealmProgressMaps({}, remote.realm_progress);
       }
     } else {
+      if (mode === 'remote_strict') {
+        throw new Error(remote.message);
+      }
       const cached = tryLoadCachedFullState(seededPlayer.player_id);
       if (cached) {
         source = 'remote_failed_local_cache';
@@ -104,6 +138,11 @@ export async function fetchPersistedDemoSession(
       }
     }
   } else {
+    if (mode === 'remote_strict') {
+      throw new Error(
+        'Spreadsheet load is not configured. Set VITE_LH_APPS_SCRIPT_WEBAPP_URL and keep VITE_LH_FORCE_SIMULATED_SAVE=false.',
+      );
+    }
     if (import.meta.env.VITE_LH_FORCE_SIMULATED_SAVE === 'true') {
       source = 'simulated_save_fixture_only';
     }

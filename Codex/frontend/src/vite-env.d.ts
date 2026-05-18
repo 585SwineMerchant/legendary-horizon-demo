@@ -34,6 +34,11 @@ interface ImportMetaEnv {
   readonly VITE_LH_PAUSE_MODULE_SHORTCUTS?: string;
   /** Full URL to the illustrated realm atlas art; overrides default `lh3.googleusercontent.com` host for the Fog map file. */
   readonly VITE_LH_REALM_ATLAS_IMAGE_URL?: string;
+  /**
+   * When `true`, demo bootstrap uses Apps Script / localStorage like production.
+   * Default (unset): bundled `data/samples/demo_save_state.json` for predictable demos.
+   */
+  readonly VITE_LH_DEMO_USE_REMOTE_SAVE?: string;
 }
 
 interface ImportMeta {

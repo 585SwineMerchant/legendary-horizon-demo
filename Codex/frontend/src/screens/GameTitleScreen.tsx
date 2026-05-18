@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { publicAssetUrl } from '../lib/publicAssetUrl';
 
 type Props = {
-  onStart: () => void;
+  onStart: () => void | Promise<void>;
   onResume: () => void | Promise<void>;
 };
 
@@ -15,7 +15,7 @@ export function GameTitleScreen({ onStart, onResume }: Props) {
     setExiting(mode);
     window.setTimeout(() => {
       void (async () => {
-        if (mode === 'start') onStart();
+        if (mode === 'start') await onStart();
         else await onResume();
       })();
     }, 760);
@@ -35,7 +35,7 @@ export function GameTitleScreen({ onStart, onResume }: Props) {
             Start
           </button>
           <button type="button" className="lh-button lh-button--secondary" onClick={() => choose('resume')}>
-            Resume
+            Load game
           </button>
         </div>
       </div>

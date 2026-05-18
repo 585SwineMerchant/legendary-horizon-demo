@@ -4,7 +4,7 @@ import { getLhAudioDirector } from '../lib/lhAudioDirector';
 import { publicAssetUrl } from '../lib/publicAssetUrl';
 
 type Props = {
-  onStart: () => void;
+  onStart: () => void | Promise<void>;
   onResume: () => void | Promise<void>;
 };
 
@@ -183,7 +183,7 @@ export function IntroCinematicScreen({ onStart, onResume }: Props) {
               transition: `opacity ${TITLE_MENU_FADE_MS}ms ease, transform ${TITLE_MENU_FADE_MS}ms ease`,
             }}
           >
-            <button type="button" className="lh-button lh-button--primary" data-lh-continue onClick={onStart}>
+            <button type="button" className="lh-button lh-button--primary" data-lh-continue onClick={() => void onStart()}>
               Start game
             </button>
             <button type="button" className="lh-button lh-button--secondary" onClick={() => void onResume()}>

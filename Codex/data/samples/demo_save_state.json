@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "saved_at_iso": "2026-05-17T12:00:00.000Z",
+  "save_kind": "manual",
+  "realm_id": "realm_aethelwood",
+  "player_snapshot": {
+    "player_id": "stu_0417_kevin_demo",
+    "display_name": "Aria Thornwell",
+    "roster_email_hint": "aria.thornwell.students.demo@district.example.org",
+    "email_hash": "",
+    "current_act": 3,
+    "current_realm_id": "realm_aethelwood",
+    "required_next_action": "Speak with the Master Scribe",
+    "active_main_quest_id": "gq_act3_fog_of_unknown",
+    "active_main_quest_title": "Fog of the Unknown — map the realms",
+    "last_completed_event_id": "evt_demo_slice_bootstrap",
+    "last_completed_summary": "The demo journey begins at the crossroads — Maia, trial, guild research, and the atlas await.",
+    "xp_total": 420,
+    "level_cached": 3,
+    "inventory_summary": {
+      "coins": 8,
+      "items": [
+        {
+          "item_id": "mentor_echo_vial",
+          "qty": 1,
+          "label": "Echo vial — mentor guidance"
+        }
+      ],
+      "notes_for_teacher_preview": "Demo vertical slice — canonical bundled save."
+    },
+    "revision_token": "demo-canonical-v1",
+    "last_manual_save_iso": "",
+    "exit_ticket_state": "none"
+  },
+  "progression_flags": {
+    "visited_trigger_object_ids": []
+  },
+  "exploration_loop": {
+    "fog_keys_cleared": [],
+    "waypoint_keys_visited": [],
+    "ledger_entries": [],
+    "academic_tasks": {},
+    "module_drafts": {},
+    "session_encounter_xp_awarded": 0,
+    "encounter_log": [],
+    "demo_guidance_v1": {
+      "stage_id": "demo_awakened",
+      "current_objective": "Speak with the Master Scribe",
+      "max_stamina_ms": 2400
+    },
+    "guild_endgame_v1": {
+      "phase": "unstarted",
+      "true_path_realm_id": null,
+      "application_unlocked": false,
+      "application_sealed": false,
+      "interview_invited": false,
+      "interview_deadline_iso": null,
+      "last_interview_outcome": "none"
+    },
+    "guild_hq_atlas_revealed_realm_ids": [],
+    "foretold_signpost_realm_ids": []
+  },
+  "realm_progress": {
+    "realm_aethelwood": {
+      "entered": true,
+      "last_entered_iso": "2026-05-17T12:00:00.000Z"
+    }
+  },
+  "ritual_drafts": {
+    "comparison_ledger": {
+      "career_a": "",
+      "career_b": "",
+      "note": ""
+    }
+  }
+}

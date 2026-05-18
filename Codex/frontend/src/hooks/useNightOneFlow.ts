@@ -675,7 +675,10 @@ export function useNightOneFlow() {
         console.info('[LhRoster]', 'Matched roster fixture ↔ demo save row:', rosterResolution);
       }
 
-      const persisted = await fetchPersistedDemoSession(seededPlayerSeed, seededQuestSeed);
+      const persisted = await fetchPersistedDemoSession(seededPlayerSeed, seededQuestSeed, {
+        allowLocalCache: false,
+        mode: 'canonical',
+      });
       const rawLoop = persisted.rawExplorationLoopFromRemote;
       const rawDemo =
         rawLoop && typeof rawLoop === 'object' && !Array.isArray(rawLoop)
@@ -1813,7 +1816,10 @@ export function useNightOneFlow() {
   }, []);
 
   const reloadPersistedDemoForResume = useCallback(async (): Promise<string> => {
-    const persisted = await fetchPersistedDemoSession(seededPlayerSeed, seededQuestSeed);
+    const persisted = await fetchPersistedDemoSession(seededPlayerSeed, seededQuestSeed, {
+      allowLocalCache: false,
+      mode: 'remote_strict',
+    });
     const rawLoop = persisted.rawExplorationLoopFromRemote;
     const rawDemo =
       rawLoop && typeof rawLoop === 'object' && !Array.isArray(rawLoop)
@@ -1845,23 +1851,42 @@ export function useNightOneFlow() {
     return persisted.source;
   }, []);
 
-  const applyFreshVerticalSliceFromGameTitle = useCallback(() => {
-    const explorationFresh = createEmptyExplorationLoopState();
-    const guidance = ensureDemoGuidanceState(explorationFresh);
-    const nextPlayer = applyDemoObjectiveToPlayer(deepClone(seededPlayerSeed), guidance.current_objective);
-    setPlayer(nextPlayer);
-    setQuests(reconcileQuestPrerequisites(loadQuestDefinitionsFromJson(seededQuestSeed.map(deepClone))));
-    setVisitedInteractableIds([]);
-    setRealmProgress({});
-    setExploration(explorationFresh);
-    setLedgerDraft(emptyLedgerDraft());
-    setPhaserExplorationRemountKey((k) => k + 1);
-    logDemoLoadAudit('fresh vertical slice (Game Title → Start)', {
-      load_source: 'client_forced_fresh_slice_no_remote_read',
-      demo_guidance_v1: explorationFresh.demo_guidance_v1,
-      visited_interactable_ids: [],
-    });
-  }, []);
+  const applyCanonicalDemoSessionToRuntime = useCallback(
+    async (opts: { allowLocalCache: boolean; clearCacheFirst?: boolean }) => {
+      if (opts.clearCacheFirst) {
+        clearCachedFullState();
+      }
+      const persisted = await fetchPersistedDemoSession(seededPlayerSeed, seededQuestSeed, {
+        allowLocalCache: opts.allowLocalCache,
+        mode: 'canonical',
+      });
+      const finalized = finalizeDemoBootstrapExploration({
+        academicTaskDefs: BLUEPRINT.academic_worksheet_tasks,
+        explorationAfterCoerce: persisted.explorationAfterCoerce,
+        realmProgressInit: persisted.realmProgressInit,
+        nextPlayer: persisted.nextPlayer,
+      });
+      setPlayer(finalized.nextPlayer);
+      setQuests(reconcileQuestPrerequisites(loadQuestDefinitionsFromJson(persisted.nextQuests)));
+      setVisitedInteractableIds(persisted.visitedInit);
+      setRealmProgress(finalized.realmProgress);
+      setExploration(finalized.exploration);
+      setLedgerDraft(emptyLedgerDraft());
+      setPhaserExplorationRemountKey((k) => k + 1);
+      logDemoLoadAudit('canonical demo session applied', {
+        load_source: persisted.source,
+        demo_guidance_v1: finalized.exploration.demo_guidance_v1,
+        guild_hq_atlas_revealed_realm_ids: finalized.exploration.guild_hq_atlas_revealed_realm_ids ?? [],
+        visited_interactable_ids: [...persisted.visitedInit],
+      });
+      return persisted.source;
+    },
+    [],
+  );
+
+  const applyFreshVerticalSliceFromGameTitle = useCallback(async () => {
+    await applyCanonicalDemoSessionToRuntime({ allowLocalCache: false, clearCacheFirst: true });
+  }, [applyCanonicalDemoSessionToRuntime]);
 
   const devResetToLostEchoCombatStep = useCallback(() => {
     setVisitedInteractableIds((ids) => ids.filter((id) => !LOST_ECHO_DEMO_INTERACTABLE_IDS.includes(id)));
@@ -2082,7 +2107,7 @@ export function useNightOneFlow() {
           demoSliceDevTools:
             import.meta.env.DEV || import.meta.env.VITE_LH_QUEST_DEBUG === 'true'
               ? {
-                  onResetSliceToAwakened: applyFreshVerticalSliceFromGameTitle,
+                  onResetSliceToAwakened: () => void applyFreshVerticalSliceFromGameTitle(),
                   onResetToLostEchoCombat: devResetToLostEchoCombatStep,
                 }
               : undefined,
@@ -2093,9 +2118,9 @@ export function useNightOneFlow() {
     beginDemo,
     quitToTitle,
     introToInstructions: () => setScreen('gameTitle'),
-    gameTitleStart: () => {
+    gameTitleStart: async () => {
       setSaveFeedback(null);
-      applyFreshVerticalSliceFromGameTitle();
+      await applyFreshVerticalSliceFromGameTitle();
       setScreen('explore');
     },
     gameTitleResume: async () => {
@@ -2104,14 +2129,14 @@ export function useNightOneFlow() {
         const source = await reloadPersistedDemoForResume();
         setSaveFeedback({
           tone: 'success',
-          text: `Save data reloaded and normalized (source: ${source}). The Traveler returns to the world.`,
+          text: `Spreadsheet save loaded and normalized (source: ${source}). The Traveler returns to the world.`,
         });
         setScreen('explore');
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         setSaveFeedback({
           tone: 'error',
-          text: `Resume reload failed: ${msg}`,
+          text: `Load game failed: ${msg}`,
         });
       }
     },
