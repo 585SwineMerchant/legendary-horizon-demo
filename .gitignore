@@ -18,9 +18,12 @@ frontend/dist
 *.zip
 *.7z
 
-frontend/public/assets/intro/
-Codex/frontend/public/assets/intro/
-Codex/frontend/public/assets/intro/**/*.mp4
+# Intro directory: ignore media only, track HTML/JS source files
+Codex/frontend/public/assets/intro/assets/*.mp3
+Codex/frontend/public/assets/intro/assets/*.wav
+Codex/frontend/public/assets/intro/assets/*.png
+Codex/frontend/public/assets/intro/assets/*.jpg
 Codex/frontend/public/assets/intro/*.mp4
+Codex/frontend/public/assets/intro/*.mov
 *.mp4
 .claude/worktrees/youthful-taussig-0ff3fc/

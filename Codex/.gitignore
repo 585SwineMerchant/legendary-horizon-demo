@@ -27,6 +27,10 @@ captures/
 tmp/
 temp/
 *.mp4
-Codex/frontend/public/assets/intro/*.mp4
-Codex/frontend/public/assets/intro/**/*.mp4
-frontend/public/assets/intro/
+# Intro: ignore media files only, not HTML source
+frontend/public/assets/intro/*.mp4
+frontend/public/assets/intro/*.mov
+frontend/public/assets/intro/assets/*.mp3
+frontend/public/assets/intro/assets/*.wav
+frontend/public/assets/intro/assets/*.png
+frontend/public/assets/intro/assets/*.jpg

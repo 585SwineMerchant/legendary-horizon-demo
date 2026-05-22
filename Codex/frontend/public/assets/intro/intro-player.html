@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Legendary Horizon — Intro</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@400;600&display=swap');
+
+    :root {
+      --bg-deep:      #0a0c10;
+      --amber:        #f59e0b;
+      --amber-dim:    rgba(245, 158, 11, 0.12);
+      --amber-light:  #fef3c7;
+      --amber-glow:   rgba(245, 158, 11, 0.25);
+      --text-bright:  #f1f5f9;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      background: var(--bg-deep);
+      overflow: hidden;
+      font-family: 'Inter', sans-serif;
+      color: var(--text-bright);
+    }
+
+    /* ── Video fills the screen ── */
+    #video-wrap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    #video-el {
+      width: 100%;
+      height: 100%;
+      object-fit: cover; /* fills frame, matches typical cinematic export */
+      display: block;
+    }
+
+    /* Vignette — softens edges, helps dialogue box pop */
+    .vignette {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 45%, transparent 30%, rgba(10,12,16,0.75) 100%);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* Bottom gradient — gives dialogue box a dark landing pad */
+    .bottom-grad {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 45%;
+      background: linear-gradient(to top, rgba(10,12,16,0.85) 0%, transparent 100%);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* ── Dialogue overlay ── */
+    #ui-layer {
+      position: absolute;
+      bottom: 5vh;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      width: 90%;
+      max-width: 860px;
+    }
+
+    /* Scene title above box */
+    #scene-title {
+      font-family: 'Cinzel', serif;
+      font-size: 1.5rem;
+      color: transparent;
+      background-clip: text;
+      -webkit-background-clip: text;
+      background-image: linear-gradient(to bottom, #fde68a, #d97706);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      font-weight: 900;
+      text-align: center;
+      margin-bottom: 0.75rem;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    #scene-title.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Dialogue box */
+    #dialogue-box {
+      background: rgba(15, 23, 42, 0.75);
+      border: 2px solid var(--amber);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      box-shadow:
+        0 0 24px var(--amber-glow),
+        inset 0 0 12px rgba(245, 158, 11, 0.08);
+      min-height: 88px;
+      position: relative;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+      backdrop-filter: blur(6px);
+    }
+    #dialogue-box.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Speaker label */
+    #speaker-name {
+      position: absolute;
+      top: -13px;
+      left: 20px;
+      background: var(--amber);
+      color: #000;
+      font-family: 'Cinzel', serif;
+      font-weight: 900;
+      padding: 0.1rem 0.85rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+    }
+
+    /* Caption text */
+    #dialogue-text {
+      font-family: 'Inter', sans-serif;
+      font-size: 1.05rem;
+      line-height: 1.6;
+      color: var(--amber-light);
+      text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+    }
+
+    /* Blinking cursor */
+    .cursor {
+      display: inline-block;
+      width: 9px;
+      height: 1.2rem;
+      background: var(--amber);
+      vertical-align: middle;
+      margin-left: 4px;
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* ── Start / skip controls ── */
+    #start-screen {
+      position: absolute;
+      inset: 0;
+      z-index: 50;
+      background: rgba(10,12,16,0.88);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+    #start-screen h2 {
+      font-family: 'Cinzel', serif;
+      font-size: 1.4rem;
+      color: var(--amber);
+      letter-spacing: 0.12em;
+    }
+    #btn-begin {
+      background: var(--amber);
+      color: #000;
+      font-family: 'Cinzel', serif;
+      font-size: 1.1rem;
+      font-weight: 900;
+      padding: 14px 48px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      transition: background 0.2s, transform 0.1s;
+    }
+    #btn-begin:hover  { background: #fbbf24; }
+    #btn-begin:active { transform: scale(0.97); }
+
+    #skip-btn {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      z-index: 20;
+      background: rgba(0,0,0,0.5);
+      border: 1px solid #555;
+      color: #aaa;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.78rem;
+      padding: 6px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+      display: none;
+    }
+    #skip-btn:hover { border-color: var(--amber); color: var(--amber-light); }
+
+    /* ── No-timestamps warning ── */
+    #no-stamps-warning {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 30;
+      background: rgba(15,23,42,0.92);
+      border: 1px solid var(--amber);
+      border-radius: 10px;
+      padding: 24px 32px;
+      text-align: center;
+      max-width: 480px;
+      display: none;
+    }
+    #no-stamps-warning h3 {
+      font-family: 'Cinzel', serif;
+      color: var(--amber);
+      margin-bottom: 10px;
+    }
+    #no-stamps-warning p { font-size: 0.85rem; color: #9ca3af; line-height: 1.6; }
+    #no-stamps-warning code { color: var(--amber-light); }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     CAPTION DATA
+     ───────────────────────────────────────────────────────────────────
+     After running caption-stamper.html, paste the exported
+     "const CAPTIONS = [...]" block here to replace this one.
+
+     startTime / endTime are in seconds (match your video timeline).
+     Set startTime: null to hide a caption entirely.
+     ═══════════════════════════════════════════════════════════════════ -->
+<script>
+const CAPTIONS = [
+  {
+    "title":     "PHASE 1: THE AWAKENING",
+    "speaker":   "The Mentor",
+    "text":      "Every legendary hero begins their journey with a single realization: you cannot conquer the world until you know the stats of your own character. Welcome, Traveler, to the Awakening. In Phase One, we aren't looking at jobs—we're looking at your Base Stats. Your Interest Profiler is your compass. Are you a high-Intelligence mage who loves academic puzzles? Or a high-Strength warrior who prefers working with 'Things' and 'Data' in the physical realm? Your hobbies aren't just games; they are the early levels of your future Skills.",
+    "startTime": null,
+    "endTime":   null,
+    "skipped":   false
+  },
+  {
+    "title":     "THE INNER CRYSTAL",
+    "speaker":   "The Mentor",
+    "text":      "But knowing what you like isn't enough. You must understand how you function. This is your 'Learning Style'—the hidden passive abilities that determine how you gain XP in the real world. Do you have a Growth Mindset? Can you turn a low-level ability into a Master Skill through persistence? Before we leave the tavern, we must identify which areas of your character sheet need strengthening.",
+    "startTime": null,
+    "endTime":   null,
+    "skipped":   false
+  },
+  {
+    "title":     "THE MAP OF REALMS",
+    "speaker":   "The Mentor",
+    "text":      "Now, look to the Horizon. The world is divided into 16 Great Clusters—huge territories where different types of magic and industry thrive. From the technical sorcery of STEM to the strategic leadership of the Business Realm, your mission is to see where your stats align.",
+    "startTime": null,
+    "endTime":   null,
+    "skipped":   false
+  },
+  {
+    "title":     "JOBS VS. CAREERS",
+    "speaker":   "The Mentor",
+    "text":      "Don't be fooled by 'Side Quests.' A Job is a temporary task—a way to earn gold for today. But a Career? That is your Main Quest. It is a long-term path of progression, mastery, and legacy. To understand the difference, you must consult the Elders. Interview those who have already traversed these lands. Ask them: 'What shaped your path?'",
+    "startTime": null,
+    "endTime":   null,
+    "skipped":   false
+  },
+  {
+    "title":     "THE COMPARISON TRIALS",
+    "speaker":   "The Mentor",
+    "text":      "Your final trial before the Great Research Project is the Comparison Trial. You will select three paths from the Maia Career List. Weigh their requirements. Does this path require a 4-year Wizarding Academy (College), or a specialized Apprenticeship (Trade School)? Is the gold reward in the NYS Territory enough to support your lifestyle? Choose wisely.",
+    "startTime": null,
+    "endTime":   null,
+    "skipped":   false
+  },
+  {
+    "title":     "THE CALL TO ADVENTURE",
+    "speaker":   "The Mentor",
+    "text":      "The map is laid out. The stats are recorded. The 'Legendary Horizon' is no longer a dream—it is a destination. Ready your tools, Researcher. Your quest begins now.",
+    "startTime": null,
+    "endTime":   null,
+    "skipped":   false
+  }
+];
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     DOM
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<div id="video-wrap">
+  <video id="video-el"
+         src="intro_davinci.mp4"
+         preload="auto"
+         playsinline>
+  </video>
+
+  <div class="vignette"></div>
+  <div class="bottom-grad"></div>
+
+  <div id="ui-layer">
+    <div id="scene-title"></div>
+    <div id="dialogue-box">
+      <div id="speaker-name">The Mentor</div>
+      <div id="dialogue-text"><span class="cursor"></span></div>
+    </div>
+  </div>
+
+  <button id="skip-btn">Skip Intro ›</button>
+</div>
+
+<!-- Start screen (shown until user clicks Begin) -->
+<div id="start-screen">
+  <h2>Legendary Horizon</h2>
+  <button id="btn-begin">▶ Begin</button>
+</div>
+
+<!-- Shown when CAPTIONS have no timestamps yet -->
+<div id="no-stamps-warning">
+  <h3>⏱ Captions Not Yet Stamped</h3>
+  <p>
+    Open <code>caption-stamper.html</code> in your browser, load your video,
+    and press <strong>SPACE</strong> when the narrator starts each line.
+    Then paste the exported <code>const CAPTIONS</code> block into
+    <code>intro-player.html</code>.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     PLAYER LOGIC
+     ═══════════════════════════════════════════════════════════════════ -->
+<script>
+(function () {
+  const videoEl    = document.getElementById('video-el');
+  const titleEl    = document.getElementById('scene-title');
+  const boxEl      = document.getElementById('dialogue-box');
+  const textEl     = document.getElementById('dialogue-text');
+  const speakerEl  = document.getElementById('speaker-name');
+  const skipBtn    = document.getElementById('skip-btn');
+  const startScr   = document.getElementById('start-screen');
+  const warning    = document.getElementById('no-stamps-warning');
+
+  // Check if any caption has timestamps
+  const hasStamps = CAPTIONS.some(c => c.startTime !== null && !c.skipped);
+  if (!hasStamps) {
+    warning.style.display = 'block';
+  }
+
+  let activeIndex  = -1;   // index of currently showing caption
+  let typingTimer  = null;
+  let started      = false;
+
+  // ── Start button ──
+  document.getElementById('btn-begin').addEventListener('click', startIntro);
+
+  function startIntro() {
+    startScr.style.display = 'none';
+    skipBtn.style.display  = 'block';
+    videoEl.play().catch(() => {
+      // autoplay blocked — user already clicked so this should succeed
+    });
+    started = true;
+    notifyParent('lh_intro_started', { started: true });
+  }
+
+  // ── Skip button ──
+  skipBtn.addEventListener('click', endIntro);
+
+  // ── Video ended ──
+  videoEl.addEventListener('ended', endIntro);
+
+  // ── timeupdate → check caption triggers ──
+  videoEl.addEventListener('timeupdate', () => {
+    if (!started || !hasStamps) return;
+    const t = videoEl.currentTime;
+    updateCaption(t);
+  });
+
+  function updateCaption(t) {
+    // Find which caption (if any) should be showing right now
+    let newIndex = -1;
+    for (let i = 0; i < CAPTIONS.length; i++) {
+      const cap = CAPTIONS[i];
+      if (cap.skipped || cap.startTime === null) continue;
+      const end = cap.endTime ?? Infinity;
+      if (t >= cap.startTime && t < end) {
+        newIndex = i;
+        break;
+      }
+    }
+
+    if (newIndex === activeIndex) return;  // no change
+    activeIndex = newIndex;
+
+    if (newIndex === -1) {
+      // Hide box
+      hideCaption();
+    } else {
+      showCaption(CAPTIONS[newIndex]);
+    }
+  }
+
+  function showCaption(cap) {
+    // Update speaker
+    speakerEl.textContent = cap.speaker || 'The Mentor';
+
+    // Title
+    titleEl.textContent = cap.title || '';
+    titleEl.classList.add('visible');
+
+    // Show box (fade in)
+    boxEl.classList.add('visible');
+
+    // Typewriter text
+    clearTimeout(typingTimer);
+    textEl.innerHTML = '<span class="cursor"></span>';
+    runTypewriter(cap.text);
+  }
+
+  function hideCaption() {
+    boxEl.classList.remove('visible');
+    titleEl.classList.remove('visible');
+    clearTimeout(typingTimer);
+    // Brief delay so fade-out completes before clearing text
+    setTimeout(() => {
+      if (activeIndex === -1) textEl.innerHTML = '<span class="cursor"></span>';
+    }, 600);
+  }
+
+  // Typewriter — speed calibrated so text finishes well before endTime
+  function runTypewriter(text) {
+    // Estimate: aim to finish typing in ~60% of the caption's duration
+    const cap = CAPTIONS[activeIndex];
+    let speed = 28;  // ms per character (default)
+    if (cap && cap.endTime && cap.startTime !== null) {
+      const duration = cap.endTime - cap.startTime;
+      const target   = duration * 0.65 * 1000; // 65% of duration in ms
+      speed = Math.max(12, Math.min(60, Math.floor(target / text.length)));
+    }
+
+    let i = 0;
+    const capturedIndex = activeIndex;
+    function tick() {
+      if (activeIndex !== capturedIndex) return; // caption changed — abort
+      if (i >= text.length) return;
+      textEl.innerHTML = text.substring(0, i + 1) + '<span class="cursor"></span>';
+      i++;
+      typingTimer = setTimeout(tick, speed);
+    }
+    setTimeout(tick, 300); // brief pause before first character
+  }
+
+  // ── End / finish ──
+  function endIntro() {
+    videoEl.pause();
+    hideCaption();
+    skipBtn.style.display = 'none';
+
+    // Fade out
+    document.getElementById('video-wrap').style.transition = 'opacity 1s ease';
+    document.getElementById('video-wrap').style.opacity    = '0';
+
+    setTimeout(() => {
+      notifyParent('lh_intro_finished', { finished: true });
+      // If embedded as iframe, parent handles transition.
+      // If standalone, could redirect: window.location.href = '../../../index.html';
+    }, 1200);
+  }
+
+  // ── postMessage to parent game frame ──
+  function notifyParent(type, payload) {
+    try {
+      if (!window.parent || window.parent === window) return;
+      window.parent.postMessage({ type, payload }, '*');
+    } catch (_) {}
+  }
+
+  // ── Expose debug handle ──
+  window._introPlayer = {
+    seek:      t  => { videoEl.currentTime = t; },
+    captions:  () => CAPTIONS,
+    jumpTo:    i  => { if (CAPTIONS[i]?.startTime) videoEl.currentTime = CAPTIONS[i].startTime; }
+  };
+
+})();
+</script>
+</body>
+</html>
