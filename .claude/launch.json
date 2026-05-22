@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "character-creation",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "character-creation", "--listen", "3456", "--no-clipboard"],
+      "port": 3456
+    },
+    {
+      "name": "phaser-game",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", ".", "--listen", "3457", "--no-clipboard"],
+      "port": 3457
+    }
+  ]
+}

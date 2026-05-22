@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quest of Fate</title>
+
+  <!--
+    Quest of Fate — Phaser 3 Integration Shell
+    ==========================================
+    Load order matters:
+      1. character-creation CSS (scroll styles reused by ScrollOfDestinyViewer)
+      2. Phaser engine
+      3. character-creation data + scripts (global namespace)
+      4. Phaser game systems, UI, scenes
+      5. game.js (boots Phaser.Game)
+
+    To preview:   http://localhost:3457/phaser-game/
+    Dev shortcuts (browser console):
+      _qof.skipToGame()        → mock character, jump to MainGameScene
+      _qof.clearSave()         → wipe save + reload (triggers CharacterCreation)
+      _qof.addItem({...})      → inject a test item into inventory
+      _qof.dumpSave()          → print full localStorage save as JSON
+  -->
+
+  <!-- Character creation CSS (scroll UI styles are reused by the viewer) -->
+  <link rel="stylesheet" href="../character-creation/css/style.css" />
+
+  <!-- Phaser game shell styles -->
+  <link rel="stylesheet" href="css/game.css" />
+</head>
+<body>
+
+  <div id="game-container"></div>
+
+  <!-- ── Phaser 3 engine (CDN) ── -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+
+  <!-- ── Character creation: data + shared classes ── -->
+  <script src="../character-creation/js/config.js"></script>
+  <script src="../character-creation/js/CharacterSheet.js"></script>
+  <script src="../character-creation/js/MockData.js"></script>
+  <script src="../character-creation/js/activities/LifeGoalsTournament.js"></script>
+  <script src="../character-creation/js/activities/CareerValuesAssessment.js"></script>
+  <script src="../character-creation/js/activities/WorkspacePreferences.js"></script>
+  <script src="../character-creation/js/activities/WorkerSkillsRating.js"></script>
+  <script src="../character-creation/js/ScrollOfDestiny.js"></script>
+  <script src="../character-creation/js/MasterScribeController.js"></script>
+
+  <!-- ── Persistence + inventory ── -->
+  <script src="js/systems/SaveManager.js"></script>
+  <script src="js/systems/Inventory.js"></script>
+  <script src="js/systems/GameState.js"></script>
+
+  <!-- ── DOM UI overlays ── -->
+  <script src="js/ui/ScrollOfDestinyViewer.js"></script>
+  <script src="js/ui/InventoryScreen.js"></script>
+
+  <!-- ── Phaser scenes ── -->
+  <script src="js/scenes/BootScene.js"></script>
+  <script src="js/scenes/CharacterCreationScene.js"></script>
+  <script src="js/scenes/MainGameScene.js"></script>
+
+  <!-- ── Boot the game ── -->
+  <script src="js/game.js"></script>
+
+</body>
+</html>

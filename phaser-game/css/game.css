@@ -1,0 +1,261 @@
+/* ============================================================
+   Quest of Fate — Phaser game shell + DOM overlay styles
+   Complements character-creation/css/style.css (loaded first)
+   ============================================================ */
+
+/* --- Page shell --- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: #0d0905;
+  overflow: hidden;
+  font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+}
+
+#game-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#game-container canvas {
+  image-rendering: pixelated;
+  display: block;
+}
+
+/* ============================================================
+   CHARACTER CREATION OVERLAY
+   Mirrors the #game-root layout from style.css so the ritual
+   looks identical to the standalone character-creation app.
+   ============================================================ */
+#cc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #0d0905;
+  background-image: radial-gradient(ellipse at 50% 30%, #1a0e00 0%, #080503 100%);
+  overflow-y: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 16px 48px;
+}
+
+/* ============================================================
+   INVENTORY OVERLAY
+   ============================================================ */
+.qof-inv-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(3px);
+  animation: qofFadeIn 0.2s ease;
+}
+
+@keyframes qofFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.qof-inv-panel {
+  width: min(520px, 92vw);
+  max-height: 80vh;
+  background: #f5e6c3;
+  border: 2px solid #8a6d1a;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 0 60px rgba(201,162,39,0.25), 0 20px 40px rgba(0,0,0,0.7);
+  animation: qofSlideUp 0.25s ease;
+  overflow: hidden;
+}
+
+@keyframes qofSlideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.qof-inv-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  background: #e8d4a2;
+  border-bottom: 1px solid #d4b882;
+  flex-shrink: 0;
+}
+
+.qof-inv-title {
+  flex: 1;
+  font-size: 1.1rem;
+  color: #2c1a0a;
+  font-weight: 400;
+}
+
+.qof-inv-hint {
+  font-size: 0.72rem;
+  color: #8a7050;
+  font-style: italic;
+}
+
+.qof-inv-close {
+  background: none;
+  border: 1px solid #c9a227;
+  color: #8a6d1a;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+
+.qof-inv-close:hover { background: #c9a227; color: #1a0e00; }
+
+.qof-inv-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qof-inv-empty {
+  text-align: center;
+  color: #8a7050;
+  font-style: italic;
+  padding: 32px 0;
+  font-size: 0.95rem;
+}
+
+.qof-inv-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  background: rgba(0,0,0,0.04);
+  border: 1px solid #d4b882;
+  border-radius: 6px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.qof-inv-item[data-action] {
+  cursor: pointer;
+}
+
+.qof-inv-item[data-action]:hover {
+  background: rgba(201,162,39,0.1);
+  border-color: #c9a227;
+}
+
+.qof-inv-item--scroll {
+  border-color: #c9a227;
+  background: rgba(201,162,39,0.06);
+}
+
+.qof-item-icon {
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+
+.qof-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.qof-item-name {
+  font-size: 1rem;
+  color: #2c1a0a;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.qof-item-type {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #8a7050;
+  margin-bottom: 4px;
+}
+
+.qof-item-desc {
+  font-size: 0.82rem;
+  color: #5c3d1e;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.qof-item-action {
+  font-size: 0.8rem;
+  color: #c9a227;
+  font-style: italic;
+  flex-shrink: 0;
+}
+
+.qof-inv-footer {
+  padding: 10px 20px;
+  font-size: 0.72rem;
+  color: #8a7050;
+  border-top: 1px solid #d4b882;
+  background: #e8d4a2;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   SCROLL OF DESTINY VIEWER
+   ============================================================ */
+.qof-scroll-viewer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0,0,0,0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+  padding: 20px 16px 40px;
+  backdrop-filter: blur(4px);
+  animation: qofFadeIn 0.25s ease;
+}
+
+.qof-scroll-viewer-inner {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.qof-scroll-viewer-topbar {
+  display: flex;
+  align-items: center;
+}
+
+.qof-btn-back {
+  background: none;
+  border: 1px solid #555;
+  color: #c9a227;
+  padding: 7px 18px;
+  font-family: 'Palatino Linotype', Georgia, serif;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.qof-btn-back:hover {
+  border-color: #c9a227;
+  color: #f0d060;
+}

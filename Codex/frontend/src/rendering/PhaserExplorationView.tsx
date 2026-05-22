@@ -141,6 +141,7 @@ const TILESET_IMAGES = [
   'Aethelwood Farmsteads',
   'fences and half-sized walls',
   'vendor-tent',
+  'Premade_houses3',
 ] as const;
 
 const PRELOAD_TILESET_KEYS = new Set<string>(TILESET_IMAGES);

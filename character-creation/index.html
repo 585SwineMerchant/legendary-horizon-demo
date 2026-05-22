@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quest of Fate — Scroll of Destiny</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!--
+    QUEST OF FATE — Character Creation System
+    Act I: The Ritual of Revelation
+
+    Scene flow:
+      Intro → Master Scribe Dialogue
+      → Activity 1: Life Goals Tournament
+      → Activity 2: Career Values Assessment
+      → Activity 3: Workspace Preferences
+      → Activity 4: Worker Skills Rating
+      → Scroll of Destiny Reveal
+      → Scene Complete
+
+    Dev shortcuts (browser console):
+      _scribe.devSkipToScroll()        — jump to Scroll with mock data
+      _scribe.devSkipToScroll("Name")  — use a specific name
+      _scribe.sheet                    — inspect the CharacterSheet
+      MockData.getSheet()              — generate a standalone mock sheet
+
+    MAIA_INTEGRATION_POINT: See MasterScribeController._showScrollDocument()
+    for the POST hook. CharacterSheet.fromMaiaData() accepts a Maia payload.
+  -->
+
+  <div id="game-root"></div>
+
+  <!-- ── Game data & constants ── -->
+  <script src="js/config.js"></script>
+
+  <!-- ── Core data model ── -->
+  <script src="js/CharacterSheet.js"></script>
+
+  <!-- ── Test data generator ── -->
+  <script src="js/MockData.js"></script>
+
+  <!-- ── Assessment activities (order matters for dependency on config) ── -->
+  <script src="js/activities/LifeGoalsTournament.js"></script>
+  <script src="js/activities/CareerValuesAssessment.js"></script>
+  <script src="js/activities/WorkspacePreferences.js"></script>
+  <script src="js/activities/WorkerSkillsRating.js"></script>
+
+  <!-- ── Scroll of Destiny renderer ── -->
+  <script src="js/ScrollOfDestiny.js"></script>
+
+  <!-- ── Scene controller ── -->
+  <script src="js/MasterScribeController.js"></script>
+
+  <!-- ── Entry point ── -->
+  <script src="js/main.js"></script>
+
+</body>
+</html>
