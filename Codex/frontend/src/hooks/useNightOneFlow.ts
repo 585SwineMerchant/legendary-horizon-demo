@@ -30,6 +30,8 @@ import { clearCachedFullState } from '../services/localFullStateCache';
 
 /** Survives React StrictMode remount so DEV boot query handling runs once per full page load. */
 let lhDevBootUrlQueryHandled = false;
+/** Set from `lh_force_intro=1` before URL cleanup; consumed by `beginDemo`. */
+let lhDevBootPendingForceIntro = false;
 import {
   teacherRestoreBackupRemote,
   teacherRestoreItemRemote,
@@ -726,7 +728,9 @@ export function useNightOneFlow() {
     setInventoryOpen(false);
     setExploration(explorationInit);
     setLedgerDraft(emptyLedgerDraft());
-    setScreen('intro');
+    const forceIntro = lhDevBootPendingForceIntro;
+    lhDevBootPendingForceIntro = false;
+    setScreen(forceIntro ? 'intro' : 'gameTitle');
     setPauseOpen(false);
     setQuestLogOpen(false);
     setSaveFeedback(null);
@@ -752,6 +756,7 @@ export function useNightOneFlow() {
     const snap = readLhDevBootUrlSnapshot(window);
     if (!snap) return;
     lhDevBootUrlQueryHandled = true;
+    lhDevBootPendingForceIntro = snap.forceIntro;
     window.history.replaceState({}, '', urlAfterLhDevBootCleanup(snap));
     if (snap.reset) {
       clearCachedFullState();
@@ -2117,8 +2122,11 @@ export function useNightOneFlow() {
   const navigate: NightOneNavigate = {
     beginDemo,
     quitToTitle,
-    introToInstructions: () => setScreen('gameTitle'),
-    gameTitleStart: async () => {
+    gameTitleStart: () => {
+      setSaveFeedback(null);
+      setScreen('intro');
+    },
+    introCompleteToExplore: async () => {
       setSaveFeedback(null);
       await applyFreshVerticalSliceFromGameTitle();
       setScreen('explore');

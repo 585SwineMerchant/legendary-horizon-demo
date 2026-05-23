@@ -12,9 +12,11 @@ export type Screen =
 export type NightOneNavigate = {
   beginDemo: () => Promise<void>;
   quitToTitle: () => void;
-  introToInstructions: () => void;
-  gameTitleStart: () => Promise<void>;
-  /** Reloads the spreadsheet-backed session then returns to explore. */
+  /** Fresh start: plays intro cinematic, then applies canonical demo slice and opens explore. */
+  gameTitleStart: () => void;
+  /** After intro ends: canonical fresh demo + traveler exploration spawn. */
+  introCompleteToExplore: () => Promise<void>;
+  /** Reloads the spreadsheet-backed session then returns to explore (no intro). */
   gameTitleResume: () => Promise<void>;
   proceedInstructions: () => void;
   maiaProfileToResume: () => void;

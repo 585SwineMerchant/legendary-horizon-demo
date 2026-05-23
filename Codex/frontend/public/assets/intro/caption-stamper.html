@@ -680,7 +680,8 @@ document.getElementById('btn-export').addEventListener('click', () => {
   }));
 
   const json = JSON.stringify(data, null, 2);
-  document.getElementById('export-code').textContent = `const CAPTIONS = ${json};`;
+  document.getElementById('export-code').textContent =
+    `// Replace the ENTIRE "const CAPTIONS = [...];" block in intro-player.html (do not paste a second "const CAPTIONS =").\nconst CAPTIONS = ${json};`;
   document.getElementById('export-modal').classList.add('open');
 });
 

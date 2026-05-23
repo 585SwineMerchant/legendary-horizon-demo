@@ -39,6 +39,15 @@ interface ImportMetaEnv {
    * Default (unset): bundled `data/samples/demo_save_state.json` for predictable demos.
    */
   readonly VITE_LH_DEMO_USE_REMOTE_SAVE?: string;
+  /**
+   * Root URL for large media (intro/cutscene MP4). Trailing slash optional.
+   * Dev defaults to the Vite origin; production defaults to GitHub Pages unless set.
+   */
+  readonly VITE_LH_MEDIA_BASE_URL?: string;
+  /** Override intro iframe HTML path (default: `assets/intro/intro-player.html`). */
+  readonly VITE_LH_INTRO_CINEMATIC_SRC?: string;
+  /** Override intro video URL/path (default: registry `intro` video). */
+  readonly VITE_LH_INTRO_VIDEO_URL?: string;
 }
 
 interface ImportMeta {

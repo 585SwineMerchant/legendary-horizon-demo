@@ -28,7 +28,7 @@ export async function auditCoreyRequiredMedia(): Promise<void> {
     { label: 'Title continuation music', url: publicAssetUrl('assets/Audio/Legendary%20Horizon%20Title.mp3') },
     { label: 'Exploration music loop', url: publicAssetUrl('assets/music/lh_exploration_loop.mp3') },
     { label: 'Battle music loop', url: publicAssetUrl('assets/music/lh_battle_loop.mp3') },
-    { label: 'DaVinci intro export', url: publicAssetUrl('assets/intro/intro_davinci.mp4') },
+    { label: 'Intro cinematic (intro-player web video)', url: publicAssetUrl('assets/intro/intro_davinci.web.mp4') },
     { label: 'Fog clearing SFX', url: publicAssetUrl('assets/Audio/fog%20clearing.wav') },
     { label: 'Scroll unfurling SFX', url: publicAssetUrl('assets/Audio/Scroll%20Unfurling.wav') },
     { label: 'Aethelwood battle background', url: publicAssetUrl('assets/Battle_screen_aethelwood.png') },

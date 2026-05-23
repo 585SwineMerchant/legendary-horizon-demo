@@ -36,6 +36,9 @@ jobs:
         run: npm ci
 
       - name: Build
+        env:
+          # HTML ships on Pages; large intro MP4 is on GitHub Release (see Codex/docs/CUTSCENE_MEDIA.md).
+          VITE_LH_MEDIA_BASE_URL: https://github.com/585swinemerchant/legendary-horizon-demo/releases/download/intro-media-v1/
         run: npm run build
 
       - name: Verify GitHub Pages media base

@@ -321,19 +321,15 @@ export function App() {
         />
       ) : null}
 
-      {!teacherDashboardOpen && screen === 'intro' ? (
-        <IntroCinematicScreen
-          onStart={navigate.gameTitleStart}
-          onResume={navigate.gameTitleResume}
-        />
-      ) : null}
-
-      {/* `gameTitle` is retained as a fallback route, but the primary flow is now the intro→title overlay. */}
       {!teacherDashboardOpen && screen === 'gameTitle' ? (
         <GameTitleScreen
           onStart={navigate.gameTitleStart}
           onResume={navigate.gameTitleResume}
         />
+      ) : null}
+
+      {!teacherDashboardOpen && screen === 'intro' ? (
+        <IntroCinematicScreen onIntroComplete={() => navigate.introCompleteToExplore()} />
       ) : null}
 
       {!teacherDashboardOpen && screen === 'explore' && player ? (

@@ -32,7 +32,7 @@ export function GameTitleScreen({ onStart, onResume }: Props) {
         />
         <div className="lh-game-title__actions" aria-label="Game title actions">
           <button type="button" className="lh-button lh-button--primary" data-lh-continue onClick={() => choose('start')}>
-            Start
+            Start game
           </button>
           <button type="button" className="lh-button lh-button--secondary" onClick={() => choose('resume')}>
             Load game

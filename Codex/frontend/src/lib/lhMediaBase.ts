@@ -1,0 +1,56 @@
+/**
+ * Large binaries (intro MP4, future cutscenes) stay out of git.
+ * HTML players ship in `public/`; video/audio resolve through this base URL.
+ *
+ * - Dev: same origin as Vite (`/legendary-horizon-demo/…`) so local gitignored MP4s work.
+ * - Prod: GitHub Pages for the app bundle; set `VITE_LH_MEDIA_BASE_URL` to a release/CDN root.
+ */
+const DEFAULT_PROD_MEDIA_BASE = 'https://585swinemerchant.github.io/legendary-horizon-demo/';
+
+/** GitHub Release tag used for intro + cutscene video binaries (upload separately). */
+export const LH_INTRO_MEDIA_RELEASE_TAG = 'intro-media-v1';
+
+export const LH_INTRO_MEDIA_RELEASE_BASE = `https://github.com/585swinemerchant/legendary-horizon-demo/releases/download/${LH_INTRO_MEDIA_RELEASE_TAG}/`;
+
+function ensureTrailingSlash(url: string): string {
+  return url.endsWith('/') ? url : `${url}/`;
+}
+
+/** Resolved media root (always ends with `/`). */
+export function getLhMediaBaseUrl(): string {
+  const override = import.meta.env.VITE_LH_MEDIA_BASE_URL?.trim();
+  if (override) return ensureTrailingSlash(override);
+
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    const base = import.meta.env.BASE_URL || '/';
+    const path = base.startsWith('/') ? base : `/${base}`;
+    return ensureTrailingSlash(`${window.location.origin}${path}`);
+  }
+
+  return DEFAULT_PROD_MEDIA_BASE;
+}
+
+/** Absolute URL for a path under the LH media base (or pass-through for full URLs). */
+export function resolveLhAssetUrl(path: string): string {
+  const trimmed = path.trim();
+  if (!trimmed) return trimmed;
+  if (/^(https?:|data:|blob:)/i.test(trimmed)) return trimmed;
+
+  const clean = trimmed.replace(/^\/+/, '');
+  return `${getLhMediaBaseUrl()}${clean}`;
+}
+
+/**
+ * Video URL for cutscene players. GitHub Release assets are flat (no `assets/intro/` prefix).
+ */
+export function resolveLhCutsceneVideoUrl(videoPath: string): string {
+  const trimmed = videoPath.trim();
+  if (/^(https?:|data:|blob:)/i.test(trimmed)) return trimmed;
+
+  const base = getLhMediaBaseUrl();
+  if (base.includes('releases/download/')) {
+    const file = trimmed.replace(/^\/+/, '').split('/').pop() || trimmed;
+    return `${base}${file}`;
+  }
+  return resolveLhAssetUrl(trimmed);
+}
