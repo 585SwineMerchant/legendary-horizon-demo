@@ -27,7 +27,7 @@ export async function auditCoreyRequiredMedia(): Promise<void> {
   const required: RequiredMediaItem[] = [
     { label: 'Title continuation music', url: publicAssetUrl('assets/Audio/Legendary%20Horizon%20Title.mp3') },
     { label: 'Exploration music loop', url: publicAssetUrl('assets/music/lh_exploration_loop.mp3') },
-    { label: 'Battle music loop', url: publicAssetUrl('assets/music/lh_battle_loop.mp3') },
+    { label: 'Battle music (Moonlit Boss Round)', url: publicAssetUrl('assets/Audio/Moonlit%20Boss%20Round.mp3') },
     { label: 'Intro cinematic (intro-player web video)', url: publicAssetUrl('assets/intro/intro_davinci.web.mp4') },
     { label: 'Fog clearing SFX', url: publicAssetUrl('assets/Audio/fog%20clearing.wav') },
     { label: 'Scroll unfurling SFX', url: publicAssetUrl('assets/Audio/Scroll%20Unfurling.wav') },

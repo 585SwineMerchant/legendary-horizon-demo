@@ -248,7 +248,8 @@ const TRAVELER_RUN_ANIM_FPS = 12;
  * Main camera zoom for the normal exploration screen. Higher = pushed in (less of the world visible at once).
  * Persists across knowledge-battle entry/exit because Phaser cameras keep their zoom across `startFollow`.
  */
-const EXPLORATION_CAMERA_ZOOM = 2.1;
+/** Main-map follow camera — raise to zoom in; lower to show more tiles. */
+const EXPLORATION_CAMERA_ZOOM = 2.65;
 /** Bias follow point slightly south so tall attack frames are less likely to clip the top of the viewport. */
 const EXPLORATION_CAMERA_FOLLOW_OFFSET_Y = 42;
 /**

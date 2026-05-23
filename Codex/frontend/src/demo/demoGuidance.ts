@@ -202,6 +202,20 @@ export function isLostEchoDemoTrigger(trigger: Pick<ParsedLhTrigger, 'kind' | 't
   return trigger.kind === 'combat_encounter' && trigger.tiled_name === 'lost_echo_demo';
 }
 
+/** Physical guild HQ research portal (first atlas discovery). */
+export function canDiscoverGuildHqResearch(stage_id: DemoGuidanceStageId): boolean {
+  const idx = DEMO_GUIDANCE_STAGE_IDS.indexOf(stage_id);
+  const min = DEMO_GUIDANCE_STAGE_IDS.indexOf('demo_seek_aethelwood_guild');
+  const done = DEMO_GUIDANCE_STAGE_IDS.indexOf('demo_guild_research_complete');
+  return idx >= min && idx < done;
+}
+
+/** After fog clear, only the chosen guild HQ may reopen in-world. */
+export function canReenterChosenGuildHq(stage_id: DemoGuidanceStageId): boolean {
+  const idx = DEMO_GUIDANCE_STAGE_IDS.indexOf(stage_id);
+  return idx >= DEMO_GUIDANCE_STAGE_IDS.indexOf('demo_guild_research_complete');
+}
+
 /** After this stage, the Lost Echo encounter should stay cleared/hidden in-world. */
 export function isLostEchoDemoSuppressedByStage(stage_id: DemoGuidanceStageId): boolean {
   const idx = DEMO_GUIDANCE_STAGE_IDS.indexOf(stage_id);

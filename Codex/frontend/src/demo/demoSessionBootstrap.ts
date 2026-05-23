@@ -10,7 +10,6 @@ import type { RealmProgressMap } from '../realm/realmProgress';
 import { ensureAcademicTasksSeeded } from '../academic/academicProgress';
 import {
   createEmptyExplorationLoopState,
-  mergeGuildHqAtlasRevealedFromRealmProgress,
   syncGuildTruePathFromPlayerIfUnset,
   type ExplorationLoopState,
 } from '../exploration/explorationTypes';
@@ -198,7 +197,7 @@ export function finalizeDemoBootstrapExploration(args: FinalizeDemoBootstrapArgs
 
   exploration = ensureAcademicTasksSeeded([...args.academicTaskDefs], exploration);
   exploration = syncGuildTruePathFromPlayerIfUnset(exploration, args.nextPlayer.current_realm_id);
-  exploration = mergeGuildHqAtlasRevealedFromRealmProgress(exploration, realmProgress);
+  // Do not pre-reveal guild HQ from `realm_progress.entered` — only the first physical HQ visit should chart the atlas.
   const initialDemoGuidance = ensureDemoGuidanceState(exploration);
   exploration = mergeDemoGuidanceState(exploration, initialDemoGuidance);
   const nextPlayer = applyDemoObjectiveToPlayer(args.nextPlayer, initialDemoGuidance.current_objective);

@@ -16,18 +16,19 @@ function ensureTrailingSlash(url: string): string {
   return url.endsWith('/') ? url : `${url}/`;
 }
 
-/** Resolved media root (always ends with `/`). */
+/** Resolved media root (always ends with `/`). Uses GitHub Pages CDN by default so music/SFX URLs work in dev. */
 export function getLhMediaBaseUrl(): string {
   const override = import.meta.env.VITE_LH_MEDIA_BASE_URL?.trim();
   if (override) return ensureTrailingSlash(override);
-
-  if (import.meta.env.DEV && typeof window !== 'undefined') {
-    const base = import.meta.env.BASE_URL || '/';
-    const path = base.startsWith('/') ? base : `/${base}`;
-    return ensureTrailingSlash(`${window.location.origin}${path}`);
-  }
-
   return DEFAULT_PROD_MEDIA_BASE;
+}
+
+/** Vite origin for gitignored intro MP4s during local preview (not used for music). */
+export function getLhDevVitePublicBaseUrl(): string {
+  if (typeof window === 'undefined') return DEFAULT_PROD_MEDIA_BASE;
+  const base = import.meta.env.BASE_URL || '/';
+  const path = base.startsWith('/') ? base : `/${base}`;
+  return ensureTrailingSlash(`${window.location.origin}${path}`);
 }
 
 /** Absolute URL for a path under the LH media base (or pass-through for full URLs). */
@@ -51,6 +52,10 @@ export function resolveLhCutsceneVideoUrl(videoPath: string): string {
   if (base.includes('releases/download/')) {
     const file = trimmed.replace(/^\/+/, '').split('/').pop() || trimmed;
     return `${base}${file}`;
+  }
+  // Local dev: serve gitignored cutscene MP4s from Vite `public/` while music stays on CDN.
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    return `${getLhDevVitePublicBaseUrl()}${trimmed.replace(/^\/+/, '')}`;
   }
   return resolveLhAssetUrl(trimmed);
 }

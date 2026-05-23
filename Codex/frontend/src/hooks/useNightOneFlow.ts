@@ -109,6 +109,8 @@ import {
   applyDemoObjectiveToPlayer,
   applyDemoStaminaReward,
   buildDemoGuidanceMap,
+  canDiscoverGuildHqResearch,
+  canReenterChosenGuildHq,
   ensureDemoGuidanceState,
   isLostEchoDemoTrigger,
   mergeDemoGuidanceState,
@@ -971,23 +973,9 @@ export function useNightOneFlow() {
       }
 
       if (kind === 'guild_hq_research') {
-        if (demoGuidance.stage_id !== 'demo_seek_aethelwood_guild') {
-          setSaveFeedback({
-            tone: 'error',
-            text:
-              demoGuidance.stage_id === 'demo_guild_research_complete' ||
-              demoGuidance.stage_id === 'demo_fog_revealed' ||
-              demoGuidance.stage_id === 'demo_slice_complete'
-                ? 'You have already charted this research hall. Open the World Atlas to revisit its pin.'
-                : 'The guild roads are not ready. Follow the Master Scribe’s guidance first.',
-          });
-          window.dispatchEvent(
-            new CustomEvent(LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT, { detail: { interactableId, mode: 'blocked' } }),
-          );
-          return;
-        }
         const triggerRealm = String(triggerMeta.target_realm_id ?? '').trim() || player.current_realm_id;
         const revealed = new Set((exploration.guild_hq_atlas_revealed_realm_ids ?? []).map((id) => String(id || '').trim()).filter(Boolean));
+        const truePathRealm = String(exploration.guild_endgame_v1?.true_path_realm_id ?? '').trim();
 
         if (typeof console !== 'undefined') {
           console.info('[LhTrigger Hook]', 'guild_hq_research dispatch', {
@@ -1011,12 +999,33 @@ export function useNightOneFlow() {
           return;
         }
 
-        // After the first discovery, the physical HQ trigger is no longer usable in the demo flow.
-        // Guild research remains accessible from the World Atlas pins.
+        // After first visit + atlas fog, physical doors close until the traveler commits to a True Path guild.
         if (revealed.has(triggerRealm)) {
+          if (truePathRealm && truePathRealm === triggerRealm && canReenterChosenGuildHq(demoGuidance.stage_id)) {
+            setRealmAtlasEntryIntent({ initialGuildRealmId: triggerRealm, fogRevealRealmId: null });
+            phaserGuildResearchExitWhenAtlasClosedRef.current = interactableId;
+            playLhSfx('door_open');
+            playLhSfx('aethelwood_hub_open');
+            setPauseOpen(false);
+            setRealmAtlasOpen(true);
+            return;
+          }
           setSaveFeedback({
             tone: 'error',
-            text: 'The guild hall doors are closed. Return after choosing your True Path — the Guild Manager will receive you then.',
+            text: truePathRealm
+              ? 'The guild hall doors are closed. Only your chosen True Path headquarters will receive you in-world.'
+              : 'The guild hall doors are closed. Choose your True Path on the World Atlas, then return to your guild headquarters.',
+          });
+          window.dispatchEvent(
+            new CustomEvent(LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT, { detail: { interactableId, mode: 'blocked' } }),
+          );
+          return;
+        }
+
+        if (!canDiscoverGuildHqResearch(demoGuidance.stage_id)) {
+          setSaveFeedback({
+            tone: 'error',
+            text: 'The guild roads are not ready. Follow the Master Scribe’s guidance first.',
           });
           window.dispatchEvent(
             new CustomEvent(LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT, { detail: { interactableId, mode: 'blocked' } }),
@@ -1800,12 +1809,9 @@ export function useNightOneFlow() {
       if (coerced) explorationInit = coerced;
     }
     const realmProgressMerged = remote.realm_progress ? mergeRealmProgressMaps({}, remote.realm_progress) : {};
-    explorationInit = mergeGuildHqAtlasRevealedFromRealmProgress(
-      syncGuildTruePathFromPlayerIfUnset(
-        ensureAcademicTasksSeeded(BLUEPRINT.academic_worksheet_tasks, explorationInit),
-        remote.player.current_realm_id,
-      ),
-      realmProgressMerged,
+    explorationInit = syncGuildTruePathFromPlayerIfUnset(
+      ensureAcademicTasksSeeded(BLUEPRINT.academic_worksheet_tasks, explorationInit),
+      remote.player.current_realm_id,
     );
     setPlayer(remote.player);
     setQuests((q) =>
@@ -1891,6 +1897,11 @@ export function useNightOneFlow() {
 
   const applyFreshVerticalSliceFromGameTitle = useCallback(async () => {
     await applyCanonicalDemoSessionToRuntime({ allowLocalCache: false, clearCacheFirst: true });
+    setExploration((e) => advanceDemoGuidanceStage(e, 'demo_seek_aethelwood_guild'));
+    setPlayer((p) => {
+      if (!p) return p;
+      return applyDemoObjectiveToPlayer(p, 'Travel to Aethelwood Farmsteads');
+    });
   }, [applyCanonicalDemoSessionToRuntime]);
 
   const devResetToLostEchoCombatStep = useCallback(() => {

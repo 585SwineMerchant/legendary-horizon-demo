@@ -53,10 +53,19 @@ function rafFade(from: number, to: number, durationMs: number, apply: (v: number
   requestAnimationFrame(tick);
 }
 
-function createLoopingHtmlMusic(url: string, lane: MusicLane, baseVolume = 0.5, startOffsetSec = 0): Running {
+function createLoopingHtmlMusic(
+  url: string,
+  lane: MusicLane,
+  baseVolume = 0.5,
+  startOffsetSec = 0,
+  onLoadError?: () => void,
+): Running {
   const audio = new Audio(url);
   audio.preload = 'auto';
   audio.volume = 0;
+  if (onLoadError) {
+    audio.addEventListener('error', () => onLoadError(), { once: true });
+  }
   // When an offset is requested we manage looping manually so we can return to
   // the offset on each loop instead of jumping back to 0.
   audio.loop = startOffsetSec <= 0;
@@ -329,7 +338,12 @@ class LhAudioDirector {
   private ensureBattle(): Running {
     if (this.battle) return this.battle;
     try {
-      this.battle = createLoopingHtmlMusic(this.battleUrl, 'battle', 0.52);
+      this.battle = createLoopingHtmlMusic(this.battleUrl, 'battle', 0.52, 0, () => {
+        audioDevLog('battle mp3 failed; falling back to synth', { url: this.battleUrl });
+        this.battle?.stop({ durationMs: 1 });
+        this.battle = createSynthPadMusic('battle');
+        if (this.lane === 'battle') this.applyVolumes(400);
+      });
     } catch {
       this.battle = createSynthPadMusic('battle');
     }
@@ -413,6 +427,7 @@ class LhAudioDirector {
       // Duck exploration under the battle transition for intentionality.
       this.exploration?.setVolume(0.12, { durationMs: 420 });
       this.applyVolumes(900);
+      this.refreshAudibility(400);
       return;
     }
 
