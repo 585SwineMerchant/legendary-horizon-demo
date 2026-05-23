@@ -24,8 +24,8 @@ export const ATLAS_FOG_HOLE_PCT: Readonly<Record<string, AtlasFogHolePct>> = {
 
 const FOG_HOLE_LS_KEY = 'lh.atlas.fogHolePct.v1';
 
+/** Off in normal play; enable via `?atlasFogCalibrate=1` or `VITE_LH_ATLAS_FOG_CALIBRATE=true` when nudging waypoints. */
 export function isAtlasFogCalibrateEnabled(): boolean {
-  if (import.meta.env.DEV) return true;
   if (import.meta.env.VITE_LH_ATLAS_FOG_CALIBRATE === 'true') return true;
   if (typeof window === 'undefined') return false;
   return new URLSearchParams(window.location.search).get('atlasFogCalibrate') === '1';

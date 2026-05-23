@@ -69,7 +69,10 @@ export function KnowledgeJrpgBattleOverlay({ payload, onWin, onRetreat }: Props)
     const dir = getLhAudioDirector();
     dir.setLane('battle');
     dir.refreshAudibility(400);
+    const onFirstGesture = () => dir.refreshAudibility(300);
+    window.addEventListener('pointerdown', onFirstGesture, { once: true, capture: true });
     return () => {
+      window.removeEventListener('pointerdown', onFirstGesture, true);
       if (!explicitExitDone.current) {
         dispatchKnowledgeBattlePresentation({ action: 'exit', victory: false });
       }

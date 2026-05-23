@@ -49,6 +49,7 @@ import {
   type ClassroomToolHandlers,
 } from '../services/classroomToolLaunches';
 import { buildExitTicketPrompt } from '../services/exitTicketHandoff';
+import { getLhAudioDirector } from '../lib/lhAudioDirector';
 import { tryPlayCatalogAudioAsset } from '../lib/lhCatalogAudio';
 import {
   LH_MEDIA_ASSET_ID_MENTOR_PORTRAIT,
@@ -1005,7 +1006,6 @@ export function useNightOneFlow() {
             setRealmAtlasEntryIntent({ initialGuildRealmId: triggerRealm, fogRevealRealmId: null });
             phaserGuildResearchExitWhenAtlasClosedRef.current = interactableId;
             playLhSfx('door_open');
-            playLhSfx('aethelwood_hub_open');
             setPauseOpen(false);
             setRealmAtlasOpen(true);
             return;
@@ -1051,10 +1051,7 @@ export function useNightOneFlow() {
           fogRevealRealmId: triggerRealm,
         });
         phaserGuildResearchExitWhenAtlasClosedRef.current = interactableId;
-        // Layer the physical "door opens" SFX over the existing hub swoosh so the entry
-        // transition has both the spatial cue and the arrival ambience.
         playLhSfx('door_open');
-        playLhSfx('aethelwood_hub_open');
         setPauseOpen(false);
         setRealmAtlasOpen(true);
         return;
@@ -1260,6 +1257,9 @@ export function useNightOneFlow() {
         const jrpgLostEcho =
           result.openEncounter.kind === 'combat_encounter' &&
           Boolean(encounterTrigger && isLostEchoDemoTrigger(encounterTrigger));
+        if (jrpgLostEcho) {
+          getLhAudioDirector().primeBattleMusicFromUserGesture();
+        }
         setActiveEncounter({
           kind: result.openEncounter.kind,
           interactableId: result.openEncounter.interactableId,
@@ -1896,12 +1896,8 @@ export function useNightOneFlow() {
   );
 
   const applyFreshVerticalSliceFromGameTitle = useCallback(async () => {
+    // Canonical fixture is `demo_awakened` (Master Scribe → Maia → Lost Echo → guild HQ).
     await applyCanonicalDemoSessionToRuntime({ allowLocalCache: false, clearCacheFirst: true });
-    setExploration((e) => advanceDemoGuidanceStage(e, 'demo_seek_aethelwood_guild'));
-    setPlayer((p) => {
-      if (!p) return p;
-      return applyDemoObjectiveToPlayer(p, 'Travel to Aethelwood Farmsteads');
-    });
   }, [applyCanonicalDemoSessionToRuntime]);
 
   const devResetToLostEchoCombatStep = useCallback(() => {
@@ -2177,12 +2173,9 @@ export function useNightOneFlow() {
     closeRealmAtlas: () => {
       const phaserGuildExitId = phaserGuildResearchExitWhenAtlasClosedRef.current;
       phaserGuildResearchExitWhenAtlasClosedRef.current = null;
-      // Mirror of the entry: when the player is leaving the Aethelwood Guild HQ specifically,
-      // play the door-close SFX layered with the existing hub swoosh. Atlas-only closes
-      // (without a guild exit) keep just the scroll-close SFX.
+      // When leaving via a physical guild HQ visit, play door-close SFX (atlas-only closes use scroll-close).
       if (phaserGuildExitId) {
         playLhSfx('door_close');
-        playLhSfx('aethelwood_hub_close');
       } else {
         playLhSfx('atlas_scroll_close');
       }

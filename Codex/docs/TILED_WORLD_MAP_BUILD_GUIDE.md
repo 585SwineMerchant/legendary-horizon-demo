@@ -171,6 +171,37 @@ Recommended collision categories:
 
 Collision objects should be generous but readable. It is better for early beta to have slightly simple boundaries than visually perfect but frustrating collision.
 
+### How to block buildings (Master Scribe tent, Maia portal, guild HQ)
+
+The runtime reads **`lh_collision`** object layers (see `parseLhTiledMap.ts` → `collision_regions`). Each blocking shape needs:
+
+| Field | Value |
+| --- | --- |
+| Layer | `lh_collision` (create this object layer if missing) |
+| Object type | `lh_collision` **or** custom property `lh_kind` = `collision` |
+| Shape | Rectangle (or polygon) sized to the **footprint** players should not walk through |
+| `lh_collision_kind` | `building` for tents/HQs/portals; use `dense_forest` for tree walls |
+
+**Examples:**
+
+- **Master Scribe tent** — one rectangle around the tent canvas (not the whole trigger zone). Keep the existing `npc_dialogue` trigger slightly larger so “Speak” still feels easy.
+- **Mirror of Maia** — rectangle around the stone ring / portal base so the traveler cannot stand inside the mirror art. The `maia_portal` trigger can stay a bit larger for overlap.
+- **Guild HQ (Aethelwood)** — rectangle around the guild hall footprint on the `Guild HQs` art. Do **not** rely on the `guild_hq_research` trigger rectangle for collision; triggers are for story, collision is separate.
+
+After export, reload the map: Phaser adds invisible static bodies from these regions (see `PhaserExplorationView` fog/solid static groups).
+
+Hillside / forest **tile layers** already collide via `SOLID_TILE_LAYER_NAMES`; use object collision for props on `Main` or `Guild HQs`.
+
+### Windmill animation
+
+Paint the windmill using the **`Windmill_baked_anim`** tileset (7×4 tiles per frame). The game advances frames automatically (8-frame loop). Ensure `Windmill_baked_anim.png` lives under `Codex/frontend/public/assets/maps/` with the same name as the tileset.
+
+### Crops (rustle + harvest)
+
+- **`crops` tile layer** — walking nearby rustles; **A-button / attack** in range removes the tile (harvest flash). No solid collision by default.
+- **Tile object on a layer whose name includes `crops`** — same rustle tween as tall grass.
+- To make a crop **solid**, add a separate `lh_collision` rectangle (usually worse UX in fields — prefer rustle/harvest).
+
 ## Fog Rules
 
 Fog regions belong on `lh_fog`.

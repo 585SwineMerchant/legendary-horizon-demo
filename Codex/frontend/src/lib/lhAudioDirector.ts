@@ -223,6 +223,11 @@ function createSynthPadMusic(lane: MusicLane): Running {
   oscB.start();
   oscC.start();
 
+  const resumeCtx = () => {
+    if (ctx.state === 'suspended') void ctx.resume().catch(() => undefined);
+  };
+  resumeCtx();
+
   let current = 0;
   let stopped = false;
 
@@ -254,6 +259,7 @@ function createSynthPadMusic(lane: MusicLane): Running {
     },
     setVolume: (v, fade) => {
       const target = Math.max(0.0001, clamp01(v));
+      if (target > 0.001) resumeCtx();
       const d = fade?.durationMs ?? 1100;
       rafFade(current, target, d, (x) => {
         current = x;
@@ -339,15 +345,27 @@ class LhAudioDirector {
     if (this.battle) return this.battle;
     try {
       this.battle = createLoopingHtmlMusic(this.battleUrl, 'battle', 0.52, 0, () => {
-        audioDevLog('battle mp3 failed; falling back to synth', { url: this.battleUrl });
+        audioDevLog('battle mp3 failed; falling back to exploration loop', { url: this.battleUrl });
         this.battle?.stop({ durationMs: 1 });
-        this.battle = createSynthPadMusic('battle');
+        this.battle = createLoopingHtmlMusic(this.explorationUrl, 'battle', 0.5, 0, () => {
+          audioDevLog('battle exploration fallback failed; using synth', { url: this.explorationUrl });
+          this.battle?.stop({ durationMs: 1 });
+          this.battle = createSynthPadMusic('battle');
+          if (this.lane === 'battle') this.applyVolumes(400);
+        });
         if (this.lane === 'battle') this.applyVolumes(400);
       });
     } catch {
       this.battle = createSynthPadMusic('battle');
     }
     return this.battle;
+  }
+
+  /** Fade exploration out and bring battle music up (shared by setLane + gesture prime). */
+  private applyBattleLaneMix(fadeMs = 900, explorationOutMs = 320): void {
+    this.ensureBattle();
+    this.exploration?.setVolume(0, { durationMs: explorationOutMs });
+    this.applyVolumes(fadeMs);
   }
 
   private applyVolumes(fadeMs: number) {
@@ -371,6 +389,17 @@ class LhAudioDirector {
    * If music has just been re-enabled and the active lane's runner was torn down by an earlier `setLane`
    * call (which stops all runners while music is muted), recreate it here so unmuting actually restores audio.
    */
+  /**
+   * Start battle music during the same user gesture that activated the encounter (overlap / interact).
+   * Browsers often block a second HTMLAudioElement if play() runs later in a React effect.
+   */
+  primeBattleMusicFromUserGesture(): void {
+    if (!isMusicEnabled()) return;
+    audioDevLog('prime battle music (user gesture)', { url: this.battleUrl });
+    this.lane = 'battle';
+    this.applyBattleLaneMix(700, 220);
+  }
+
   refreshAudibility(fadeMs = 600): void {
     audioDevLog('refresh audibility', {
       lane: this.lane,
@@ -387,7 +416,10 @@ class LhAudioDirector {
   }
 
   setLane(next: MusicLane | null) {
-    if (this.lane === next) return;
+    if (this.lane === next) {
+      if (next === 'battle') this.applyBattleLaneMix(600, 280);
+      return;
+    }
 
     audioDevLog('set lane', {
       from: this.lane,
@@ -423,11 +455,7 @@ class LhAudioDirector {
     }
 
     if (next === 'battle') {
-      this.ensureBattle();
-      // Duck exploration under the battle transition for intentionality.
-      this.exploration?.setVolume(0.12, { durationMs: 420 });
-      this.applyVolumes(900);
-      this.refreshAudibility(400);
+      this.applyBattleLaneMix(900, 320);
       return;
     }
 

@@ -124,6 +124,27 @@ type ReactiveGrassDecor = {
   lastRustleAt: number;
 };
 
+/** `Windmill_baked_anim` on the Aethelwood map: 7×4 tiles per frame, 128 local-tile stride. */
+const WINDMILL_BAKED_TILESET_NAME = 'Windmill_baked_anim';
+const WINDMILL_FRAME_STRIDE = 128;
+const WINDMILL_FRAME_COLS = 7;
+const WINDMILL_FRAME_ROWS = 4;
+const WINDMILL_FRAME_COUNT = 8;
+const WINDMILL_FRAME_MS = 140;
+
+type WindmillAnimTile = { layer: Phaser.Tilemaps.TilemapLayer; x: number; y: number; blockOffset: number };
+type WindmillAnimGroup = { firstGid: number; frame: number; tiles: WindmillAnimTile[] };
+
+type CropTileRecord = {
+  layer: Phaser.Tilemaps.TilemapLayer;
+  tileX: number;
+  tileY: number;
+  tileIndex: number;
+  worldX: number;
+  worldY: number;
+  lastRustleAt: number;
+};
+
 /** Static list of all tileset image keys used by the map (must match Tiled tileset names). */
 const TILESET_IMAGES = [
   'water to grass - river orientation-spritesheet',
@@ -249,7 +270,7 @@ const TRAVELER_RUN_ANIM_FPS = 12;
  * Persists across knowledge-battle entry/exit because Phaser cameras keep their zoom across `startFollow`.
  */
 /** Main-map follow camera — raise to zoom in; lower to show more tiles. */
-const EXPLORATION_CAMERA_ZOOM = 2.65;
+const EXPLORATION_CAMERA_ZOOM = 2.3;
 /** Bias follow point slightly south so tall attack frames are less likely to clip the top of the viewport. */
 const EXPLORATION_CAMERA_FOLLOW_OFFSET_Y = 42;
 /**
@@ -993,6 +1014,9 @@ export function PhaserExplorationView({
         private guildResearchCooldownUntil = new Map<string, number>();
         private lastMaiaPortalId: string | null = null;
         private reactiveGrassDecor: ReactiveGrassDecor[] = [];
+        private cropTileRecords: CropTileRecord[] = [];
+        private windmillAnimGroups: WindmillAnimGroup[] = [];
+        private windmillAnimTimer: Phaser.Time.TimerEvent | null = null;
         private nextReactiveGrassScanAt = 0;
         private maiaHandoffPaused = false;
         private triggerTransitionLocked = false;
@@ -2477,6 +2501,174 @@ export function PhaserExplorationView({
           return 'added';
         }
 
+        private registerWindmillBakedTileAnimations(
+          map: Phaser.Tilemaps.Tilemap,
+          layers: Phaser.Tilemaps.TilemapLayer[],
+        ): void {
+          const baked = map.getTileset(WINDMILL_BAKED_TILESET_NAME);
+          if (!baked) return;
+
+          const firstGid = baked.firstgid;
+          const maxLocal = WINDMILL_FRAME_COUNT * WINDMILL_FRAME_STRIDE;
+          const groupMap = new Map<string, WindmillAnimGroup>();
+
+          for (const layer of layers) {
+            if (!layer?.active) continue;
+            layer.forEachTile((tile) => {
+              if (!tile || tile.index < firstGid) return;
+              const local = tile.index - firstGid;
+              if (local < 0 || local >= maxLocal) return;
+              const colInBlock = local % 32;
+              const rowInBlock = Math.floor((local % WINDMILL_FRAME_STRIDE) / 32);
+              if (colInBlock >= WINDMILL_FRAME_COLS || rowInBlock >= WINDMILL_FRAME_ROWS) return;
+
+              const blockOffset = local % WINDMILL_FRAME_STRIDE;
+              const anchorX = tile.x - colInBlock;
+              const anchorY = tile.y - rowInBlock;
+              const key = `${layer.name}:${anchorX},${anchorY}`;
+              let group = groupMap.get(key);
+              if (!group) {
+                group = {
+                  firstGid,
+                  frame: Math.floor(local / WINDMILL_FRAME_STRIDE),
+                  tiles: [],
+                };
+                groupMap.set(key, group);
+              }
+              group.tiles.push({ layer, x: tile.x, y: tile.y, blockOffset });
+            });
+          }
+
+          this.windmillAnimGroups = [...groupMap.values()];
+          if (!this.windmillAnimGroups.length) return;
+
+          if (this.windmillAnimTimer) {
+            this.windmillAnimTimer.remove(false);
+            this.windmillAnimTimer = null;
+          }
+          this.windmillAnimTimer = this.time.addEvent({
+            delay: WINDMILL_FRAME_MS,
+            loop: true,
+            callback: () => {
+              for (const group of this.windmillAnimGroups) {
+                group.frame = (group.frame + 1) % WINDMILL_FRAME_COUNT;
+                const base = group.firstGid + group.frame * WINDMILL_FRAME_STRIDE;
+                for (const t of group.tiles) {
+                  if (!t.layer.active) continue;
+                  t.layer.putTileAt(base + t.blockOffset, t.x, t.y);
+                }
+              }
+            },
+          });
+
+          if (import.meta.env.DEV) {
+            console.info('[LhScene] Windmill baked tile animation registered', {
+              groups: this.windmillAnimGroups.length,
+              tiles: this.windmillAnimGroups.reduce((n, g) => n + g.tiles.length, 0),
+              frame_count: WINDMILL_FRAME_COUNT,
+            });
+          }
+        }
+
+        private registerInteractiveCropTiles(map: Phaser.Tilemaps.Tilemap): void {
+          this.cropTileRecords = [];
+          const cropLayer = map.getLayer('crops')?.tilemapLayer;
+          if (!cropLayer) return;
+
+          cropLayer.forEachTile((tile) => {
+            if (!tile || tile.index < 0) return;
+            const tileset = tile.tileset;
+            const tsName = tileset?.name ?? '';
+            if (!tsName.startsWith('crops-')) return;
+            const worldX = cropLayer.tileToWorldX(tile.x) + map.tileWidth * 0.5;
+            const worldY = cropLayer.tileToWorldY(tile.y) + map.tileHeight * 0.85;
+            this.cropTileRecords.push({
+              layer: cropLayer,
+              tileX: tile.x,
+              tileY: tile.y,
+              tileIndex: tile.index,
+              worldX,
+              worldY,
+              lastRustleAt: 0,
+            });
+          });
+
+          if (import.meta.env.DEV && this.cropTileRecords.length) {
+            console.info('[LhScene] Interactive crop tiles registered', { count: this.cropTileRecords.length });
+          }
+        }
+
+        private updateReactiveCropTiles(moving: boolean, ix: number, _iy: number, sprinting: boolean): void {
+          if (!moving || this.cropTileRecords.length === 0 || !this.player?.active) return;
+          const now = this.time.now;
+          if (now < this.nextReactiveGrassScanAt) return;
+
+          const footX = this.player.x;
+          const footY = this.player.y - 5;
+          const radius = REACTIVE_GRASS_RADIUS_PX + (sprinting ? 10 : 0);
+          const radiusSq = radius * radius;
+
+          for (const crop of this.cropTileRecords) {
+            const dx = crop.worldX - footX;
+            const dy = crop.worldY - footY;
+            if (dx * dx + dy * dy > radiusSq) continue;
+            if (now - crop.lastRustleAt < REACTIVE_GRASS_RUSTLE_COOLDOWN_MS) continue;
+            crop.lastRustleAt = now;
+
+            const tile = crop.layer.getTileAt(crop.tileX, crop.tileY);
+            if (!tile?.tileset) continue;
+            const ts = tile.tileset;
+            const flash = this.add
+              .image(crop.worldX, crop.worldY, ts.name, tile.index - ts.firstgid)
+              .setOrigin(0.5, 0.85)
+              .setDepth(crop.worldY + 0.002)
+              .setAlpha(0.92);
+            this.tweens.add({
+              targets: flash,
+              angle: (Math.sign(dx || ix || 1) * REACTIVE_GRASS_BEND_DEG) / 2,
+              scaleY: 0.82,
+              alpha: 0,
+              duration: sprinting ? 90 : 110,
+              ease: 'Sine.easeOut',
+              yoyo: true,
+              onComplete: () => flash.destroy(),
+            });
+          }
+        }
+
+        private resolvePlayerSwingAgainstCrops(): number {
+          if (this.cropTileRecords.length === 0) return 0;
+          const swing = this.playerAttackHitRect(this.scratchPlayerGeom);
+          let harvested = 0;
+          const remaining: CropTileRecord[] = [];
+
+          for (const crop of this.cropTileRecords) {
+            const hitBox = new Phaser.Geom.Rectangle(crop.worldX - 14, crop.worldY - 22, 28, 26);
+            if (Phaser.Geom.Intersects.RectangleToRectangle(swing, hitBox)) {
+              crop.layer.removeTileAt(crop.tileX, crop.tileY);
+              harvested += 1;
+              const chaff = this.add
+                .ellipse(crop.worldX, crop.worldY - 6, 18, 10, 0xc4a574, 0.55)
+                .setDepth(crop.worldY + 0.01);
+              this.tweens.add({
+                targets: chaff,
+                alpha: 0,
+                y: chaff.y - 10,
+                scaleX: 1.4,
+                scaleY: 0.6,
+                duration: 280,
+                ease: 'Quad.easeOut',
+                onComplete: () => chaff.destroy(),
+              });
+              continue;
+            }
+            remaining.push(crop);
+          }
+
+          this.cropTileRecords = remaining;
+          return harvested;
+        }
+
         private addTiledTileObjectDecor(map: Phaser.Tilemaps.Tilemap): void {
           const tileObjectLayers = ((map as unknown as { objects?: TiledObjectLayerRuntime[] }).objects ?? [])
             .filter((layer) => layer.objects?.some((obj) => typeof obj.gid === 'number'));
@@ -2528,7 +2720,7 @@ export function PhaserExplorationView({
                 texture.add(frameName, 0, sx, sy, tileW, tileH);
               }
 
-              const isReactiveGrass = layerNameLc.includes('grass');
+              const isReactiveGrass = layerNameLc.includes('grass') || layerNameLc.includes('crops');
               const explicitBaseSort = tiledPropString(obj.properties, 'lh_sort') === 'base';
               const isTreeObject = key.toLowerCase().includes('tree') || explicitBaseSort;
               const castsStaticShadow =
@@ -2916,6 +3108,7 @@ export function PhaserExplorationView({
 
           // Render all tile layers
           const createdLayers: string[] = [];
+          const allTileLayers: Phaser.Tilemaps.TilemapLayer[] = [];
           const solidLayers: Array<Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer> = [];
           // Prefer dynamic creation (tolerates changes in the Tiled file).
           for (const layerData of map.layers ?? []) {
@@ -2930,6 +3123,7 @@ export function PhaserExplorationView({
                 continue;
               }
               this.jrpgExplorationDimTargets.push(layer);
+              if (layer instanceof Phaser.Tilemaps.TilemapLayer) allTileLayers.push(layer);
               if (SOLID_TILE_LAYER_NAMES.has(layerName)) {
                 layer.setCollisionByExclusion([-1], true);
                 solidLayers.push(layer);
@@ -2949,6 +3143,7 @@ export function PhaserExplorationView({
                 if (!layer) console.warn(`[LhScene] Layer "${layerName}" returned null`);
                 else {
                   this.jrpgExplorationDimTargets.push(layer);
+                  if (layer instanceof Phaser.Tilemaps.TilemapLayer) allTileLayers.push(layer);
                   if (SOLID_TILE_LAYER_NAMES.has(layerName)) {
                     layer.setCollisionByExclusion([-1], true);
                     solidLayers.push(layer);
@@ -2962,6 +3157,8 @@ export function PhaserExplorationView({
           }
 
           console.log(`[LhScene] Layers created: ${createdLayers.length ? createdLayers.join(', ') : '(none)'}`);
+          this.registerWindmillBakedTileAnimations(map, allTileLayers);
+          this.registerInteractiveCropTiles(map);
           this.addTiledTileObjectDecor(map);
 
           if (tilesets.length === 0 || createdLayers.length === 0) {
@@ -3423,6 +3620,8 @@ export function PhaserExplorationView({
             window.removeEventListener(LH_WINDOW_KNOWLEDGE_COMBAT_VISUAL, this.handleKnowledgeCombatVisual);
             window.removeEventListener(LH_WINDOW_KNOWLEDGE_BATTLE_PRESENTATION, this.handleKnowledgeBattlePresentation);
             this.scale.off('resize', this.handleKnowledgeBattleResize);
+            this.windmillAnimTimer?.remove(false);
+            this.windmillAnimTimer = null;
             this.interactionPromptPulseTween?.stop();
             this.interactionPromptPulseTween = undefined;
             this.interactionPromptRoot?.destroy(true);
@@ -3889,6 +4088,7 @@ export function PhaserExplorationView({
             const stage = _demoGuidance.current?.stage_id;
             if (stage !== 'demo_seek_maia') {
               this.lostEchoDiagActivateGate(hit, 'maia_portal_stage_gate', { stage_id: stage });
+              _onActivate(hit.interactable_id);
               return;
             }
           }
@@ -4166,6 +4366,7 @@ export function PhaserExplorationView({
 
           const moving = inputLen > 0;
           this.updateReactiveGrass(moving, ix, iy, sprintingMove);
+          this.updateReactiveCropTiles(moving, ix, iy, sprintingMove);
           if (moving && this.textures.exists(`lh_traveler_${sprintingMove ? 'run' : 'walk'}_${this.facing}`)) {
             this.player.anims.timeScale = sprintingMove ? SPRINT_RUN_ANIM_TIME_SCALE : 1;
             // Dominant axis → 4-way facing (clean idle/run transitions).
@@ -4193,6 +4394,7 @@ export function PhaserExplorationView({
             // Resolve hits against any roaming Lost Echo inside the swing AABB BEFORE the
             // animation kicks off — gives crisper feel (impact lands on first frame of the swing).
             this.resolvePlayerSwingAgainstRoamers();
+            this.resolvePlayerSwingAgainstCrops();
             if (!this.playTravelerOneShot(this.takeAlternateTravelerStrike(), 760)) {
               // Fallback: tiny lunge + flash so input is testable even before the attack sheet lands.
               this.attackingUntil = this.time.now + 260;
