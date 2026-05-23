@@ -48,14 +48,14 @@ export function resolveLhCutsceneVideoUrl(videoPath: string): string {
   const trimmed = videoPath.trim();
   if (/^(https?:|data:|blob:)/i.test(trimmed)) return trimmed;
 
-  const base = getLhMediaBaseUrl();
-  if (base.includes('releases/download/')) {
-    const file = trimmed.replace(/^\/+/, '').split('/').pop() || trimmed;
-    return `${base}${file}`;
-  }
-  // Local dev: serve gitignored cutscene MP4s from Vite `public/` while music stays on CDN.
+  const introVideoOverride = import.meta.env.VITE_LH_INTRO_VIDEO_URL?.trim();
+  if (introVideoOverride) return introVideoOverride;
+
+  const file = trimmed.replace(/^\/+/, '').split('/').pop() || trimmed;
+
+  // Local dev: gitignored MP4s under Vite `public/`. Prod: GitHub Release (not Pages git).
   if (import.meta.env.DEV && typeof window !== 'undefined') {
     return `${getLhDevVitePublicBaseUrl()}${trimmed.replace(/^\/+/, '')}`;
   }
-  return resolveLhAssetUrl(trimmed);
+  return `${LH_INTRO_MEDIA_RELEASE_BASE}${file}`;
 }

@@ -12,7 +12,7 @@ The game ships **small HTML players** in git (`intro-player.html`, future copies
 
 Dev resolves assets from your Vite server (`http://localhost:5173/legendary-horizon-demo/…`) so a local `intro_davinci.mp4` works immediately.
 
-Production builds set `VITE_LH_MEDIA_BASE_URL` to a folder that contains the MP4 (GitHub Release recommended).
+Production builds load the intro MP4 from the **GitHub Release** (`intro-media-v1`); all other assets use the Pages CDN.
 
 ## Demo intro (current)
 
@@ -41,15 +41,17 @@ GitHub repos limit file size (~100MB per blob). Use a **release asset** instead 
    - **`intro_davinci.web.mp4`** (registry default; run `scripts/compress-intro-video.ps1` to regenerate)
    - Keep the full DaVinci export as gitignored `intro_davinci.mp4` for re-stamping only
 
-3. **CI / production env** (already wired in `.github/workflows/deploy-demo.yml`):
+3. **CI** — no extra env needed: production code points intro video at  
+   `https://github.com/585swinemerchant/legendary-horizon-demo/releases/download/intro-media-v1/intro_davinci.web.mp4`  
+   (see `resolveLhCutsceneVideoUrl` in `lhMediaBase.ts`). Upload **`intro_davinci.web.mp4`** at the release root.
+
+   Optional override:
 
    ```env
-   VITE_LH_MEDIA_BASE_URL=https://github.com/585swinemerchant/legendary-horizon-demo/releases/download/intro-media-v1/
+   VITE_LH_INTRO_VIDEO_URL=https://github.com/.../intro-media-v1/intro_davinci.web.mp4
    ```
 
-   Video URL becomes:  
-   `{MEDIA_BASE}intro_davinci.web.mp4` (flat release root; see `resolveLhCutsceneVideoUrl`).  
-   Upload **`intro_davinci.web.mp4`** at the release root. To use the full export instead, set:
+   Do **not** set `VITE_LH_MEDIA_BASE_URL` in the Pages deploy workflow — that would break maps and music. To use the full export instead, set:
 
    ```env
    VITE_LH_INTRO_VIDEO_URL=https://github.com/.../releases/download/intro-media-v1/intro_davinci.web.mp4
@@ -104,6 +106,7 @@ gh release upload intro-media-v1 /path/to/intro_davinci.web.mp4
 
 | Variable | Purpose |
 |----------|---------|
-| `VITE_LH_MEDIA_BASE_URL` | Root for all large assets in prod |
+| `VITE_LH_MEDIA_BASE_URL` | Optional override for **all** CDN assets (avoid in Pages CI) |
+| `VITE_LH_INTRO_VIDEO_URL` | Optional full URL to intro MP4 on a release |
 | `VITE_LH_INTRO_CINEMATIC_SRC` | Override player HTML path |
 | `VITE_LH_INTRO_VIDEO_URL` | Override intro video URL/path |

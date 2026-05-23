@@ -36,27 +36,10 @@ jobs:
         run: npm ci
 
       - name: Build
-        env:
-          # HTML ships on Pages; large intro MP4 is on GitHub Release (see Codex/docs/CUTSCENE_MEDIA.md).
-          VITE_LH_MEDIA_BASE_URL: https://github.com/585swinemerchant/legendary-horizon-demo/releases/download/intro-media-v1/
         run: npm run build
 
       - name: Verify GitHub Pages media base
-        run: |
-          node - <<'NODE'
-          const fs = require('fs');
-          const html = fs.readFileSync('dist/index.html', 'utf8');
-          const required = [
-            'https://585swinemerchant.github.io/legendary-horizon-demo/${',
-            '/legendary-horizon-demo/assets/intro/scene_4_dagger_sword_1775784333493.png',
-          ];
-          const missing = required.filter((needle) => !html.includes(needle));
-          if (missing.length) {
-            console.error('GitHub Pages media base check failed. Missing:', missing);
-            process.exit(1);
-          }
-          console.log('GitHub Pages media base check passed.');
-          NODE
+        run: node scripts/verify-pages-media-base.mjs
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
