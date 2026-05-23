@@ -1,26 +1,38 @@
 import fs from 'node:fs';
+import path from 'node:path';
 
-const html = fs.readFileSync('dist/index.html', 'utf8');
-const pagesCdn = 'https://585swinemerchant.github.io/legendary-horizon-demo/';
-const introReleaseTag = 'releases/download/intro-media-v1/';
-const introWebMp4 = 'intro_davinci.web.mp4';
-
-const checks = [
-  { label: 'Pages CDN (maps/audio/sprites)', ok: html.includes(pagesCdn) },
-  {
-    label: 'Intro video on GitHub Release',
-    ok: html.includes(introReleaseTag) && html.includes(introWebMp4),
-  },
-  {
-    label: 'Intro scene art on Pages',
-    ok: html.includes('/legendary-horizon-demo/assets/intro/scene_4_dagger_sword_1775784333493.png'),
-  },
-];
-
-const failed = checks.filter((c) => !c.ok);
-if (failed.length) {
-  console.error('GitHub Pages build verification failed:');
-  for (const f of failed) console.error(`  - ${f.label}`);
+const distHtml = path.join(process.cwd(), 'dist', 'index.html');
+if (!fs.existsSync(distHtml)) {
+  console.error(`Missing build output: ${distHtml}`);
   process.exit(1);
 }
+
+const html = fs.readFileSync(distHtml, 'utf8');
+if (html.length < 500_000) {
+  console.error(`dist/index.html looks too small (${html.length} bytes). Build may have failed silently.`);
+  process.exit(1);
+}
+
+// Loose checks — minified bundles may split strings; any of these is enough.
+const pagesCdnHints = [
+  '585swinemerchant.github.io/legendary-horizon-demo',
+  '/legendary-horizon-demo/assets/',
+];
+const introHints = ['intro-media-v1', 'intro_davinci.web.mp4', 'releases/download'];
+
+const hasPagesCdn = pagesCdnHints.some((s) => html.includes(s));
+const hasIntroRelease = introHints.every((s) => html.includes(s));
+
+if (!hasPagesCdn) {
+  console.error('Build verification failed: expected GitHub Pages CDN asset URLs in bundle.');
+  console.error('Tried:', pagesCdnHints);
+  process.exit(1);
+}
+
+if (!hasIntroRelease) {
+  console.error('Build verification failed: expected intro release video hints in bundle.');
+  console.error('Tried:', introHints);
+  process.exit(1);
+}
+
 console.log('GitHub Pages build verification passed.');

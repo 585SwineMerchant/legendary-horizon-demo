@@ -57,5 +57,9 @@ export function resolveLhCutsceneVideoUrl(videoPath: string): string {
   if (import.meta.env.DEV && typeof window !== 'undefined') {
     return `${getLhDevVitePublicBaseUrl()}${trimmed.replace(/^\/+/, '')}`;
   }
+
+  const baked = typeof __LH_INTRO_RELEASE_VIDEO__ === 'string' ? __LH_INTRO_RELEASE_VIDEO__ : '';
+  if (baked) return baked;
+
   return `${LH_INTRO_MEDIA_RELEASE_BASE}${file}`;
 }

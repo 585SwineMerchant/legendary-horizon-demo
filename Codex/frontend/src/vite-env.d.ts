@@ -1,5 +1,8 @@
 /// <reference types="vite/client" />
 
+/** Injected by `vite.config.ts` `define` for production intro video URL. */
+declare const __LH_INTRO_RELEASE_VIDEO__: string;
+
 interface ImportMetaEnv {
   /** Full Web App URL (…/macros/s/…/exec). When set, manual save POSTs here instead of simulating. */
   readonly VITE_LH_APPS_SCRIPT_WEBAPP_URL?: string;

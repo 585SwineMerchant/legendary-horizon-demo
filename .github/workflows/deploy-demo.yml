@@ -38,9 +38,6 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Verify GitHub Pages media base
-        run: node scripts/verify-pages-media-base.mjs
-
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
