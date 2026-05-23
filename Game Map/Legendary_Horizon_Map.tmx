@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="400" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="22" nextobjectid="4470">
+<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="400" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="23" nextobjectid="4483">
  <editorsettings>
   <export target="../Codex/frontend/public/assets/maps/Legendary_Horizon_Map.json" format="json"/>
  </editorsettings>
@@ -3279,29 +3279,20 @@
     <property name="lh_kind" value="maia_portal"/>
    </properties>
   </object>
-  <object id="9" name="Aethelwood Farms Trigger" x="1557.79" y="2060.82" width="84.0003" height="113.333">
+  <object id="9" name="Aethelwood Farms Trigger" x="1571.29" y="2065.32" width="65.5003" height="60.833">
    <properties>
     <property name="lh_activation_mode" value="overlap_auto"/>
     <property name="lh_kind" value="guild_hq_research"/>
     <property name="lh_realm_id" value="realm_aethelwood"/>
    </properties>
   </object>
-  <object id="10" x="3542.16" y="2421.5" width="128" height="164">
+  <object id="10" name="master_scribe_trigger" x="3542.16" y="2421.5" width="128" height="164">
    <properties>
     <property name="lh_activation_mode" value="interaction"/>
     <property name="lh_interaction_copy_active" value="Press Enter to speak with the Master Scribe"/>
     <property name="lh_kind" value="npc_dialogue"/>
     <property name="lh_npc_id" value="master_scribe"/>
     <property name="name" value="demo_master_scribe_intro"/>
-    <property name="type" value="lh_trigger_zone"/>
-   </properties>
-  </object>
-  <object id="13" x="2388" y="2409.33" width="130.667" height="137.333">
-   <properties>
-    <property name="lh_activation_mode" value="interaction"/>
-    <property name="lh_interaction_copy_active" value="A Lost Echo blocks the path..."/>
-    <property name="lh_kind" value="combat_encounter"/>
-    <property name="name" value="lost_echo_demo"/>
     <property name="type" value="lh_trigger_zone"/>
    </properties>
   </object>
@@ -3471,6 +3462,65 @@
   <object id="4406" gid="10375" x="1217.33" y="2134.33" width="32" height="32"/>
   <object id="4432" gid="10378" x="1217" y="1354" width="32" height="32"/>
   <object id="4433" gid="10360" x="1191" y="2134.33" width="32" height="32"/>
+ </objectgroup>
+ <objectgroup id="22" name="lh_collision">
+  <object id="4470" name="master_scribe_collision" type="lh_collision" x="3463.67" y="2371.33" width="304.667" height="136.333">
+   <properties>
+    <property name="class" value="lh_collision"/>
+    <property name="lh_collision_kind" value="building"/>
+    <property name="lh_kind" value="collision"/>
+   </properties>
+  </object>
+  <object id="4475" name="maia_collision_1" type="lh_collision" x="3884.5" y="2435" width="62" height="43.5">
+   <properties>
+    <property name="class" value="lh_collision"/>
+    <property name="lh_collion_kind" value="building"/>
+    <property name="lh_kind" value="collision"/>
+   </properties>
+  </object>
+  <object id="4476" name="maia_collision_2" type="lh_collision" x="4039.5" y="2433" width="64" height="48">
+   <properties>
+    <property name="class" value="lh_collision"/>
+    <property name="lh_collision_kind" value="building"/>
+    <property name="lh_kind" value="collision"/>
+   </properties>
+  </object>
+  <object id="4477" name="windmill_collision" type="lh_collision" x="1385" y="2391.5" width="108" height="61.5">
+   <properties>
+    <property name="class" value="lh_collision"/>
+    <property name="lh_collision_kind" value="building"/>
+    <property name="lh_kind" value="collision"/>
+   </properties>
+   <ellipse/>
+  </object>
+  <object id="4478" name="maia_collision_3" type="lh_collision" x="3908" y="2411" width="160.5" height="15">
+   <properties>
+    <property name="class" value="lh_collision"/>
+    <property name="lh_collision_kind" value="building"/>
+    <property name="lh_kind" value="collision"/>
+   </properties>
+  </object>
+  <object id="4479" name="aethelwood_collision_1" type="lh_collision" x="1312.5" y="2025.5" width="253.5" height="75">
+   <properties>
+    <property name="class" value="lh_collision"/>
+    <property name="lh_collision_kind" value="building"/>
+    <property name="lh_kind" value="collision"/>
+   </properties>
+  </object>
+  <object id="4481" name="aethelwood_collision_2" type="lh_collision" x="1642" y="2021" width="110.5" height="78">
+   <properties>
+    <property name="class" value="lh_collision"/>
+    <property name="lh_collision_kind" value="building"/>
+    <property name="lh_kind" value="collision"/>
+   </properties>
+  </object>
+  <object id="4482" name="aethelwood_collision_3" type="lh_collision" x="1353.5" y="1825" width="397" height="193.5">
+   <properties>
+    <property name="class" value="lh_collision"/>
+    <property name="lh_collision_kind" value="building"/>
+    <property name="lh_kind" value="collision"/>
+   </properties>
+  </object>
  </objectgroup>
  <layer id="3" name="Hillside" width="400" height="300">
   <data encoding="csv">

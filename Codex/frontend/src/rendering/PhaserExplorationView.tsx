@@ -124,16 +124,115 @@ type ReactiveGrassDecor = {
   lastRustleAt: number;
 };
 
-/** `Windmill_baked_anim` on the Aethelwood map: 7×4 tiles per frame, 128 local-tile stride. */
+/** Baked windmill on the Aethelwood map (`Windmill_baked_anim` tileset). */
 const WINDMILL_BAKED_TILESET_NAME = 'Windmill_baked_anim';
-const WINDMILL_FRAME_STRIDE = 128;
-const WINDMILL_FRAME_COLS = 7;
-const WINDMILL_FRAME_ROWS = 4;
-const WINDMILL_FRAME_COUNT = 8;
+const WINDMILL_FRAME_WIDTH_TILES = 7;
+const WINDMILL_FRAME_HEIGHT_TILES = 4;
 const WINDMILL_FRAME_MS = 140;
 
-type WindmillAnimTile = { layer: Phaser.Tilemaps.TilemapLayer; x: number; y: number; blockOffset: number };
-type WindmillAnimGroup = { firstGid: number; frame: number; tiles: WindmillAnimTile[] };
+type WindmillSheetLayout = 'horizontal' | 'vertical';
+
+type WindmillAnimSpec = {
+  tilesetName: string;
+  firstGid: number;
+  sheetCols: number;
+  sheetRows: number;
+  imageWidthTiles: number;
+  imageHeightTiles: number;
+  frameWidthTiles: number;
+  frameHeightTiles: number;
+  layout: WindmillSheetLayout;
+  /** Tiles between consecutive frame origins in the tileset (local index). */
+  frameStride: number;
+  frameCount: number;
+};
+
+type WindmillTileCoord = { colInFrame: number; rowInFrame: number };
+
+type WindmillAnimTile = {
+  layer: Phaser.Tilemaps.TilemapLayer;
+  x: number;
+  y: number;
+  colInFrame: number;
+  rowInFrame: number;
+};
+
+type WindmillAnimGroup = {
+  spec: WindmillAnimSpec;
+  animFrame: number;
+  tiles: WindmillAnimTile[];
+};
+
+function inferWindmillAnimSpec(baked: Phaser.Tilemaps.Tileset): WindmillAnimSpec {
+  const sheetCols = Math.max(1, baked.columns);
+  const total = baked.total;
+  const sheetRows = Math.ceil(total / sheetCols);
+  const imageWidthTiles = sheetCols;
+  const imageHeightTiles = sheetRows;
+  const frameWidthTiles = WINDMILL_FRAME_WIDTH_TILES;
+  const frameHeightTiles = WINDMILL_FRAME_HEIGHT_TILES;
+
+  const strideVertical = frameHeightTiles * sheetCols;
+  const strideHorizontal = frameWidthTiles;
+  const framesVertical = Math.floor(total / strideVertical);
+  const framesPerRow = Math.floor(sheetCols / frameWidthTiles);
+  const rowBands = Math.floor(sheetRows / frameHeightTiles);
+  const framesHorizontal = framesPerRow * rowBands;
+
+  // 1024×1408 px @ 32px → 32×44 tiles; 1408 tiles ÷ 128 = 11 full vertical frames (7×4 blocks stacked).
+  const layout: WindmillSheetLayout =
+    total % strideVertical === 0 && framesVertical >= framesHorizontal ? 'vertical' : 'horizontal';
+  const frameStride = layout === 'vertical' ? strideVertical : strideHorizontal;
+  const frameCount = layout === 'vertical' ? framesVertical : Math.max(1, framesHorizontal);
+
+  return {
+    tilesetName: baked.name,
+    firstGid: baked.firstgid,
+    sheetCols,
+    sheetRows,
+    imageWidthTiles,
+    imageHeightTiles,
+    frameWidthTiles,
+    frameHeightTiles,
+    layout,
+    frameStride,
+    frameCount,
+  };
+}
+
+function parseWindmillLocalIndex(spec: WindmillAnimSpec, local: number): WindmillTileCoord & { animFrame: number } | null {
+  const { sheetCols, frameWidthTiles, frameHeightTiles, layout, frameStride } = spec;
+  if (local < 0 || local >= spec.frameCount * frameStride) return null;
+
+  if (layout === 'vertical') {
+    const colInFrame = local % sheetCols;
+    const rowInFrame = Math.floor((local % frameStride) / sheetCols);
+    const animFrame = Math.floor(local / frameStride);
+    if (colInFrame >= frameWidthTiles || rowInFrame >= frameHeightTiles || animFrame >= spec.frameCount) return null;
+    return { animFrame, colInFrame, rowInFrame };
+  }
+
+  const rowInSheet = Math.floor(local / sheetCols);
+  const colInSheet = local % sheetCols;
+  const animFrame = Math.floor(colInSheet / frameWidthTiles);
+  const colInFrame = colInSheet % frameWidthTiles;
+  const rowInFrame = rowInSheet % frameHeightTiles;
+  if (colInFrame >= frameWidthTiles || rowInFrame >= frameHeightTiles || animFrame >= spec.frameCount) return null;
+  return { animFrame, colInFrame, rowInFrame };
+}
+
+/** Local tile index for one cell inside a 7×4 frame block. */
+function windmillLocalIndex(
+  spec: WindmillAnimSpec,
+  animFrame: number,
+  colInFrame: number,
+  rowInFrame: number,
+): number {
+  if (spec.layout === 'vertical') {
+    return animFrame * spec.frameStride + rowInFrame * spec.sheetCols + colInFrame;
+  }
+  return rowInFrame * spec.sheetCols + animFrame * spec.frameWidthTiles + colInFrame;
+}
 
 type CropTileRecord = {
   layer: Phaser.Tilemaps.TilemapLayer;
@@ -2508,34 +2607,27 @@ export function PhaserExplorationView({
           const baked = map.getTileset(WINDMILL_BAKED_TILESET_NAME);
           if (!baked) return;
 
-          const firstGid = baked.firstgid;
-          const maxLocal = WINDMILL_FRAME_COUNT * WINDMILL_FRAME_STRIDE;
+          const spec = inferWindmillAnimSpec(baked);
           const groupMap = new Map<string, WindmillAnimGroup>();
 
           for (const layer of layers) {
             if (!layer?.active) continue;
             layer.forEachTile((tile) => {
-              if (!tile || tile.index < firstGid) return;
-              const local = tile.index - firstGid;
-              if (local < 0 || local >= maxLocal) return;
-              const colInBlock = local % 32;
-              const rowInBlock = Math.floor((local % WINDMILL_FRAME_STRIDE) / 32);
-              if (colInBlock >= WINDMILL_FRAME_COLS || rowInBlock >= WINDMILL_FRAME_ROWS) return;
+              if (!tile?.tileset || tile.tileset.name !== WINDMILL_BAKED_TILESET_NAME) return;
+              const local = tile.index - spec.firstGid;
+              const parsed = parseWindmillLocalIndex(spec, local);
+              if (!parsed) return;
 
-              const blockOffset = local % WINDMILL_FRAME_STRIDE;
-              const anchorX = tile.x - colInBlock;
-              const anchorY = tile.y - rowInBlock;
+              const { animFrame, colInFrame, rowInFrame } = parsed;
+              const anchorX = tile.x - colInFrame;
+              const anchorY = tile.y - rowInFrame;
               const key = `${layer.name}:${anchorX},${anchorY}`;
               let group = groupMap.get(key);
               if (!group) {
-                group = {
-                  firstGid,
-                  frame: Math.floor(local / WINDMILL_FRAME_STRIDE),
-                  tiles: [],
-                };
+                group = { spec, animFrame, tiles: [] };
                 groupMap.set(key, group);
               }
-              group.tiles.push({ layer, x: tile.x, y: tile.y, blockOffset });
+              group.tiles.push({ layer, x: tile.x, y: tile.y, colInFrame, rowInFrame });
             });
           }
 
@@ -2551,21 +2643,36 @@ export function PhaserExplorationView({
             loop: true,
             callback: () => {
               for (const group of this.windmillAnimGroups) {
-                group.frame = (group.frame + 1) % WINDMILL_FRAME_COUNT;
-                const base = group.firstGid + group.frame * WINDMILL_FRAME_STRIDE;
+                group.animFrame = (group.animFrame + 1) % group.spec.frameCount;
                 for (const t of group.tiles) {
                   if (!t.layer.active) continue;
-                  t.layer.putTileAt(base + t.blockOffset, t.x, t.y);
+                  const localId = windmillLocalIndex(
+                    group.spec,
+                    group.animFrame,
+                    t.colInFrame,
+                    t.rowInFrame,
+                  );
+                  t.layer.putTileAt(group.spec.firstGid + localId, t.x, t.y);
                 }
               }
             },
           });
 
           if (import.meta.env.DEV) {
-            console.info('[LhScene] Windmill baked tile animation registered', {
-              groups: this.windmillAnimGroups.length,
-              tiles: this.windmillAnimGroups.reduce((n, g) => n + g.tiles.length, 0),
-              frame_count: WINDMILL_FRAME_COUNT,
+            console.info('[LhScene] Windmill_baked_anim tileset', {
+              tileset_name: spec.tilesetName,
+              base_firstgid: spec.firstGid,
+              image_width_tiles: spec.imageWidthTiles,
+              image_height_tiles: spec.imageHeightTiles,
+              sheet_cols: spec.sheetCols,
+              sheet_rows: spec.sheetRows,
+              frame_width_tiles: spec.frameWidthTiles,
+              frame_height_tiles: spec.frameHeightTiles,
+              inferred_layout: spec.layout,
+              frame_stride_tiles: spec.frameStride,
+              frame_count: spec.frameCount,
+              windmill_groups: this.windmillAnimGroups.length,
+              windmill_tiles: this.windmillAnimGroups.reduce((n, g) => n + g.tiles.length, 0),
             });
           }
         }
