@@ -254,7 +254,8 @@ export function buildDemoGuidanceMap(parsedMap: ParsedLhMap): ParsedLhMap {
       layer_name: 'demo_synthetic_guidance',
       kind: 'combat_encounter',
       activation_mode: 'overlap_auto',
-      bounds: { x: baseX - 352, y: baseY - 218, width: 58, height: 58 },
+      // Placed ~900px west of Maia — safely outside the Master Scribe interaction zone.
+      bounds: { x: baseX - 900, y: baseY - 150, width: 128, height: 128 },
       interaction_label_active: 'Face the Lost Echo',
       interaction_label_complete: 'Lost Echo defeated',
     });

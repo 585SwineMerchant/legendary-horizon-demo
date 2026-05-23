@@ -27254,6 +27254,29 @@
                  "y":2421.5
                 }, 
                 {
+                 "height":128,
+                 "id":4483,
+                 "name":"lost_echo_demo",
+                 "opacity":1,
+                 "properties":[
+                        {
+                         "name":"lh_activation_mode",
+                         "type":"string",
+                         "value":"overlap_auto"
+                        },
+                        {
+                         "name":"lh_kind",
+                         "type":"string",
+                         "value":"combat_encounter"
+                        }],
+                 "rotation":0,
+                 "type":"lh_trigger_zone",
+                 "visible":true,
+                 "width":128,
+                 "x":2960,
+                 "y":2264
+                },
+                {
                  "gid":10286,
                  "height":32,
                  "id":420,
@@ -31026,7 +31049,7 @@
          "y":0
         }],
  "nextlayerid":23,
- "nextobjectid":4483,
+ "nextobjectid":4484,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.12.1",

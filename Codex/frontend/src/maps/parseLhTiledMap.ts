@@ -240,7 +240,7 @@ function normaliseTriggers(objects: TiledObject[], layerName: string, warnings: 
       return;
     }
     const kind = lhKindRaw ?? 'unknown';
-    if (kind === 'waypoint' || kind === 'fog_region' || kind === 'roaming_lost_echo_spawn') {
+    if (kind === 'waypoint' || kind === 'fog_region' || kind === 'roaming_lost_echo_spawn' || kind === 'collision') {
       return;
     }
     const modeRaw = String(tileProperty(props, 'lh_activation_mode') ?? '').trim().toLowerCase();

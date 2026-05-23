@@ -126,7 +126,7 @@ type ReactiveGrassDecor = {
 
 /** Baked windmill on the Aethelwood map (`Windmill_baked_anim` tileset). */
 const WINDMILL_BAKED_TILESET_NAME = 'Windmill_baked_anim';
-const WINDMILL_FRAME_WIDTH_TILES = 7;
+const WINDMILL_FRAME_WIDTH_TILES = 8;
 const WINDMILL_FRAME_HEIGHT_TILES = 4;
 const WINDMILL_FRAME_MS = 140;
 
@@ -179,7 +179,7 @@ function inferWindmillAnimSpec(baked: Phaser.Tilemaps.Tileset): WindmillAnimSpec
   const rowBands = Math.floor(sheetRows / frameHeightTiles);
   const framesHorizontal = framesPerRow * rowBands;
 
-  // 1024×1408 px @ 32px → 32×44 tiles; 1408 tiles ÷ 128 = 11 full vertical frames (7×4 blocks stacked).
+  // 1024×1408 px @ 32px → 32×44 tiles; 4 frames/row × 8 tiles wide, 11 row-bands of 4 rows = 44 frames total.
   const layout: WindmillSheetLayout =
     total % strideVertical === 0 && framesVertical >= framesHorizontal ? 'vertical' : 'horizontal';
   const frameStride = layout === 'vertical' ? strideVertical : strideHorizontal;
@@ -201,8 +201,8 @@ function inferWindmillAnimSpec(baked: Phaser.Tilemaps.Tileset): WindmillAnimSpec
 }
 
 function parseWindmillLocalIndex(spec: WindmillAnimSpec, local: number): WindmillTileCoord & { animFrame: number } | null {
-  const { sheetCols, frameWidthTiles, frameHeightTiles, layout, frameStride } = spec;
-  if (local < 0 || local >= spec.frameCount * frameStride) return null;
+  const { sheetCols, sheetRows, frameWidthTiles, frameHeightTiles, layout, frameStride } = spec;
+  if (local < 0 || local >= sheetCols * sheetRows) return null;
 
   if (layout === 'vertical') {
     const colInFrame = local % sheetCols;
@@ -212,16 +212,21 @@ function parseWindmillLocalIndex(spec: WindmillAnimSpec, local: number): Windmil
     return { animFrame, colInFrame, rowInFrame };
   }
 
+  // Horizontal layout: frames are arranged in row-bands.
+  // Each row-band is frameHeightTiles tall and contains (sheetCols / frameWidthTiles) frames side-by-side.
+  const framesPerRow = Math.floor(sheetCols / frameWidthTiles);
   const rowInSheet = Math.floor(local / sheetCols);
   const colInSheet = local % sheetCols;
-  const animFrame = Math.floor(colInSheet / frameWidthTiles);
-  const colInFrame = colInSheet % frameWidthTiles;
+  const rowBand = Math.floor(rowInSheet / frameHeightTiles);
   const rowInFrame = rowInSheet % frameHeightTiles;
+  const frameColInBand = Math.floor(colInSheet / frameWidthTiles);
+  const colInFrame = colInSheet % frameWidthTiles;
+  const animFrame = rowBand * framesPerRow + frameColInBand;
   if (colInFrame >= frameWidthTiles || rowInFrame >= frameHeightTiles || animFrame >= spec.frameCount) return null;
   return { animFrame, colInFrame, rowInFrame };
 }
 
-/** Local tile index for one cell inside a 7×4 frame block. */
+/** Local tile index for one cell inside a frame block. */
 function windmillLocalIndex(
   spec: WindmillAnimSpec,
   animFrame: number,
@@ -231,7 +236,12 @@ function windmillLocalIndex(
   if (spec.layout === 'vertical') {
     return animFrame * spec.frameStride + rowInFrame * spec.sheetCols + colInFrame;
   }
-  return rowInFrame * spec.sheetCols + animFrame * spec.frameWidthTiles + colInFrame;
+  // Horizontal layout: frames are arranged in row-bands.
+  const framesPerRow = Math.floor(spec.sheetCols / spec.frameWidthTiles);
+  const rowBand = Math.floor(animFrame / framesPerRow);
+  const frameColInBand = animFrame % framesPerRow;
+  return (rowBand * spec.frameHeightTiles + rowInFrame) * spec.sheetCols
+    + frameColInBand * spec.frameWidthTiles + colInFrame;
 }
 
 type CropTileRecord = {
