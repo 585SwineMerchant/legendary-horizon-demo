@@ -79,6 +79,7 @@ export function App() {
     exploration,
     mediaAssets,
     parsedMap,
+    tileMapUrl,
     mapVariant,
     setMapVariant,
     stableMapLoading,
@@ -349,6 +350,7 @@ export function App() {
           hotspots={explorationHotspots}
           onActivateHotspot={hotspotControls.activate}
           parsedMap={parsedMap}
+          tileMapUrl={tileMapUrl}
           demoGuidance={demoGuidance}
           renderer="phaser"
           saveFeedback={null}

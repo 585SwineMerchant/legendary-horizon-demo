@@ -82,6 +82,8 @@ type Props = {
   signpostStrip?: { labels: string[] } | null;
   /** DEV / `VITE_LH_QUEST_DEBUG` — mirrors React visited triggers for Lost Echo pipeline logs in Phaser. */
   lostEchoDiagVisitedTriggerIds?: readonly string[];
+  /** Override the tilemap JSON URL Phaser loads (used by the stable/backup map variant selector). */
+  tileMapUrl?: string;
 };
 
 export function ExplorationScreen({
@@ -115,6 +117,7 @@ export function ExplorationScreen({
   onEncounterRetreat,
   signpostStrip,
   lostEchoDiagVisitedTriggerIds,
+  tileMapUrl,
 }: Props) {
   useEscapeToClose(Boolean(npcDialogue), onDismissNpcDialogue ?? (() => undefined));
   const jrpgKnowledgeEncounter = activeEncounter?.presentation === 'jrpg_knowledge';
@@ -173,6 +176,7 @@ export function ExplorationScreen({
           hotspots={hotspots}
           onActivateHotspot={onActivateHotspot}
           onPause={onPause}
+          tileMapUrl={tileMapUrl}
           lostEchoDiagVisitedTriggerIds={lostEchoDiagVisitedTriggerIds}
         />
       ) : null}

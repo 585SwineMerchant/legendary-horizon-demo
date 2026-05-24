@@ -73,6 +73,8 @@ type Props = {
   hotspots: ExplorationHotspot[];
   onActivateHotspot: (interactableId: string) => void;
   onPause: () => void;
+  /** Override the tilemap JSON URL Phaser loads. When omitted the default current-map URL is used. */
+  tileMapUrl?: string;
   /** DEV — mirrors React `visitedInteractableIds` for Lost Echo diagnostic logs only. */
   lostEchoDiagVisitedTriggerIds?: readonly string[];
 };
@@ -960,6 +962,7 @@ export function PhaserExplorationView({
   hotspots,
   onActivateHotspot,
   onPause,
+  tileMapUrl,
   lostEchoDiagVisitedTriggerIds,
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -1074,7 +1077,8 @@ export function PhaserExplorationView({
       }
       // Must match `loadLhRuntimeFixture` / `@maps` (same file). After Tiled export, hard-refresh the dev page
       // so the bundled JSON parse and Phaser both pick up changes (avoid partial stale cache).
-      const _mapUrl = publicAssetUrl('assets/maps/Legendary_Horizon_Map.json');
+      // `tileMapUrl` prop overrides the default (e.g. for the stable/backup map variant).
+      const _mapUrl = tileMapUrl ?? publicAssetUrl('assets/maps/Legendary_Horizon_Map.json');
       const _tilesetUrl = (name: string) => publicAssetUrl(`assets/maps/${name.replace(/ /g, '%20')}.png`);
       const _travelerUrl = (sheet: string, dir: TravelerDirection) =>
         publicAssetUrl(`assets/player/traveler/${sheet}_${dir}.png`);

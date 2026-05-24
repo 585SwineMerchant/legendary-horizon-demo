@@ -2300,10 +2300,14 @@ export function useNightOneFlow() {
     },
   };
 
-  // Which parsed map to send to the renderer (and act3 totals).
+  // Which parsed map + tilemap URL to send to the renderer (and act3 totals).
   const activeMap: ParsedLhMap = mapVariant === 'stable' && stableMapState.map
     ? stableMapState.map
     : PARSED_PRIMARY_MAP;
+  // Use Vite's BASE_URL so the file resolves from the local dev server (files in public/ are not on the CDN).
+  const activeTileMapUrl: string | undefined = mapVariant === 'stable'
+    ? `${import.meta.env.BASE_URL}assets/maps/Legendary_Horizon_Map_before_move_towards_final.json`
+    : undefined;
 
   return {
     screen,
@@ -2359,6 +2363,7 @@ export function useNightOneFlow() {
     exploration,
     mediaAssets: BLUEPRINT.media_assets,
     parsedMap: activeMap,
+    tileMapUrl: activeTileMapUrl,
     mapVariant,
     setMapVariant,
     stableMapLoading: stableMapState.loading,
