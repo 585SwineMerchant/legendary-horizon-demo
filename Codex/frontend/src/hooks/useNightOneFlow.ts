@@ -888,11 +888,7 @@ export function useNightOneFlow() {
         interactable_id: cur.interactableId,
         target_quest_id: cur.target_quest_id,
       });
-      const encounterTrigger = PARSED_PRIMARY_MAP.triggers.find(
-        (t) => makeTriggerInteractableId(PRIMARY_WORLD_TRIGGER_REALM_ID, t.tiled_object_id) === cur.interactableId,
-      );
-      const isDemoLostEcho =
-        cur.kind === 'combat_encounter' && Boolean(encounterTrigger && isLostEchoDemoTrigger(encounterTrigger));
+      const isDemoLostEcho = cur.kind === 'combat_encounter' && cur.presentation === 'jrpg_knowledge';
       if (isDemoLostEcho) {
         const stageBefore = ensureDemoGuidanceState(nextE).stage_id;
         const guided = ensureDemoGuidanceState(nextE);
@@ -1288,14 +1284,8 @@ export function useNightOneFlow() {
       setQuests(result.nextQuests);
 
       if (result.openEncounter) {
-        const encounterTrigger = PARSED_PRIMARY_MAP.triggers.find(
-          (t) =>
-            makeTriggerInteractableId(PRIMARY_WORLD_TRIGGER_REALM_ID, t.tiled_object_id) ===
-            result.openEncounter!.interactableId,
-        );
         const jrpgLostEcho =
-          result.openEncounter.kind === 'combat_encounter' &&
-          Boolean(encounterTrigger && isLostEchoDemoTrigger(encounterTrigger));
+          result.openEncounter.kind === 'combat_encounter' && isLostEchoDemoTrigger(triggerMeta);
         if (jrpgLostEcho) {
           getLhAudioDirector().primeBattleMusicFromUserGesture();
         }
@@ -1396,8 +1386,18 @@ export function useNightOneFlow() {
     PARSED_PRIMARY_MAP.triggers.forEach((trigger) => {
       map.set(makeTriggerInteractableId(PRIMARY_WORLD_TRIGGER_REALM_ID, trigger.tiled_object_id), trigger);
     });
+    // When the stable map is active, its trigger IDs differ from PARSED_PRIMARY_MAP.
+    // Index those triggers too so Phaser activations on the stable map resolve correctly.
+    if (mapVariant === 'stable' && stableMapState.map) {
+      stableMapState.map.triggers.forEach((trigger) => {
+        const key = makeTriggerInteractableId(PRIMARY_WORLD_TRIGGER_REALM_ID, trigger.tiled_object_id);
+        if (!map.has(key)) {
+          map.set(key, trigger);
+        }
+      });
+    }
     return map;
-  }, []);
+  }, [mapVariant, stableMapState.map]);
 
   useEffect(() => {
     if (screen !== 'explore' || !player) return;

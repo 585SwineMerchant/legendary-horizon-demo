@@ -4273,7 +4273,13 @@ export function PhaserExplorationView({
               this.activatedInteractableIds.add(hit.interactable_id);
             }
             if (hit.kind === 'combat_encounter') {
-              this.playTravelerOneShot(this.takeAlternateTravelerStrike(), 620);
+              const combatStageOk =
+                hit.tiled_name !== LOST_ECHO_TRIGGER_NAME ||
+                _demoGuidance.current?.stage_id === 'demo_combat_trial_available';
+              if (combatStageOk) {
+                playLhTravelerSwingSfx();
+                this.playTravelerOneShot(this.takeAlternateTravelerStrike(), 620);
+              }
             }
             if (LOST_ECHO_DEEP_DIAG && hit.tiled_name === LOST_ECHO_TRIGGER_NAME) {
               console.info('[LhLostEchoDiag] activateTrigger → _onActivate (Phaser gates passed)', hit.interactable_id);
