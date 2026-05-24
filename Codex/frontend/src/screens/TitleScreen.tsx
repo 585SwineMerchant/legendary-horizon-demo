@@ -9,6 +9,8 @@ import {
 } from '../lib/lhEmbedFullscreen';
 import { publicAssetUrl } from '../lib/publicAssetUrl';
 
+type MapVariant = 'current' | 'stable';
+
 type Props = {
   onContinue: () => void;
   onOpenTeacherDashboard?: () => void;
@@ -16,6 +18,10 @@ type Props = {
   bootstrapError?: string | null;
   /** Milestone 14 - resolved from `LhMediaAssets` / fixture catalog (falls back to CSS default if blank). */
   backdropImageUrl?: string;
+  mapVariant?: MapVariant;
+  onMapVariantChange?: (v: MapVariant) => void;
+  stableMapLoading?: boolean;
+  stableMapError?: string | null;
 };
 
 export function TitleScreen({
@@ -24,6 +30,10 @@ export function TitleScreen({
   bootstrapPhase = 'idle',
   bootstrapError = null,
   backdropImageUrl,
+  mapVariant = 'current',
+  onMapVariantChange,
+  stableMapLoading = false,
+  stableMapError,
 }: Props) {
   const loading = bootstrapPhase === 'loading';
   const failed = bootstrapPhase === 'error';
@@ -116,6 +126,33 @@ export function TitleScreen({
             </button>
           ) : null}
         </div>
+
+        {onMapVariantChange ? (
+          <div className="lh-title-map-selector" role="group" aria-label="Map variant">
+            <span className="lh-title-map-selector__label">Map:</span>
+            <button
+              type="button"
+              className={`lh-button${mapVariant === 'current' ? ' lh-button--primary' : ' lh-button--secondary'}`}
+              aria-pressed={mapVariant === 'current'}
+              onClick={() => onMapVariantChange('current')}
+            >
+              Current
+            </button>
+            <button
+              type="button"
+              className={`lh-button${mapVariant === 'stable' ? ' lh-button--primary' : ' lh-button--secondary'}`}
+              aria-pressed={mapVariant === 'stable'}
+              onClick={() => onMapVariantChange('stable')}
+            >
+              {mapVariant === 'stable' && stableMapLoading ? 'Stable (loading…)' : 'Stable'}
+            </button>
+            {mapVariant === 'stable' && stableMapError ? (
+              <span className="lh-title-map-selector__error" role="alert">
+                {stableMapError}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </section>
   );

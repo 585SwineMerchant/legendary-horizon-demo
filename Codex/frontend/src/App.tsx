@@ -322,6 +322,10 @@ export function App() {
           bootstrapPhase={bootstrapPhase}
           bootstrapError={bootstrapError}
           backdropImageUrl={titleBackdropUrl}
+          mapVariant={mapVariant}
+          onMapVariantChange={setMapVariant}
+          stableMapLoading={stableMapLoading}
+          stableMapError={stableMapError}
         />
       ) : null}
 
@@ -329,10 +333,6 @@ export function App() {
         <GameTitleScreen
           onStart={navigate.gameTitleStart}
           onResume={navigate.gameTitleResume}
-          mapVariant={mapVariant}
-          onMapVariantChange={setMapVariant}
-          stableMapLoading={stableMapLoading}
-          stableMapError={stableMapError}
         />
       ) : null}
 

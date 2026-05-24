@@ -2830,48 +2830,37 @@ button:focus-visible {
     0 16px 34px rgba(0, 0, 0, 0.58);
 }
 
-/* Map variant selector — shown between the logo and Start/Load buttons */
-.lh-game-title__map-selector {
+/* Map variant selector — shown on the TitleScreen below the Begin Demo row */
+.lh-title-map-selector {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: clamp(-5rem, -6vw, -2.5rem);
-  margin-bottom: 0.25rem;
-  z-index: 2;
-  animation: lh-game-title-actions 1.15s ease 1.75s both;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
 }
 
-.lh-game-title__map-selector-label {
-  color: rgba(244, 185, 66, 0.65);
+.lh-title-map-selector__label {
+  color: rgba(255, 255, 255, 0.45);
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
-.lh-game-title__map-selector .lh-button {
-  min-width: 5.5rem;
-  padding: 0.3rem 0.85rem;
+.lh-title-map-selector .lh-button {
+  min-width: 5rem;
+  padding: 0.25rem 0.75rem;
   font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  border-color: rgba(244, 185, 66, 0.38);
-  background: linear-gradient(180deg, rgba(23, 28, 40, 0.88), rgba(4, 7, 13, 0.92));
-  color: rgba(244, 185, 66, 0.55);
-  box-shadow: none;
 }
 
-.lh-game-title__map-selector .lh-button--primary {
-  border-color: rgba(244, 185, 66, 0.7);
-  color: #fbbf24;
-  box-shadow: 0 0 10px rgba(244, 185, 66, 0.18), inset 0 0 8px rgba(244, 185, 66, 0.07);
-}
-
-.lh-game-title__map-selector-error {
+.lh-title-map-selector__error {
   font-size: 0.65rem;
   color: #f87171;
-  max-width: 18rem;
+  flex-basis: 100%;
+  margin-top: 0.2rem;
 }
 
 .lh-screen--game-title-exit .lh-game-title__content {
