@@ -3049,7 +3049,7 @@
     <property name="lh_realm_id" value="realm_aethelwood"/>
    </properties>
   </object>
-  <object id="10" name="master_scribe_trigger" x="6939.16" y="5380.17" width="128" height="164">
+  <object id="10" name="master_scribe_trigger" x="6939.16" y="5393.17" width="128" height="164">
    <properties>
     <property name="lh_activation_mode" value="interaction"/>
     <property name="lh_interaction_copy_active" value="Press Enter to speak with the Master Scribe"/>
