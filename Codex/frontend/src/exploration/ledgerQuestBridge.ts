@@ -1,7 +1,7 @@
 import type { QuestDefinition } from '../types';
 import { reconcileQuestPrerequisites } from '../quests/questEngine';
 
-const CROSSROADS_QUEST_ID = 'sq_listen_crossroads_echo';
+const CROSSROADS_QUEST_ID = 'sq-202';
 
 /**
  * After a Comparison Ledger entry, unlock crossroads side quest (demo bridge to Act III feel).

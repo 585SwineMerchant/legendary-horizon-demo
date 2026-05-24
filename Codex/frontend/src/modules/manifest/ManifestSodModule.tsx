@@ -544,7 +544,7 @@ export function ManifestSodModule({ draft, onDraftChange, onSubmitResult, canonR
                   const created = nowIso();
                   onSubmitResult({
                     module_id: 'mod_manifest_sod',
-                    quest_id: 'mq_act1_manifest_support',
+                    quest_id: 'mq-106',
                     realm_id: 'realm_archives_ascension',
                     status: 'completed',
                     score: completionPct,

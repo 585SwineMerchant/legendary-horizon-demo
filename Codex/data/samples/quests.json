@@ -1,111 +1,692 @@
 [
   {
-    "quest_id": "mq_act1_manifest_support",
-    "title": "Manifest — begin your Career Map",
+    "quest_id": "mq-101",
+    "title": "Meet the Master Scribe",
     "tier": "main",
     "act": 1,
     "status": "active",
-    "objective_short": "Capture self-knowledge and build your copy-ready Career Map fields.",
-    "realm_ids": ["realm_archives_ascension"]
+    "objective_short": "Complete opening dialogue with the Master Scribe",
+    "realm_ids": []
   },
   {
-    "quest_id": "mq_act2_path_of_roots",
-    "title": "Path of Roots",
+    "quest_id": "mq-102",
+    "title": "Enter the Mirror of Maia",
+    "tier": "main",
+    "act": 1,
+    "status": "locked",
+    "objective_short": "Launch the Maia assessment sequence",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-101"
+    ]
+  },
+  {
+    "quest_id": "mq-103",
+    "title": "Complete the Ritual of Reflection",
+    "tier": "main",
+    "act": 1,
+    "status": "locked",
+    "objective_short": "Complete all four required Maia assessments and return to the Master Scribe",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-102"
+    ]
+  },
+  {
+    "quest_id": "mq-104",
+    "title": "Complete the Scribe's Survey",
+    "tier": "main",
+    "act": 1,
+    "status": "locked",
+    "objective_short": "Complete the Scribe's stat-builder survey to finalize your Scroll of Destiny",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-103"
+    ]
+  },
+  {
+    "quest_id": "mq-105",
+    "title": "Generate the Scroll of Destiny",
+    "tier": "main",
+    "act": 1,
+    "status": "locked",
+    "objective_short": "Generate the Scroll of Destiny with base stats, rune slots, and foretold signposts",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-104"
+    ]
+  },
+  {
+    "quest_id": "mq-106",
+    "title": "Reveal the Three Foretold Signposts",
+    "tier": "main",
+    "act": 1,
+    "status": "locked",
+    "objective_short": "Review the three signposted realms calling to you",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-105"
+    ]
+  },
+  {
+    "quest_id": "mq-201",
+    "title": "Visit the Oracle of Opportunity",
     "tier": "main",
     "act": 2,
     "status": "locked",
-    "objective_short": "Attune the grove shrine beneath the sentinel oak.",
-    "realm_ids": ["realm_aethelwood"],
-    "prerequisite_quest_ids": ["mq_act1_manifest_support"]
+    "objective_short": "Seek out the Oracle and reflect on your Scroll of Destiny",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-106"
+    ]
   },
   {
-    "quest_id": "mq_act2_oracle_of_fate",
-    "title": "Quest of Fate — consult the Oracle",
+    "quest_id": "mq-202",
+    "title": "Receive the Prophecy",
     "tier": "main",
     "act": 2,
     "status": "locked",
-    "objective_short": "Receive a prophecy and record your Destiny Number.",
-    "realm_ids": ["realm_archives_ascension"],
-    "prerequisite_quest_ids": ["mq_act1_manifest_support"]
+    "objective_short": "Receive a gamified career prophecy from the Oracle",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-201"
+    ]
   },
   {
-    "quest_id": "mq_act2_vault_of_runes",
-    "title": "Quest of Fate — open the Vault of Runes",
+    "quest_id": "mq-203",
+    "title": "Enter the Vault of Runes",
     "tier": "main",
     "act": 2,
     "status": "locked",
-    "objective_short": "Use your Destiny Number to open the correct research portal and begin evidence gathering.",
-    "realm_ids": ["realm_archives_ascension"],
-    "prerequisite_quest_ids": ["mq_act2_oracle_of_fate"]
+    "objective_short": "Open the linked research source for the prophecy career",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-202"
+    ]
   },
   {
-    "quest_id": "gq_act3_fog_of_unknown",
-    "title": "Fog of the Unknown — map the realms",
-    "tier": "guild",
+    "quest_id": "mq-204",
+    "title": "Complete the Quest of Fate",
+    "tier": "main",
+    "act": 2,
+    "status": "locked",
+    "objective_short": "Record research findings in the Quest of Fate Worksheet",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-203"
+    ]
+  },
+  {
+    "quest_id": "mq-205",
+    "title": "Return to the Oracle",
+    "tier": "main",
+    "act": 2,
+    "status": "locked",
+    "objective_short": "Return to the Oracle after completing the worksheet",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-204"
+    ]
+  },
+  {
+    "quest_id": "mq-206",
+    "title": "Receive the World Map",
+    "tier": "main",
+    "act": 2,
+    "status": "locked",
+    "objective_short": "Receive the World Map and unlock exploration access",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-205"
+    ]
+  },
+  {
+    "quest_id": "mq-207",
+    "title": "Receive the Comparison Ledger",
+    "tier": "main",
+    "act": 2,
+    "status": "locked",
+    "objective_short": "Receive the Comparison Ledger for realm exploration",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-206"
+    ]
+  },
+  {
+    "quest_id": "mq-301",
+    "title": "Enter the Great Clearing",
+    "tier": "main",
     "act": 3,
     "status": "locked",
-    "objective_short": "After the Vault, use the World Map ledger while you explore; if your Scroll lists three Foretold Signposts, save a comparison from each of those tiles first (then keep charting the full map).",
-    "realm_ids": ["realm_high_council_hall"],
-    "prerequisite_quest_ids": ["mq_act2_vault_of_runes"]
+    "objective_short": "Enter the world exploration area for the first time",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-207"
+    ]
   },
   {
-    "quest_id": "sq_gather_ledger_pages",
-    "title": "Loose Leaves of the Ledger",
+    "quest_id": "mq-302",
+    "title": "Travel to the First Signpost Realm",
+    "tier": "main",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Reach one of the three foretold signpost realms",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-301"
+    ]
+  },
+  {
+    "quest_id": "mq-303",
+    "title": "Shatter the First Fog",
+    "tier": "main",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Clear the fog at the first required waypoint",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-302"
+    ]
+  },
+  {
+    "quest_id": "mq-304",
+    "title": "Record the First Realm in the Ledger",
+    "tier": "main",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Research the realm and record findings in the Comparison Ledger",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-303"
+    ]
+  },
+  {
+    "quest_id": "mq-305",
+    "title": "Travel to the Second Signpost Realm",
+    "tier": "main",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Reach the second foretold signpost realm",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-304"
+    ]
+  },
+  {
+    "quest_id": "mq-306",
+    "title": "Shatter the Second Fog",
+    "tier": "main",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Clear the fog at the second required waypoint",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-305"
+    ]
+  },
+  {
+    "quest_id": "mq-307",
+    "title": "Record the Second Realm in the Ledger",
+    "tier": "main",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Record the second required cluster in the Comparison Ledger",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-306"
+    ]
+  },
+  {
+    "quest_id": "mq-308",
+    "title": "Travel to the Third Signpost Realm",
+    "tier": "main",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Reach the third foretold signpost realm",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-307"
+    ]
+  },
+  {
+    "quest_id": "mq-309",
+    "title": "Shatter the Third Fog",
+    "tier": "main",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Clear the fog at the third required waypoint",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-308"
+    ]
+  },
+  {
+    "quest_id": "mq-310",
+    "title": "Record the Third Realm in the Ledger",
+    "tier": "main",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Record the third required cluster in the Comparison Ledger",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-309"
+    ]
+  },
+  {
+    "quest_id": "mq-311",
+    "title": "Compare the Three Foretold Paths",
+    "tier": "main",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Complete the minimum comparison set using ledger entries",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-310"
+    ]
+  },
+  {
+    "quest_id": "mq-312",
+    "title": "Visit a Guild Hall for Reconnaissance",
+    "tier": "main",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Visit at least one Guild HQ for research-only exploration",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-311"
+    ]
+  },
+  {
+    "quest_id": "mq-313",
+    "title": "Complete Realm Reconnaissance",
+    "tier": "main",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Gather enough exploration and ledger data to make a True Path choice",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-312"
+    ]
+  },
+  {
+    "quest_id": "mq-401",
+    "title": "Choose the True Path",
+    "tier": "main",
+    "act": 4,
+    "status": "locked",
+    "objective_short": "Select one specific career as your True Path",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-313"
+    ]
+  },
+  {
+    "quest_id": "mq-402",
+    "title": "Travel to the Chosen Guild HQ",
+    "tier": "main",
+    "act": 4,
+    "status": "locked",
+    "objective_short": "Reach the Guild HQ of your chosen path",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-401"
+    ]
+  },
+  {
+    "quest_id": "mq-403",
+    "title": "Meet the Guild Manager",
+    "tier": "main",
+    "act": 4,
+    "status": "locked",
+    "objective_short": "Complete your first Guild Manager dialogue",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-402"
+    ]
+  },
+  {
+    "quest_id": "gt-101",
+    "title": "Complete the Enrollment Rune",
+    "tier": "guild",
+    "act": 4,
+    "status": "locked",
+    "objective_short": "Complete the job application form",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-403"
+    ]
+  },
+  {
+    "quest_id": "gt-102",
+    "title": "Pass the Trial of Tongues",
+    "tier": "guild",
+    "act": 4,
+    "status": "locked",
+    "objective_short": "Complete the AI chatbot interview encounter",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "gt-101"
+    ]
+  },
+  {
+    "quest_id": "gt-103",
+    "title": "Complete the Artificer's Ethics Trial",
+    "tier": "guild",
+    "act": 4,
+    "status": "locked",
+    "objective_short": "Complete the professionalism and soft-skill encounter",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "gt-102"
+    ]
+  },
+  {
+    "quest_id": "gt-104",
+    "title": "Complete the Quest of Choice",
+    "tier": "guild",
+    "act": 4,
+    "status": "locked",
+    "objective_short": "Deep-dive research on your True Path career using the Quest of Choice Worksheet",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "gt-103"
+    ]
+  },
+  {
+    "quest_id": "mq-404",
+    "title": "Finalize the Traveler Manifest",
+    "tier": "main",
+    "act": 4,
+    "status": "locked",
+    "objective_short": "Add final chosen-path data to the Manifest",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "gt-104"
+    ]
+  },
+  {
+    "quest_id": "mq-405",
+    "title": "Complete the Great Transcription",
+    "tier": "main",
+    "act": 4,
+    "status": "locked",
+    "objective_short": "Copy finalized data into the official career plan",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-404"
+    ]
+  },
+  {
+    "quest_id": "fa-101",
+    "title": "Begin the Chronicle of the Horizon",
+    "tier": "main",
+    "act": 5,
+    "status": "locked",
+    "objective_short": "Open or create your final presentation project",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-405"
+    ]
+  },
+  {
+    "quest_id": "fa-102",
+    "title": "Build the Chronicle",
+    "tier": "main",
+    "act": 5,
+    "status": "locked",
+    "objective_short": "Complete the required presentation sections",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "fa-101"
+    ]
+  },
+  {
+    "quest_id": "fa-103",
+    "title": "Refine the Chronicle",
+    "tier": "main",
+    "act": 5,
+    "status": "locked",
+    "objective_short": "Revise, rehearse, or polish your presentation",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "fa-102"
+    ]
+  },
+  {
+    "quest_id": "fa-104",
+    "title": "Present at the Grand Council",
+    "tier": "main",
+    "act": 5,
+    "status": "locked",
+    "objective_short": "Deliver your final career fair presentation",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "fa-103"
+    ]
+  },
+  {
+    "quest_id": "ep-101",
+    "title": "Enter the Epilogue",
+    "tier": "main",
+    "act": 6,
+    "status": "locked",
+    "objective_short": "Enter the post-game reflection and next-stage sequence",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "fa-104"
+    ]
+  },
+  {
+    "quest_id": "ep-102",
+    "title": "Complete the Course Selection Ritual",
+    "tier": "main",
+    "act": 6,
+    "status": "locked",
+    "objective_short": "Interact with the course selection guide",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "ep-101"
+    ]
+  },
+  {
+    "quest_id": "ep-103",
+    "title": "Choose the 7th Grade Expansion Pack",
+    "tier": "main",
+    "act": 6,
+    "status": "locked",
+    "objective_short": "Select your next-year classes and spells",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "ep-102"
+    ]
+  },
+  {
+    "quest_id": "sq-201",
+    "title": "Defeat the Ink Wraiths",
     "tier": "side",
     "act": 2,
     "status": "locked",
-    "objective_short": "Recover three misplaced comparison notes for Mentor Kael.",
-    "realm_ids": ["realm_aethelwood"],
-    "prerequisite_quest_ids": ["mq_act2_path_of_roots"]
+    "objective_short": "Win the first vocabulary-linked battle",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-207"
+    ]
   },
   {
-    "quest_id": "gq_guild_atlas_pulse",
-    "title": "Guild Atlas — Pulse Reading",
-    "tier": "guild",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Log one realm entry in the atlas after the main path trial.",
-    "realm_ids": ["realm_aethelwood"],
-    "prerequisite_quest_ids": ["mq_act2_path_of_roots"]
-  },
-  {
-    "quest_id": "sq_listen_crossroads_echo",
-    "title": "Echo at the Haven",
+    "quest_id": "sq-202",
+    "title": "Recover a Lost Lore Shard",
     "tier": "side",
     "act": 3,
     "status": "locked",
-    "objective_short": "Hear three traveler stories linked to career clusters.",
-    "realm_ids": ["realm_crossroads_haven"],
-    "prerequisite_quest_ids": []
+    "objective_short": "Explore an optional area and uncover hidden lore",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-301"
+    ]
   },
   {
-    "quest_id": "gq_gt101_enrollment_rune",
-    "title": "GT-101 — Complete the Enrollment Rune",
-    "tier": "guild",
-    "act": 4,
+    "quest_id": "sq-203",
+    "title": "Speak to a High-Level NPC",
+    "tier": "side",
+    "act": 3,
     "status": "locked",
-    "objective_short": "Submit a formal application with professionalism and complete required fields.",
-    "realm_ids": ["realm_crossroads_haven"],
-    "prerequisite_quest_ids": ["gq_act3_fog_of_unknown"]
+    "objective_short": "Complete an optional NPC interview and career connection task",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-304"
+    ]
   },
   {
-    "quest_id": "gq_gt102_trial_of_tongues",
-    "title": "GT-102 — Pass the Trial of Tongues",
-    "tier": "guild",
-    "act": 4,
+    "quest_id": "sq-204",
+    "title": "Clear a Hidden Fog Pocket",
+    "tier": "side",
+    "act": 3,
     "status": "locked",
-    "objective_short": "Complete the interview trial and earn the Guild’s approval.",
-    "realm_ids": ["realm_etheric_nexus"],
-    "prerequisite_quest_ids": ["gq_gt101_enrollment_rune"]
+    "objective_short": "Uncover an optional hidden waypoint",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-305"
+    ]
   },
   {
-    "quest_id": "gq_guild_council_ledger_hold",
-    "title": "Council ledger — hold",
-    "tier": "guild",
+    "quest_id": "sq-205",
+    "title": "Master a Vocabulary Trial",
+    "tier": "side",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Complete a vocabulary encounter at mastery level",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-306"
+    ]
+  },
+  {
+    "quest_id": "sq-206",
+    "title": "Gather Guild Intel",
+    "tier": "side",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Visit an additional Guild HQ for research-only exploration",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-312"
+    ]
+  },
+  {
+    "quest_id": "sq-207",
+    "title": "Restore the Broken Signpost",
+    "tier": "side",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Complete an optional task in a signpost realm",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-308"
+    ]
+  },
+  {
+    "quest_id": "sq-208",
+    "title": "Complete a Reflection of Growth",
+    "tier": "side",
+    "act": 3,
+    "status": "locked",
+    "objective_short": "Submit an optional reflection about your strengths, interests, or path choice",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-311"
+    ]
+  },
+  {
+    "quest_id": "sq-401",
+    "title": "Earn the Ethics Crest Bonus",
+    "tier": "side",
     "act": 4,
     "status": "locked",
-    "objective_short": "Placeholder: further guild council steps and rewards will attach here in a later chapter.",
-    "realm_ids": ["realm_high_council_hall"],
-    "prerequisite_quest_ids": ["gq_gt102_trial_of_tongues"]
+    "objective_short": "Exceed expectations in the professionalism and soft-skill challenge",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "gt-103"
+    ]
+  },
+  {
+    "quest_id": "sq-402",
+    "title": "Chronicle a Bonus Career Path",
+    "tier": "side",
+    "act": 5,
+    "status": "locked",
+    "objective_short": "Add an optional comparison entry for a second possible career path",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "fa-101"
+    ]
+  },
+  {
+    "quest_id": "sys-001",
+    "title": "Open the Pause Menu",
+    "tier": "side",
+    "act": 1,
+    "status": "locked",
+    "objective_short": "Open the pause menu once",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "mq-101"
+    ]
+  },
+  {
+    "quest_id": "sys-002",
+    "title": "Review the Traveler's Map",
+    "tier": "side",
+    "act": 1,
+    "status": "locked",
+    "objective_short": "Open the map from the pause menu",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "sys-001"
+    ]
+  },
+  {
+    "quest_id": "sys-003",
+    "title": "Review the Quest Log",
+    "tier": "side",
+    "act": 1,
+    "status": "locked",
+    "objective_short": "Open the quest log from the pause menu",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "sys-001"
+    ]
+  },
+  {
+    "quest_id": "sys-004",
+    "title": "Create a Manual Save",
+    "tier": "side",
+    "act": 1,
+    "status": "locked",
+    "objective_short": "Manually save through the save menu",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "sys-001"
+    ]
+  },
+  {
+    "quest_id": "sys-005",
+    "title": "Send the Exit Ticket",
+    "tier": "side",
+    "act": 1,
+    "status": "locked",
+    "objective_short": "Complete the Gmail exit ticket flow",
+    "realm_ids": [],
+    "prerequisite_quest_ids": [
+      "sys-004"
+    ]
+  },
+  {
+    "quest_id": "sys-006",
+    "title": "Load the Journey",
+    "tier": "side",
+    "act": 1,
+    "status": "locked",
+    "objective_short": "Use the load button to resume your saved game",
+    "realm_ids": []
   }
 ]

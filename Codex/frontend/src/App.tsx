@@ -269,23 +269,23 @@ export function App() {
     import.meta.env.DEV || import.meta.env.VITE_LH_PAUSE_MODULE_SHORTCUTS === 'true';
 
   const manifestActComplete = useMemo(
-    () => quests.some((q) => q.quest_id === 'mq_act1_manifest_support' && isTerminalQuestStatus(q.status)),
+    () => quests.some((q) => q.quest_id === 'mq-106' && isTerminalQuestStatus(q.status)),
     [quests],
   );
   const oracleActComplete = useMemo(
-    () => quests.some((q) => q.quest_id === 'mq_act2_oracle_of_fate' && isTerminalQuestStatus(q.status)),
+    () => quests.some((q) => q.quest_id === 'mq-202' && isTerminalQuestStatus(q.status)),
     [quests],
   );
   const vaultRitualComplete = useMemo(
-    () => quests.some((q) => q.quest_id === 'mq_act2_vault_of_runes' && isTerminalQuestStatus(q.status)),
+    () => quests.some((q) => q.quest_id === 'mq-203' && isTerminalQuestStatus(q.status)),
     [quests],
   );
   const enrollmentRuneQuest = useMemo(
-    () => quests.find((q) => q.quest_id === 'gq_gt101_enrollment_rune'),
+    () => quests.find((q) => q.quest_id === 'gt-101'),
     [quests],
   );
   const trialOfTonguesQuest = useMemo(
-    () => quests.find((q) => q.quest_id === 'gq_gt102_trial_of_tongues'),
+    () => quests.find((q) => q.quest_id === 'gt-102'),
     [quests],
   );
   const enrollmentRuneQuestReachable = Boolean(

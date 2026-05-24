@@ -319,7 +319,7 @@ export function TrialOfTonguesModule({
 
                 onSubmitResult({
                   module_id: 'mod_gt102_trial_of_tongues',
-                  quest_id: 'gq_gt102_trial_of_tongues',
+                  quest_id: 'gt-102',
                   realm_id: realmId,
                   npc_id: npcHeader?.npc_id ?? String(draft.npc_id ?? ''),
                   status: hasPassed ? 'passed' : 'failed',

@@ -17,7 +17,7 @@ export function completeDemoShrineVisit(
   mainQuestId: string,
 ): Outcome {
   // Act I: the grove nudges toward the Manifest module — do not auto-complete the SOD here.
-  if (mainQuestId === 'mq_act1_manifest_support') {
+  if (mainQuestId === 'mq-106') {
     return {
       nextPlayer: {
         ...player,

@@ -11,7 +11,7 @@
         "line_id": "resume_act_one_awakening",
         "text": "Brave Traveler {display_name}, your last oath-mark was {last_completed_summary}\n\nThe Awakening is still open: \"{required_next_action}\" — finish the Manifest ritual from Pause before the Archives release the Divination quests.",
         "conditions": [
-          { "kind": "quest_status", "quest_id": "mq_act1_manifest_support", "any_of": ["active", "available"] }
+          { "kind": "quest_status", "quest_id": "mq-106", "any_of": ["active", "available"] }
         ]
       },
       {
@@ -41,7 +41,7 @@
         "conditions": [
           {
             "kind": "quest_status",
-            "quest_id": "mq_act1_manifest_support",
+            "quest_id": "mq-106",
             "any_of": ["active", "available", "completed", "turned_in"]
           }
         ]
@@ -63,7 +63,7 @@
       {
         "line_id": "manager_sidequests",
         "text": "Side contracts stay green in the quest log until turned in — guild policy, Traveler. Clear side tiers before you petition for guild hall research credit.",
-        "conditions": [{ "kind": "quest_status", "quest_id": "mq_act2_path_of_roots", "any_of": ["completed", "turned_in"] }]
+        "conditions": [{ "kind": "quest_status", "quest_id": "mq-201", "any_of": ["completed", "turned_in"] }]
       },
       {
         "line_id": "manager_charter",

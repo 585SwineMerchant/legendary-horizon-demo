@@ -17,7 +17,11 @@
       "Bash(node -e ' *)",
       "Bash(npx tsc *)",
       "Bash(Get-ChildItem -Path \"C:\\\\Antigravity local\\\\LH\\\\Video Game\")",
-      "Bash(Select-Object -Property Name, PSIsContainer)"
+      "Bash(Select-Object -Property Name, PSIsContainer)",
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(f'Total quests: {len\\(d\\)}'\\); print\\('First 5:'\\); [print\\(f'  {q.get\\(\\\\\"quest_id\\\\\",\\\\\"?\\\\\"\\)} - {q.get\\(\\\\\"title\\\\\",\\\\\"?\\\\\"\\)} \\({q.get\\(\\\\\"type\\\\\",\\\\\"?\\\\\"\\)} Act:{q.get\\(\\\\\"act\\\\\",\\\\\"?\\\\\"\\)} Prereq:{q.get\\(\\\\\"prerequisite_quest_id\\\\\",\\\\\"none\\\\\"\\)}\\)'\\) for q in d[:5]]; print\\('...'\\); [print\\(f'  {q.get\\(\\\\\"quest_id\\\\\",\\\\\"?\\\\\"\\)} - {q.get\\(\\\\\"title\\\\\",\\\\\"?\\\\\"\\)}'\\) for q in d[-3:]]\")",
+      "Bash(python gen_quests.py)",
+      "Read(//tmp/**)"
     ]
   }
 }

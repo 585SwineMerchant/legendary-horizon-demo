@@ -1160,7 +1160,7 @@ export function useNightOneFlow() {
               }
             : p,
         );
-        setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'gq_gt102_trial_of_tongues')));
+        setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'gt-102')));
         setSaveFeedback({ tone: 'success', text: buildGuildInterviewInviteToast(deadlineLabel) });
         setVisitedInteractableIds((curr) => (curr.includes(interactableId) ? curr : [...curr, interactableId]));
         return;
@@ -1623,7 +1623,7 @@ export function useNightOneFlow() {
 
   const clearFogKey = useCallback(
     (key: string) => {
-      const vault = quests.find((q) => q.quest_id === 'mq_act2_vault_of_runes');
+      const vault = quests.find((q) => q.quest_id === 'mq-203');
       if (!vault || !isTerminalQuestStatus(vault.status)) return;
       setExploration((e) =>
         e.fog_keys_cleared.includes(key) ? e : { ...e, fog_keys_cleared: [...e.fog_keys_cleared, key] },
@@ -1634,7 +1634,7 @@ export function useNightOneFlow() {
 
   const researchRealm = useCallback(
     (realmId: string) => {
-      const vault = quests.find((q) => q.quest_id === 'mq_act2_vault_of_runes');
+      const vault = quests.find((q) => q.quest_id === 'mq-203');
       if (!vault || !isTerminalQuestStatus(vault.status)) return;
       setRealmProgress((p) => markResearchComplete(p, realmId));
     },
@@ -1643,7 +1643,7 @@ export function useNightOneFlow() {
 
   const updateRealmNotes = useCallback(
     (realmId: string, notes: string) => {
-      const vault = quests.find((q) => q.quest_id === 'mq_act2_vault_of_runes');
+      const vault = quests.find((q) => q.quest_id === 'mq-203');
       if (!vault || !isTerminalQuestStatus(vault.status)) return;
       setRealmProgress((p) => setRealmLearnedNotes(p, realmId, notes));
     },
@@ -1738,7 +1738,7 @@ export function useNightOneFlow() {
         setPlayer((p) =>
           p ? { ...p, required_next_action: GUILD_GT102_RETRY_REQUIRED_NEXT_ACTION } : p,
         );
-        setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'gq_gt102_trial_of_tongues')));
+        setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'gt-102')));
         setSaveFeedback({ tone: 'success', text: GUILD_GT102_FAIL_SEAL_TOAST });
       }
     }
@@ -1770,7 +1770,7 @@ export function useNightOneFlow() {
 
   const submitLedgerEntry = useCallback(
     (partial: Omit<ComparisonLedgerEntry, 'id' | 'created_iso'>) => {
-      const vault = quests.find((q) => q.quest_id === 'mq_act2_vault_of_runes');
+      const vault = quests.find((q) => q.quest_id === 'mq-203');
       if (!vault || !isTerminalQuestStatus(vault.status)) return;
       const id = `ledger_${Date.now().toString(36)}`;
       const entry: ComparisonLedgerEntry = {
@@ -1786,11 +1786,11 @@ export function useNightOneFlow() {
       const scrollMs = signpostLedgerMilestone(entriesAfter, exploration.foretold_signpost_realm_ids);
       setQuests((q) => {
         let next = applyLedgerEntryToQuests(q);
-        const act3q = next.find((x) => x.quest_id === 'gq_act3_fog_of_unknown');
+        const act3q = next.find((x) => x.quest_id === 'mq-301');
         if (act3q && (act3q.status === 'available' || act3q.status === 'active')) {
           const fogLedgerReady = !scrollMs.guidesMilestone || scrollMs.milestoneComplete;
           if (fogLedgerReady) {
-            next = markQuestCompleted(next, 'gq_act3_fog_of_unknown');
+            next = markQuestCompleted(next, 'mq-301');
           }
         }
         return next;
@@ -1816,7 +1816,7 @@ export function useNightOneFlow() {
   }, []);
 
   const markActiveWaypointVisited = useCallback(() => {
-    const vault = quests.find((q) => q.quest_id === 'mq_act2_vault_of_runes');
+    const vault = quests.find((q) => q.quest_id === 'mq-203');
     if (!vault || !isTerminalQuestStatus(vault.status)) return;
     setExploration((e) => {
       const wp = selectActiveWaypoint(PARSED_PRIMARY_MAP.waypoints, e.waypoint_keys_visited);
@@ -2118,7 +2118,7 @@ export function useNightOneFlow() {
       if (outcome === 'passed') {
         applyModuleResult({
           module_id: 'mod_gt102_trial_of_tongues',
-          quest_id: 'gq_gt102_trial_of_tongues',
+          quest_id: 'gt-102',
           realm_id: player.current_realm_id,
           status: 'passed',
           completed_at_iso: nowIso,
@@ -2128,7 +2128,7 @@ export function useNightOneFlow() {
       }
       applyModuleResult({
         module_id: 'mod_gt102_trial_of_tongues',
-        quest_id: 'gq_gt102_trial_of_tongues',
+        quest_id: 'gt-102',
         realm_id: player.current_realm_id,
         status: 'failed',
         completed_at_iso: nowIso,

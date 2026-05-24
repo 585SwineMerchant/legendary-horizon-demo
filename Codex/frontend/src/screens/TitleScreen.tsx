@@ -128,15 +128,15 @@ export function TitleScreen({
         </div>
 
         {onMapVariantChange ? (
-          <div className="lh-title-map-selector" role="group" aria-label="Map variant">
-            <span className="lh-title-map-selector__label">Map:</span>
+          <div className="lh-title-map-selector" role="group" aria-label="Map version">
+            <span className="lh-title-map-selector__label">Version:</span>
             <button
               type="button"
               className={`lh-button${mapVariant === 'current' ? ' lh-button--primary' : ' lh-button--secondary'}`}
               aria-pressed={mapVariant === 'current'}
               onClick={() => onMapVariantChange('current')}
             >
-              Current
+              Build in Progress
             </button>
             <button
               type="button"
@@ -144,7 +144,7 @@ export function TitleScreen({
               aria-pressed={mapVariant === 'stable'}
               onClick={() => onMapVariantChange('stable')}
             >
-              {mapVariant === 'stable' && stableMapLoading ? 'Stable (loading…)' : 'Stable'}
+              {mapVariant === 'stable' && stableMapLoading ? 'Demo (loading…)' : 'Demo'}
             </button>
             {mapVariant === 'stable' && stableMapError ? (
               <span className="lh-title-map-selector__error" role="alert">

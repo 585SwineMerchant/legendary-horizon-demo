@@ -194,7 +194,7 @@ export function EnrollmentRuneModule({ draft, onDraftChange, onSubmitResult }: P
               const now = new Date().toISOString();
               onSubmitResult({
                 module_id: 'mod_gt101_enrollment_rune',
-                quest_id: 'gq_gt101_enrollment_rune',
+                quest_id: 'gt-101',
                 realm_id: 'realm_crossroads_haven',
                 status: 'submitted',
                 score: submitted.score,

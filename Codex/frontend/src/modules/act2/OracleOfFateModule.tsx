@@ -117,7 +117,7 @@ export function OracleOfFateModule({ draft, onDraftChange, onSubmitResult }: Pro
                   const at = nowIso();
                   onSubmitResult({
                     module_id: 'mod_oracle_of_fate',
-                    quest_id: 'mq_act2_oracle_of_fate',
+                    quest_id: 'mq-202',
                     realm_id: 'realm_archives_ascension',
                     status: 'completed',
                     artifacts: {},

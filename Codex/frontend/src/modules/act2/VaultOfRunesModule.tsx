@@ -126,7 +126,7 @@ export function VaultOfRunesModule({ draft, onDraftChange, onSubmitResult }: Pro
               const at = nowIso();
               onSubmitResult({
                 module_id: 'mod_vault_of_runes',
-                quest_id: 'mq_act2_vault_of_runes',
+                quest_id: 'mq-203',
                 realm_id: 'realm_archives_ascension',
                 status: 'completed',
                 completed_at_iso: at,
