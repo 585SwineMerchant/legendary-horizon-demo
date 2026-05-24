@@ -79,6 +79,10 @@ export function App() {
     exploration,
     mediaAssets,
     parsedMap,
+    mapVariant,
+    setMapVariant,
+    stableMapLoading,
+    stableMapError,
     act3,
     enterRealmFromWorldMap,
     primaryWorldTriggerRealmId,
@@ -325,6 +329,10 @@ export function App() {
         <GameTitleScreen
           onStart={navigate.gameTitleStart}
           onResume={navigate.gameTitleResume}
+          mapVariant={mapVariant}
+          onMapVariantChange={setMapVariant}
+          stableMapLoading={stableMapLoading}
+          stableMapError={stableMapError}
         />
       ) : null}
 

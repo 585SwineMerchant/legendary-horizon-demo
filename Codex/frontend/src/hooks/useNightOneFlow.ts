@@ -288,6 +288,16 @@ export function useNightOneFlow() {
   const [quests, setQuests] = useState<QuestDefinition[]>(() => seededQuestSeed.map(deepClone));
 
   const [visitedInteractableIds, setVisitedInteractableIds] = useState<string[]>([]);
+
+  // --- Map variant selector (title screen) ---
+  const [mapVariant, setMapVariant] = useState<'current' | 'stable'>('current');
+  const [stableMapState, setStableMapState] = useState<{
+    loading: boolean;
+    map: ParsedLhMap | null;
+    error: string | null;
+  }>({ loading: false, map: null, error: null });
+  const stableMapFetchedRef = useRef(false);
+
   const [pauseOpen, setPauseOpen] = useState(false);
   const [facilitatorBusy, setFacilitatorBusy] = useState(false);
   const [questLogOpen, setQuestLogOpen] = useState(false);
@@ -380,6 +390,34 @@ export function useNightOneFlow() {
     if (!player || player.required_next_action === demoGuidance.current_objective) return;
     setPlayer((p) => (p ? applyDemoObjectiveToPlayer(p, demoGuidance.current_objective) : p));
   }, [demoGuidance.current_objective, player?.required_next_action]);
+
+  // Lazy-load the stable map the first time the user selects it on the title screen.
+  useEffect(() => {
+    if (mapVariant !== 'stable') return;
+    if (stableMapFetchedRef.current) return;
+    stableMapFetchedRef.current = true;
+    setStableMapState({ loading: true, map: null, error: null });
+    let cancelled = false;
+    void fetch('/assets/maps/Legendary_Horizon_Map_before_move_towards_final.json')
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status} — stable map not found`);
+        return res.json() as Promise<unknown>;
+      })
+      .then((json) => {
+        if (cancelled) return;
+        const loaded = loadLhTiledMapPayload(json);
+        const parsed = buildDemoGuidanceMap(
+          loaded.ok ? loaded.map : getEmptyParsedLhMap(BLUEPRINT.realm?.realm_id, loaded.errors),
+        );
+        setStableMapState({ loading: false, map: parsed, error: loaded.ok ? null : loaded.errors.join('; ') });
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        setStableMapState({ loading: false, map: null, error: msg });
+      });
+    return () => { cancelled = true; };
+  }, [mapVariant]);
 
   useEffect(() => {
     return () => {
@@ -2261,6 +2299,11 @@ export function useNightOneFlow() {
     },
   };
 
+  // Which parsed map to send to the renderer (and act3 totals).
+  const activeMap: ParsedLhMap = mapVariant === 'stable' && stableMapState.map
+    ? stableMapState.map
+    : PARSED_PRIMARY_MAP;
+
   return {
     screen,
     realm,
@@ -2314,13 +2357,17 @@ export function useNightOneFlow() {
     realmProgress,
     exploration,
     mediaAssets: BLUEPRINT.media_assets,
-    parsedMap: PARSED_PRIMARY_MAP,
+    parsedMap: activeMap,
+    mapVariant,
+    setMapVariant,
+    stableMapLoading: stableMapState.loading,
+    stableMapError: stableMapState.error,
     act3: {
       activeWaypointLabel: act3WaypointLabel,
       fogCleared: exploration.fog_keys_cleared.length,
-      fogTotal: PARSED_PRIMARY_MAP.fog_regions.length,
+      fogTotal: activeMap.fog_regions.length,
       waypointVisited: exploration.waypoint_keys_visited.length,
-      waypointTotal: PARSED_PRIMARY_MAP.waypoints.length,
+      waypointTotal: activeMap.waypoints.length,
       scrollLedgerMilestone: (() => {
         const m = signpostLedgerMilestone(exploration.ledger_entries, exploration.foretold_signpost_realm_ids);
         return m.guidesMilestone ? { covered: m.covered, total: m.total } : null;
@@ -2368,7 +2415,7 @@ export function useNightOneFlow() {
     applyModuleResult,
 
     tiledMapDebug: {
-      parsed: PARSED_PRIMARY_MAP,
+      parsed: activeMap,
       loadErrors: TILED_LOAD.ok ? [] : TILED_LOAD.errors,
     },
 

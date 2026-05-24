@@ -127,7 +127,8 @@ type ReactiveGrassDecor = {
 /** Baked windmill on the Aethelwood map (`Windmill_baked_anim` tileset). */
 const WINDMILL_BAKED_TILESET_NAME = 'Windmill_baked_anim';
 const WINDMILL_FRAME_WIDTH_TILES = 8;
-const WINDMILL_FRAME_HEIGHT_TILES = 4;
+/** Each windmill pose is 11 tiles tall — matches the base Windmill.png (256×352px = 8×11 tiles). */
+const WINDMILL_FRAME_HEIGHT_TILES = 11;
 const WINDMILL_FRAME_MS = 140;
 
 type WindmillSheetLayout = 'horizontal' | 'vertical';
@@ -179,7 +180,7 @@ function inferWindmillAnimSpec(baked: Phaser.Tilemaps.Tileset): WindmillAnimSpec
   const rowBands = Math.floor(sheetRows / frameHeightTiles);
   const framesHorizontal = framesPerRow * rowBands;
 
-  // 1024×1408 px @ 32px → 32×44 tiles; 4 frames/row × 8 tiles wide, 11 row-bands of 4 rows = 44 frames total.
+  // 1024×1408 px @ 32px → 32×44 tiles; 4 frames/row × 8 tiles wide, 4 row-bands of 11 rows = 16 frames total.
   const layout: WindmillSheetLayout =
     total % strideVertical === 0 && framesVertical >= framesHorizontal ? 'vertical' : 'horizontal';
   const frameStride = layout === 'vertical' ? strideVertical : strideHorizontal;
