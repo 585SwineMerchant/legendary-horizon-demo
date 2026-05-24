@@ -398,7 +398,7 @@ export function useNightOneFlow() {
     stableMapFetchedRef.current = true;
     setStableMapState({ loading: true, map: null, error: null });
     let cancelled = false;
-    void fetch('/assets/maps/Legendary_Horizon_Map_before_move_towards_final.json')
+    void fetch(`${import.meta.env.BASE_URL}assets/maps/Legendary_Horizon_Map_before_move_towards_final.json`)
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status} — stable map not found`);
         return res.json() as Promise<unknown>;
@@ -414,6 +414,7 @@ export function useNightOneFlow() {
       .catch((err: unknown) => {
         if (cancelled) return;
         const msg = err instanceof Error ? err.message : String(err);
+        stableMapFetchedRef.current = false; // allow retry after error
         setStableMapState({ loading: false, map: null, error: msg });
       });
     return () => { cancelled = true; };
