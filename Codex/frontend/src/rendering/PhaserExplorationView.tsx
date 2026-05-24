@@ -3542,6 +3542,9 @@ export function PhaserExplorationView({
             _parsedMap.spawn_points.find((spawn) => spawn.realm_id === realmId) ??
             _parsedMap.spawn_points[0];
           const maiaPortal = _triggers.find((tr) => tr.kind === 'maia_portal');
+          const masterScribeTrigger = _triggers.find(
+            (tr) => tr.kind === 'npc_dialogue' && tr.npc_id === MASTER_SCRIBE_NPC_ID,
+          );
           const usePortalAnchoredAethelwoodDemoStart =
             realmId === PRIMARY_WORLD_TRIGGER_REALM_ID &&
             !!maiaPortal &&
@@ -3552,16 +3555,22 @@ export function PhaserExplorationView({
             ? maiaPortal.x + maiaPortal.w / 2
             : authoredSpawn
               ? authoredSpawn.bounds.x + authoredSpawn.bounds.width / 2
-              : maiaPortal
-                ? maiaPortal.x + maiaPortal.w / 2
-                : wpx / 2;
+              // When no authored spawn exists, start the player near the Master Scribe so they
+              // encounter the first NPC immediately. Falls back to the Maia portal if absent.
+              : masterScribeTrigger
+                ? masterScribeTrigger.x + masterScribeTrigger.w / 2
+                : maiaPortal
+                  ? maiaPortal.x + maiaPortal.w / 2
+                  : wpx / 2;
           const rawSpawnY = usePortalAnchoredAethelwoodDemoStart
             ? maiaPortal.y + maiaPortal.h + 150
             : authoredSpawn
               ? authoredSpawn.bounds.y + authoredSpawn.bounds.height / 2
-              : maiaPortal
-                ? maiaPortal.y + maiaPortal.h + 150
-                : hpx / 2;
+              : masterScribeTrigger
+                ? masterScribeTrigger.y + masterScribeTrigger.h / 2 + 50
+                : maiaPortal
+                  ? maiaPortal.y + maiaPortal.h + 150
+                  : hpx / 2;
           const spawnX = Phaser.Math.Clamp(rawSpawnX, 24, wpx - 24);
           const spawnY = Phaser.Math.Clamp(rawSpawnY, 24, hpx - 24);
           this.explorationSpawnFootX = spawnX;

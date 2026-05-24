@@ -21,7 +21,11 @@
       "Bash(python -c ' *)",
       "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(f'Total quests: {len\\(d\\)}'\\); print\\('First 5:'\\); [print\\(f'  {q.get\\(\\\\\"quest_id\\\\\",\\\\\"?\\\\\"\\)} - {q.get\\(\\\\\"title\\\\\",\\\\\"?\\\\\"\\)} \\({q.get\\(\\\\\"type\\\\\",\\\\\"?\\\\\"\\)} Act:{q.get\\(\\\\\"act\\\\\",\\\\\"?\\\\\"\\)} Prereq:{q.get\\(\\\\\"prerequisite_quest_id\\\\\",\\\\\"none\\\\\"\\)}\\)'\\) for q in d[:5]]; print\\('...'\\); [print\\(f'  {q.get\\(\\\\\"quest_id\\\\\",\\\\\"?\\\\\"\\)} - {q.get\\(\\\\\"title\\\\\",\\\\\"?\\\\\"\\)}'\\) for q in d[-3:]]\")",
       "Bash(python gen_quests.py)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(d.get\\('scripts',{}\\)\\)\")",
+      "Bash(python -c \"import sys; text=sys.stdin.read\\(\\); print\\(text\\)\")",
+      "Bash(mkdir -p \"C:\\\\Antigravity local\\\\LH\\\\Video Game\\\\Codex\\\\.claude\")",
+      "Bash(echo '{\"version\":\"0.0.1\",\"configurations\":[{\"name\":\"lh-frontend\",\"runtimeExecutable\":\"npm\",\"runtimeArgs\":[\"run\",\"dev\"],\"port\":5173}]}')"
     ]
   }
 }

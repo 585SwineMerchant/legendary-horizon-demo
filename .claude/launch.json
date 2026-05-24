@@ -12,6 +12,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["serve", ".", "--listen", "3457", "--no-clipboard"],
       "port": 3457
+    },
+    {
+      "name": "lh-frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "Codex/frontend"],
+      "port": 5173
     }
   ]
 }
