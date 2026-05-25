@@ -23,6 +23,12 @@ export type ParsedLhTrigger = {
   target_quest_id?: string;
   /** Optional key for configured external handoff destinations, such as Maia. */
   external_url_key?: string;
+  /**
+   * Present when `lh_kind` is `fog_clear`.
+   * Matches the `fog_key` of the `fog_region` object this trigger is meant to clear.
+   * Comes from the Tiled custom property `lh_fog_key` on the object.
+   */
+  fog_key?: string;
   bounds: {
     x: number;
     y: number;
@@ -258,7 +264,7 @@ function normaliseTriggers(objects: TiledObject[], layerName: string, warnings: 
             ? 'interaction'
             : kind === 'maia_portal'
               ? 'overlap_auto_bottom'
-              : kind === 'guild_hq_research'
+              : kind === 'guild_hq_research' || kind === 'fog_clear'
                 ? 'overlap_auto'
                 : 'interaction';
     out.push({
@@ -272,6 +278,7 @@ function normaliseTriggers(objects: TiledObject[], layerName: string, warnings: 
       target_realm_id: tileProperty(props, 'lh_target_realm_id') ?? tileProperty(props, 'lh_realm_id'),
       target_quest_id: tileProperty(props, 'lh_target_quest_id'),
       external_url_key: tileProperty(props, 'lh_external_url_key'),
+      fog_key: tileProperty(props, 'lh_fog_key'),
       bounds: objectBounds(obj, warnings),
       interaction_label_active:
         tileProperty(props, 'lh_interaction_copy_active') ?? objectName ?? `Interact #${obj.id}`,

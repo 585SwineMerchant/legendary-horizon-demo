@@ -21,6 +21,7 @@ import { loadQuestDefinitionsFromJson, reconcileQuestPrerequisites } from '../qu
 
 import { cacheFullStateAfterSave } from './localFullStateCache';
 import { postLhWebAppJson } from './lhWebAppClient';
+import { clearPendingSave, writePendingSave } from '../lib/lhPendingSave';
 
 const ACADEMIC_KINDS = new Set<string>([
   'quest_of_fate',
@@ -323,12 +324,17 @@ export async function persistManualSaveEnvelope(envelope: ManualSaveEnvelopeV1):
     };
   }
 
+  // Buffer the envelope before attempting the network call so a tab-close or
+  // network drop mid-flight doesn't silently discard it.
+  writePendingSave(envelope);
+
   const res = await postLhWebAppJson({
     action: 'manual_save',
     envelope,
   });
 
   if (!res.ok) {
+    // Leave the pending save in place — startup will retry it.
     return {
       ok: false,
       message: res.message,
@@ -338,6 +344,7 @@ export async function persistManualSaveEnvelope(envelope: ManualSaveEnvelopeV1):
 
   const parsed = res.payload;
   if (!parsed.ok) {
+    // Leave the pending save in place — startup will retry it.
     return {
       ok: false,
       message: (parsed.message as string) || 'Save rejected by server.',
@@ -346,6 +353,8 @@ export async function persistManualSaveEnvelope(envelope: ManualSaveEnvelopeV1):
   }
 
   cacheFullStateAfterSave(envelope);
+  // POST confirmed successful — discard the pending save buffer.
+  clearPendingSave();
 
   return {
     ok: true,

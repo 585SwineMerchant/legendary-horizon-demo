@@ -27,6 +27,7 @@ import {
   tryLocalRestoreFromPlayerBackup,
 } from '../services/teacherToolsLocal';
 import { clearCachedFullState } from '../services/localFullStateCache';
+import { clearPendingSave, hasPendingSave, readPendingSave } from '../lib/lhPendingSave';
 
 /** Survives React StrictMode remount so DEV boot query handling runs once per full page load. */
 let lhDevBootUrlQueryHandled = false;
@@ -710,6 +711,27 @@ export function useNightOneFlow() {
     setBootstrapPhase('loading');
     setBootstrapError(null);
     try {
+      // Flush any pending save that was interrupted by a tab-close or network drop.
+      // Fire-and-forget: a failed flush must not block startup or show an error.
+      if (hasPendingSave()) {
+        const pendingEnvelope = readPendingSave();
+        if (pendingEnvelope) {
+          void persistManualSaveEnvelope({
+            ...pendingEnvelope,
+            save_kind: pendingEnvelope.save_kind ?? 'auto',
+          }).then((result) => {
+            if (result.ok) {
+              clearPendingSave();
+              if (typeof console !== 'undefined') {
+                console.info('[LhPendingSave]', 'Flushed pending save on startup.');
+              }
+            } else if (typeof console !== 'undefined') {
+              console.warn('[LhPendingSave]', 'Startup flush failed — will retry on next save.', result.message);
+            }
+          });
+        }
+      }
+
       if (!rosterResolution.matched && typeof console !== 'undefined') {
         console.warn(
           '[LhRoster]',
@@ -1260,6 +1282,25 @@ export function useNightOneFlow() {
         return;
       }
 
+      if (kind === 'fog_clear') {
+        const fogKey = triggerMeta.fog_key;
+        if (fogKey) {
+          // Same gate as clearFogKey: fog clearing requires mq-203 completion.
+          const vault = quests.find((q) => q.quest_id === 'mq-203');
+          if (vault && isTerminalQuestStatus(vault.status)) {
+            setExploration((e) =>
+              e.fog_keys_cleared.includes(fogKey)
+                ? e
+                : { ...e, fog_keys_cleared: [...e.fog_keys_cleared, fogKey] },
+            );
+          }
+        } else if (import.meta.env.DEV && typeof console !== 'undefined') {
+          console.warn('[LhTrigger] fog_clear trigger has no lh_fog_key — set it in Tiled', { interactableId });
+        }
+        setVisitedInteractableIds((curr) => (curr.includes(interactableId) ? curr : [...curr, interactableId]));
+        return;
+      }
+
       if (
         visitedInteractableIds.includes(interactableId) &&
         !(lostEchoDemo && demoGuidance.stage_id === 'demo_combat_trial_available')
@@ -1460,13 +1501,16 @@ export function useNightOneFlow() {
       save_kind: 'manual',
     });
 
+    setSaveFeedback({ tone: 'success', text: 'Saving…' });
+
     const persist = await persistManualSaveEnvelope(envelope);
     setPauseOpen(false);
 
     if (!persist.ok) {
+      // writePendingSave was already called inside persistManualSaveEnvelope before the POST.
       setSaveFeedback({
         tone: 'error',
-        text: persist.message + (persist.errors ? `\n${persist.errors.join('\n')}` : ''),
+        text: '⚠ Save failed — will retry',
         retryLabel: 'Retry save',
         onRetry: () => {
           void handleManualSave();
