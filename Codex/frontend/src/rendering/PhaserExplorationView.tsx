@@ -296,6 +296,8 @@ const TILESET_IMAGES = [
   'wind-cartoonish-fx-288X64- 48frames',
   'props',
   'Tileset-Terrain2',
+  'Tileset-ruins-Terrain',
+  'Tileset-ruins-Terrain2',
   'Tileset-Terrain3',
   'altar',
   'altar - on grass - complete',
