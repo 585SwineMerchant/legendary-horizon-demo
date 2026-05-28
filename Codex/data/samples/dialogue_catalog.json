@@ -36,6 +36,28 @@
     ],
     "master_scribe_default": [
       {
+        "line_id": "scribe_invites_survey",
+        "text": "Before the Manifest can be sealed, the Codex must know your nature, {display_name}. Answer the Traveler's Survey — twelve questions, four choices each. The Signpost Algorithm will weave the rest.",
+        "conditions": [
+          {
+            "kind": "quest_status",
+            "quest_id": "mq-104",
+            "any_of": ["active", "available"]
+          }
+        ]
+      },
+      {
+        "line_id": "scribe_send_to_oracle",
+        "text": "The Survey is sealed and your Foretold Signposts are inscribed, {display_name}. Take this Scroll of Destiny and reflect upon its runes near the tranquility of the Oracle's altar.",
+        "conditions": [
+          {
+            "kind": "quest_status",
+            "quest_id": "mq-106",
+            "any_of": ["active", "available"]
+          }
+        ]
+      },
+      {
         "line_id": "scribe_when_main_active",
         "text": "The main path reads \"{active_main_quest_title}\". When you finish a worksheet row, the Scribe's tally updates on save — no separate ritual required.",
         "conditions": [
@@ -50,12 +72,63 @@
         "line_id": "scribe_manifest_hint",
         "text": "Ink dries fast on the Manifest, Traveler. Cross-check your quest log against what your facilitator expects in Forms — the Scribe's margin notes follow the same columns as your save row.",
         "conditions": [{ "kind": "always" }]
+      },
+      {
+        "line_id": "scribe_oracle_foretold",
+        "text": "The Oracle has spoken, {display_name}. Your destiny is now woven into the Ledger. Open your Scroll of Destiny to access the Quest of Fate Worksheet, and use the Prophecy link to research your path.",
+        "conditions": [
+          {
+            "kind": "quest_status",
+            "quest_id": "mq-205",
+            "any_of": ["active", "available"]
+          }
+        ]
+      },
+      {
+        "line_id": "scribe_give_atlas_and_ledger",
+        "text": "Your research is thorough, Traveler. Take this World Atlas and Comparison Ledger. The realms are open to you now—seek out the guilds, compare their wisdom, and chart your own course. Safe travels.",
+        "conditions": [
+          {
+            "kind": "quest_status",
+            "quest_id": "mq-206",
+            "any_of": ["active", "available"]
+          }
+        ]
+      },
+      {
+        "line_id": "scribe_comparison_ready",
+        "text": "The fog-gates clear for those who compare, not merely collect. Your foretold path points toward {career_cluster_name} — place it beside two others in the Career Comparison and let the numbers speak.",
+        "conditions": [
+          {
+            "kind": "quest_status",
+            "quest_id": "mq-301",
+            "any_of": ["active", "available"]
+          }
+        ]
       }
     ],
     "oracle_default": [
       {
         "line_id": "oracle_maiamirror",
         "text": "Smoke lifts from the Mirror of Maia, {display_name}. What you rehearse here in {realm_display_name} should echo in your Maia Learning reflections — the Oracle only repeats what data already whispers.",
+        "conditions": [{ "kind": "always" }]
+      }
+    ],
+    "villager_generic": [
+      {
+        "line_id": "villager_oracle_complete",
+        "text": "Word spreads fast in this realm — they say the Oracle has spoken for you, {display_name}. Carry that destiny with care.",
+        "conditions": [
+          {
+            "kind": "quest_status",
+            "quest_id": "mq-202",
+            "any_of": ["completed", "turned_in"]
+          }
+        ]
+      },
+      {
+        "line_id": "villager_exploring",
+        "text": "The fog breaks for those who walk the path, Traveler. Safe journeys in {realm_display_name}.",
         "conditions": [{ "kind": "always" }]
       }
     ],

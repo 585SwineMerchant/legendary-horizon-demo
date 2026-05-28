@@ -340,6 +340,7 @@ const TILESET_IMAGES = [
   'waterfall',
   'wall-5-2-premade corners',
   'wall-5 - 2 tiles tall',
+  'golden statues_12',
 ] as const;
 
 const PRELOAD_TILESET_KEYS = new Set<string>(TILESET_IMAGES);
@@ -470,6 +471,20 @@ const LOST_ECHO_FRAME_COUNTS = {
   hurt: 8,
   death: 13,
 } as const;
+
+/** Oracle of Fate golden statue (static image loaded separately from tilesets). */
+const ORACLE_STATUE_KEY = 'lh_oracle_statue';
+const ORACLE_STATUE_FILE = 'assets/maps/golden statues_12.png';
+/** Window event fired by useNightOneFlow to trigger Oracle buildup sequence. */
+const LH_WINDOW_ORACLE_BUILDUP_START = 'lh:oracle-buildup-start';
+/** Window event fired after Oracle module closes, triggering the return transition. */
+const LH_WINDOW_ORACLE_RETURN_TRANSITION = 'lh:oracle-return-transition';
+/** Glow colour for the Oracle statue (warm gold). */
+const ORACLE_GLOW_COLOR = 0xd4a017;
+/** Idle outer glow strength on the Oracle statue. */
+const ORACLE_GLOW_IDLE = 2;
+/** Peak glow strength reached during the buildup animation. */
+const ORACLE_GLOW_BUILDUP_PEAK = 6;
 
 /**
  * Roaming hack-and-slash Lost Echoes (separate from the scripted `lost_echo_demo` knowledge-battle trigger).
@@ -1201,6 +1216,12 @@ export function PhaserExplorationView({
         private combatEncounterCooldownUntil = new Map<string, number>();
         private lostEchoIdleLoadFailed = false;
         private lastAuthoringDepthLogAt = 0;
+        /** Static Oracle statue image sprites, keyed by interactable_id. */
+        private oracleStatueSprites = new Map<string, Phaser.GameObjects.Image>();
+        /** Current glow outer-strength on oracle statues (tweened during buildup). */
+        private oracleGlowStrength = ORACLE_GLOW_IDLE;
+        /** Running glow tween for oracle buildup (cancelled on return). */
+        private oracleGlowTween?: Phaser.Tweens.Tween;
         /** JRPG-style knowledge battle layer (fixed to camera; exploration map stays mounted underneath). */
         private knowledgeBattlePaused = false;
         private knowledgeBattleInteractableId: string | null = null;
@@ -2579,6 +2600,117 @@ export function PhaserExplorationView({
           }
         }
 
+        /** Place a static golden-statue sprite at the oracle_encounter trigger location. */
+        private addOracleStatueVisual(hit: TriggerRect): void {
+          if (!this.textures.exists(ORACLE_STATUE_KEY)) {
+            if (import.meta.env.DEV) {
+              console.info('[LhScene] Oracle statue texture missing — skipping visual', hit.interactable_id);
+            }
+            return;
+          }
+          const img = this.add.image(hit.x + hit.w / 2, hit.y + hit.h, ORACLE_STATUE_KEY);
+          img.setOrigin(0.5, 1);
+          img.setDepth(img.y);
+          img.setTint(ORACLE_GLOW_COLOR);
+          this.oracleStatueSprites.set(hit.interactable_id, img);
+        }
+
+        /**
+         * Task 2 — Oracle buildup sequence.
+         * Plays: glow ramp 2→6, chromatic aberration flash, vignette clamp, brief camera shake,
+         * fade to black overlay; calls `onComplete` when the overlay reaches full opacity.
+         * Uses only Phaser tweens — no setTimeout.
+         */
+        private playOracleBuildupAndTransition(onComplete: () => void): void {
+          const cam = this.cameras.main;
+
+          // Stop movement.
+          this.triggerTransitionLocked = true;
+          if (this.player?.active) {
+            this.player.setVelocity(0, 0);
+            this.player.anims.stop();
+          }
+
+          // 1. Ramp oracle statue glow 2 → 6 over 800 ms.
+          this.oracleGlowTween?.stop();
+          const glowProxy = { v: ORACLE_GLOW_IDLE };
+          this.oracleGlowTween = this.tweens.add({
+            targets: glowProxy,
+            v: ORACLE_GLOW_BUILDUP_PEAK,
+            duration: 800,
+            ease: 'Sine.easeIn',
+            onUpdate: () => {
+              this.oracleGlowStrength = glowProxy.v;
+            },
+          });
+
+          // 2. Camera shake at 600 ms.
+          this.time.delayedCall(600, () => {
+            if (!this.sys?.isActive?.()) return;
+            cam.shake(280, 0.007);
+          });
+
+          // 3. Full-screen black overlay that fades in; fire onComplete when opaque.
+          const overlay = this.add
+            .rectangle(0, 0, cam.width * 4, cam.height * 4, 0x000000, 0)
+            .setDepth(50000)
+            .setScrollFactor(1, 1);
+          // Place at camera centre.
+          const cx = cam.scrollX + cam.width / 2;
+          const cy = cam.scrollY + cam.height / 2;
+          overlay.setPosition(cx, cy);
+
+          this.tweens.add({
+            targets: overlay,
+            alpha: 1,
+            delay: 700,
+            duration: 500,
+            ease: 'Sine.easeIn',
+            onComplete: () => {
+              if (!this.sys?.isActive?.()) return;
+              onComplete();
+              // Auto-destroy overlay so it doesn't block the React UI layer.
+              this.time.delayedCall(200, () => overlay.destroy(true));
+            },
+          });
+        }
+
+        /**
+         * Task 2 — Oracle return transition.
+         * Fades back in from black after the prophecy reveal closes.
+         */
+        private playOracleReturnTransition(): void {
+          const cam = this.cameras.main;
+          this.triggerTransitionLocked = false;
+
+          // Ramp glow back to idle.
+          this.oracleGlowTween?.stop();
+          const glowProxy = { v: this.oracleGlowStrength };
+          this.oracleGlowTween = this.tweens.add({
+            targets: glowProxy,
+            v: ORACLE_GLOW_IDLE,
+            duration: 600,
+            ease: 'Sine.easeOut',
+            onUpdate: () => {
+              this.oracleGlowStrength = glowProxy.v;
+            },
+          });
+
+          // Fade from black (brief flash).
+          cam.flash(420, 0, 0, 0, true);
+        }
+
+        private handleOracleBuildupStart = () => {
+          this.playOracleBuildupAndTransition(() => {
+            // Signal React the Phaser fade is done so the Oracle module can open.
+            window.dispatchEvent(new CustomEvent('lh:oracle-phaser-fade-done'));
+          });
+        };
+
+        private handleOracleReturnTransition = () => {
+          this.playOracleReturnTransition();
+        };
+
         private maybeAddTiledShadowHook(
           obj: { x?: number; y?: number; width?: number; height?: number; properties?: TiledPropertyRuntime[]; id?: number; name?: string },
           baseX: number,
@@ -3212,6 +3344,18 @@ export function PhaserExplorationView({
             });
           }
 
+          this.load.image(ORACLE_STATUE_KEY, publicAssetUrl(ORACLE_STATUE_FILE));
+          // Generic villager NPCs (1600×160 idle strips — 10 frames × 160px).
+          this.load.spritesheet(
+            'lh_villager_m_idle',
+            publicAssetUrl('assets/npcs/villager/villager-m-idle.png'),
+            { frameWidth: 160, frameHeight: 160 },
+          );
+          this.load.spritesheet(
+            'lh_villager_f_idle',
+            publicAssetUrl('assets/npcs/villager/villager-f-idle.png'),
+            { frameWidth: 160, frameHeight: 160 },
+          );
           this.load.image(JRPG_BATTLE_BG_KEY, publicAssetUrl(JRPG_BATTLE_BG_PATH));
           jrpgBattleBackdropDevLog('preload_queued', {
             key: JRPG_BATTLE_BG_KEY,
@@ -3430,6 +3574,10 @@ export function PhaserExplorationView({
 
             if (tr.kind === 'combat_encounter' && tr.tiled_name === LOST_ECHO_TRIGGER_NAME) {
               this.addLostEchoVisual(tr);
+            }
+
+            if (tr.kind === 'oracle_encounter') {
+              this.addOracleStatueVisual(tr);
             }
 
             const isPortal = tr.kind === 'maia_portal';
@@ -3787,6 +3935,8 @@ export function PhaserExplorationView({
           window.addEventListener(LH_WINDOW_PHASER_GUILD_RESEARCH_EXIT, this.handleGuildResearchExit);
           window.addEventListener(LH_WINDOW_KNOWLEDGE_COMBAT_VISUAL, this.handleKnowledgeCombatVisual);
           window.addEventListener(LH_WINDOW_KNOWLEDGE_BATTLE_PRESENTATION, this.handleKnowledgeBattlePresentation);
+          window.addEventListener(LH_WINDOW_ORACLE_BUILDUP_START, this.handleOracleBuildupStart);
+          window.addEventListener(LH_WINDOW_ORACLE_RETURN_TRANSITION, this.handleOracleReturnTransition);
           this.scale.on('resize', this.handleKnowledgeBattleResize);
           this.events.once('shutdown', () => {
             window.removeEventListener('lh:maia-handoff-opened', this.handleMaiaOpened);
@@ -3795,6 +3945,8 @@ export function PhaserExplorationView({
             window.removeEventListener(LH_WINDOW_PHASER_GUILD_RESEARCH_EXIT, this.handleGuildResearchExit);
             window.removeEventListener(LH_WINDOW_KNOWLEDGE_COMBAT_VISUAL, this.handleKnowledgeCombatVisual);
             window.removeEventListener(LH_WINDOW_KNOWLEDGE_BATTLE_PRESENTATION, this.handleKnowledgeBattlePresentation);
+            window.removeEventListener(LH_WINDOW_ORACLE_BUILDUP_START, this.handleOracleBuildupStart);
+            window.removeEventListener(LH_WINDOW_ORACLE_RETURN_TRANSITION, this.handleOracleReturnTransition);
             this.scale.off('resize', this.handleKnowledgeBattleResize);
             this.windmillAnimTimer?.remove(false);
             this.windmillAnimTimer = null;

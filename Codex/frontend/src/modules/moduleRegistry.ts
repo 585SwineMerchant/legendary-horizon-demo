@@ -38,8 +38,16 @@ export const LH_MODULE_REGISTRY: ModuleDefinition[] = [
     route_key: 'vault-of-runes',
   },
   {
+    module_id: 'mod_quest_of_fate_worksheet',
+    title: 'Quest of Fate Worksheet',
+    realm_id: 'realm_archives_ascension',
+    quest_id: 'mq-205',
+    act: 2,
+    route_key: 'quest-of-fate-worksheet',
+  },
+  {
     module_id: 'mod_fog_of_unknown',
-    title: 'Fog of the Unknown (World Map)',
+    title: 'Career Comparison Worksheet',
     realm_id: 'realm_high_council_hall',
     quest_id: 'mq-301',
     act: 3,
@@ -52,6 +60,14 @@ export const LH_MODULE_REGISTRY: ModuleDefinition[] = [
     quest_id: 'mq-106',
     act: 1,
     route_key: 'manifest',
+  },
+  {
+    module_id: 'mod_master_scribe_survey',
+    title: "Traveler's Survey (Master Scribe)",
+    realm_id: 'realm_archives_ascension',
+    quest_id: 'mq-104',
+    act: 1,
+    route_key: 'master-scribe-survey',
   },
 ];
 

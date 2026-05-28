@@ -51,6 +51,19 @@ var LH_PLAYER_SAVE_HEADERS = {
   ritual_drafts_json: 'ritual_drafts_json',
   /** M8 — `{ visited_trigger_object_ids: string[] }` from manual-save envelope. */
   progression_flags_json: 'progression_flags_json',
+  /** Act I — Traveler's Survey RIASEC scores (0–20 each). */
+  riasec_r: 'riasec_r',
+  riasec_i: 'riasec_i',
+  riasec_a: 'riasec_a',
+  riasec_s: 'riasec_s',
+  riasec_e: 'riasec_e',
+  riasec_c: 'riasec_c',
+  /** Act I — Foretold Signpost guild realm_ids (up to three). */
+  foretold_signpost_1_guild_id: 'foretold_signpost_1_guild_id',
+  foretold_signpost_2_guild_id: 'foretold_signpost_2_guild_id',
+  foretold_signpost_3_guild_id: 'foretold_signpost_3_guild_id',
+  /** ISO timestamp when the Scroll of Destiny was first generated (Manifest sealed). */
+  scroll_generated_at: 'scroll_generated_at',
 };
 
 var LH_ROSTER_HEADERS = {

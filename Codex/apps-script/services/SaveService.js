@@ -218,7 +218,7 @@ function LhSave_manualSaveProgress(spreadsheetId, tabNameOverride, envelope) {
   if (prior.ok && envelope.save_kind !== 'auto') {
     var backup = {
       schema_version: 1,
-      captured_at_iso: new Date().toISOString(),
+      captured_at_iso: lhSave_isoForSheet_(new Date().toISOString()),
       player_snapshot: prior.player,
       quests_snapshot: prior.quests || [],
       exploration_loop: prior.exploration_loop || null,
@@ -317,6 +317,19 @@ function lhSave_writeFieldIfPresent_(sheet, headerMap, targetRow, headerKey, val
 }
 
 /**
+ * Prefixes an ISO-8601 timestamp string with `'` so Google Sheets stores it
+ * as plain text instead of converting it to a date/time value and applying
+ * the spreadsheet's local timezone offset.
+ * Returns the value unchanged if it is falsy or not a string.
+ * @param {string|null|undefined} iso
+ * @returns {string}
+ */
+function lhSave_isoForSheet_(iso) {
+  if (!iso || typeof iso !== 'string') return iso;
+  return "'" + iso;
+}
+
+/**
  * @param {object} opts { questsJson?, lastManualIso?, revisionToken?, autoIso?, exitState? }
  */
 function lhSave_writePlayerSnapshot_(sheet, headerMap, targetRow, ps, opts) {
@@ -343,15 +356,15 @@ function lhSave_writePlayerSnapshot_(sheet, headerMap, targetRow, ps, opts) {
     w(LH_PLAYER_SAVE_HEADERS.revision_token, ps.revision_token);
   }
   if (opts.lastManualIso) {
-    w(LH_PLAYER_SAVE_HEADERS.last_manual_save_iso, opts.lastManualIso);
+    w(LH_PLAYER_SAVE_HEADERS.last_manual_save_iso, lhSave_isoForSheet_(opts.lastManualIso));
   } else if (ps.last_manual_save_iso) {
-    w(LH_PLAYER_SAVE_HEADERS.last_manual_save_iso, ps.last_manual_save_iso);
+    w(LH_PLAYER_SAVE_HEADERS.last_manual_save_iso, lhSave_isoForSheet_(ps.last_manual_save_iso));
   }
   if (opts.questsJson) {
     w(LH_PLAYER_SAVE_HEADERS.quests_snapshot_json, opts.questsJson);
   }
   if (opts.autoIso) {
-    w(LH_PLAYER_SAVE_HEADERS.auto_save_last_iso, opts.autoIso);
+    w(LH_PLAYER_SAVE_HEADERS.auto_save_last_iso, lhSave_isoForSheet_(opts.autoIso));
   }
   if (opts.exitState !== undefined && opts.exitState !== null) {
     w(LH_PLAYER_SAVE_HEADERS.exit_ticket_state, opts.exitState);
@@ -410,6 +423,52 @@ function lhSave_writeEnvelopeExtensionColumns_(sheet, headerMap, targetRow, enve
       LH_PLAYER_SAVE_HEADERS.ritual_drafts_json,
       JSON.stringify(envelope.ritual_drafts),
     );
+  }
+  // Act I — RIASEC scores and Foretold Signpost columns (standalone for easy Sheets querying).
+  if (envelope.exploration_loop && typeof envelope.exploration_loop === 'object') {
+    var ex = envelope.exploration_loop;
+    // RIASEC scores from survey module draft
+    var surveyDraft =
+      ex.module_drafts &&
+      typeof ex.module_drafts === 'object' &&
+      ex.module_drafts.mod_master_scribe_survey;
+    if (surveyDraft && typeof surveyDraft === 'object') {
+      var rcodes = ['r', 'i', 'a', 's', 'e', 'c'];
+      for (var ri = 0; ri < rcodes.length; ri++) {
+        var rc = rcodes[ri];
+        var rval = surveyDraft['riasec_' + rc];
+        if (rval !== undefined && rval !== null && rval !== '') {
+          lhSave_writeFieldIfPresent_(
+            sheet,
+            headerMap,
+            targetRow,
+            LH_PLAYER_SAVE_HEADERS['riasec_' + rc],
+            Number(rval),
+          );
+        }
+      }
+    }
+    // Foretold signpost guild IDs
+    var signposts = ex.foretold_signpost_realm_ids;
+    if (Array.isArray(signposts)) {
+      var spKeys = ['foretold_signpost_1_guild_id', 'foretold_signpost_2_guild_id', 'foretold_signpost_3_guild_id'];
+      for (var si = 0; si < spKeys.length; si++) {
+        var spVal = signposts[si];
+        if (typeof spVal === 'string' && spVal) {
+          lhSave_writeFieldIfPresent_(sheet, headerMap, targetRow, LH_PLAYER_SAVE_HEADERS[spKeys[si]], spVal);
+        }
+      }
+      // Write scroll_generated_at on first appearance (don't overwrite if already set)
+      if (signposts.length > 0) {
+        lhSave_writeFieldIfPresent_(
+          sheet,
+          headerMap,
+          targetRow,
+          LH_PLAYER_SAVE_HEADERS.scroll_generated_at,
+          lhSave_isoForSheet_(new Date().toISOString()),
+        );
+      }
+    }
   }
 }
 

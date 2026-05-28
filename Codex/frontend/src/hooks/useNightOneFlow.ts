@@ -352,6 +352,7 @@ export function useNightOneFlow() {
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [moduleHostOpen, setModuleHostOpen] = useState(false);
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null);
+  const [scrollRevealOpen, setScrollRevealOpen] = useState(false);
   const [bootstrapPhase, setBootstrapPhase] = useState<'idle' | 'loading' | 'error'>('idle');
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [realmProgress, setRealmProgress] = useState<RealmProgressMap>({});
@@ -1046,17 +1047,6 @@ export function useNightOneFlow() {
           });
         }
 
-        if (triggerRealm !== 'realm_aethelwood') {
-          setSaveFeedback({
-            tone: 'error',
-            text: `This guild research trigger is pointing at ${triggerRealm || 'no realm'} instead of Aethelwood. Check the Tiled lh_realm_id property.`,
-          });
-          window.dispatchEvent(
-            new CustomEvent(LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT, { detail: { interactableId } }),
-          );
-          return;
-        }
-
         // After first visit + atlas fog, physical doors close until the traveler commits to a True Path guild.
         if (revealed.has(triggerRealm)) {
           if (truePathRealm && truePathRealm === triggerRealm && canReenterChosenGuildHq(demoGuidance.stage_id)) {
@@ -1352,7 +1342,15 @@ export function useNightOneFlow() {
             result.openNpcDialogue.npcId,
             BLUEPRINT.dialogue_catalog,
             BLUEPRINT.npc_registry,
-            { player: result.nextPlayer, realm, quests: result.nextQuests },
+            {
+              player: result.nextPlayer,
+              realm,
+              quests: result.nextQuests,
+              extra_tokens: {
+                prophecy_number: exploration.module_drafts?.mod_oracle_of_fate?.prophecy_id ?? '',
+                career_cluster_name: exploration.module_drafts?.mod_oracle_of_fate?.prophecy_cluster_name ?? '',
+              },
+            },
           ).body;
         const aid = npc?.portrait_asset_id;
         const portraitUrl = aid ? resolveAssetDeliveryUrl(aid, BLUEPRINT.media_assets) : '';
@@ -1785,6 +1783,45 @@ export function useNightOneFlow() {
         setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'gt-102')));
         setSaveFeedback({ tone: 'success', text: GUILD_GT102_FAIL_SEAL_TOAST });
       }
+    }
+
+    if (
+      payload.module_id === 'mod_master_scribe_survey' &&
+      payload.status === 'completed'
+    ) {
+      const rawIds = payload.artifacts?.foretold_signpost_realm_ids;
+      if (Array.isArray(rawIds)) {
+        const allowed = new Set(CANON_REALMS.map((r) => r.realm_id));
+        const ids = normalizeForetoldSignpostRealmIds(
+          rawIds.filter((x): x is string => typeof x === 'string').map((x) => x.trim()).filter(Boolean),
+          allowed,
+        );
+        if (ids.length > 0) {
+          setExploration((e) => ({ ...e, foretold_signpost_realm_ids: ids }));
+        }
+      }
+      // Persist RIASEC scores in module draft so ScrollOfDestinyDisplay can read them.
+      const rawScores = payload.artifacts?.riasec_scores;
+      if (rawScores && typeof rawScores === 'object') {
+        const s = rawScores as Record<string, unknown>;
+        const patch: Record<string, string> = {};
+        for (const code of ['r', 'i', 'a', 's', 'e', 'c'] as const) {
+          if (typeof s[code] === 'number') patch[`riasec_${code}`] = String(s[code]);
+        }
+        if (Object.keys(patch).length > 0) {
+          setExploration((e) => ({
+            ...e,
+            module_drafts: {
+              ...(e.module_drafts ?? {}),
+              mod_master_scribe_survey: {
+                ...(e.module_drafts?.mod_master_scribe_survey ?? {}),
+                ...patch,
+              },
+            },
+          }));
+        }
+      }
+      setScrollRevealOpen(true);
     }
 
     if (
@@ -2400,6 +2437,8 @@ export function useNightOneFlow() {
     inventoryOpen,
     moduleHostOpen,
     activeModuleId,
+    scrollRevealOpen,
+    dismissScrollReveal: () => setScrollRevealOpen(false),
     bootstrapPhase,
     bootstrapError,
     allRealms,

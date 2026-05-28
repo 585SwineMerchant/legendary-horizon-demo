@@ -393,6 +393,8 @@ export type ModuleResultPayload = {
     application?: ApplicationSubmissionRef;
     /** Act I — Scroll of Destiny: three canon `realm_id`s chosen when sealing the Manifest (Foretold Signposts). */
     foretold_signpost_realm_ids?: string[];
+    /** Open-ended artifact bag — modules may store arbitrary string / primitive values. */
+    [key: string]: unknown;
   };
   unlocks?: UnlockEvent[];
   completed_at_iso: string;

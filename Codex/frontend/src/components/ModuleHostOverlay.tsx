@@ -5,6 +5,9 @@ import { TrialOfTonguesModule } from '../modules/gt102/TrialOfTonguesModule';
 import { ManifestSodModule } from '../modules/manifest/ManifestSodModule';
 import { OracleOfFateModule } from '../modules/act2/OracleOfFateModule';
 import { VaultOfRunesModule } from '../modules/act2/VaultOfRunesModule';
+import { QuestOfFateWorksheetModule } from '../modules/act2/QuestOfFateWorksheetModule';
+import { CareerComparisonWorksheetModule } from '../modules/act2/CareerComparisonWorksheetModule';
+import { MasterScribeSurveyModule } from '../modules/act1/MasterScribeSurveyModule';
 
 type ManifestRealmPick = { realm_id: string; label: string };
 
@@ -45,11 +48,15 @@ export function ModuleHostOverlay({
           <div>
             <p className="lh-eyebrow">Guild trial module</p>
             <h2 className="lh-heading-md">
-              {moduleId === 'mod_gt101_enrollment_rune'
-                ? 'Enrollment Rune (GT-101)'
-                : moduleId === 'mod_gt102_trial_of_tongues'
-                  ? 'Trial of Tongues (GT-102)'
-                  : 'Module'}
+              {moduleId === 'mod_gt101_enrollment_rune'     ? 'Enrollment Rune (GT-101)'
+            : moduleId === 'mod_gt102_trial_of_tongues'  ? 'Trial of Tongues (GT-102)'
+            : moduleId === 'mod_oracle_of_fate'           ? 'Oracle of Fate'
+            : moduleId === 'mod_vault_of_runes'           ? 'Vault of Runes'
+            : moduleId === 'mod_quest_of_fate_worksheet'  ? 'Quest of Fate Worksheet'
+            : moduleId === 'mod_fog_of_unknown'           ? 'Career Comparison Worksheet'
+            : moduleId === 'mod_manifest_sod'             ? 'Manifest Scroll'
+            : moduleId === 'mod_master_scribe_survey'    ? "Traveler's Survey"
+            : 'Module'}
             </h2>
           </div>
           <button type="button" className="lh-button lh-button--ghost" onClick={onClose}>
@@ -79,6 +86,17 @@ export function ModuleHostOverlay({
           <OracleOfFateModule draft={draft} onDraftChange={onDraftChange} onSubmitResult={onSubmitResult} />
         ) : moduleId === 'mod_vault_of_runes' ? (
           <VaultOfRunesModule draft={draft} onDraftChange={onDraftChange} onSubmitResult={onSubmitResult} />
+        ) : moduleId === 'mod_quest_of_fate_worksheet' ? (
+          <QuestOfFateWorksheetModule draft={draft} onDraftChange={onDraftChange} onSubmitResult={onSubmitResult} />
+        ) : moduleId === 'mod_fog_of_unknown' ? (
+          <CareerComparisonWorksheetModule draft={draft} onDraftChange={onDraftChange} onSubmitResult={onSubmitResult} />
+        ) : moduleId === 'mod_master_scribe_survey' ? (
+          <MasterScribeSurveyModule
+            draft={draft}
+            onDraftChange={onDraftChange}
+            onSubmitResult={onSubmitResult}
+            realmId={realmId}
+          />
         ) : (
           <p className="lh-world-map__meta">Module not yet wired: {moduleId}</p>
         )}

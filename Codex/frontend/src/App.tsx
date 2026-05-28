@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { PauseMenu } from './components/PauseMenu';
-import { TeacherToolsPanel } from './components/TeacherToolsPanel';
+import { ScrollOfDestinyDisplay } from './components/ScrollOfDestinyDisplay';
+import { ScrollRevealSequence } from './modules/act1/ScrollRevealSequence';
 import { RealmAtlasOverlay } from './components/RealmAtlasOverlay';
 import { WorldMapOverlay } from './components/WorldMapOverlay';
 import { AcademicWorksheetsOverlay } from './components/AcademicWorksheetsOverlay';
@@ -63,7 +63,6 @@ export function App() {
     hotspotControls,
     navigate,
     handleManualSave,
-    handleEndSessionRitual,
     ledgerDraft,
     setLedgerDraft,
     tiledMapDebug,
@@ -102,15 +101,14 @@ export function App() {
     inventoryOpen,
     moduleHostOpen,
     activeModuleId,
+    scrollRevealOpen,
+    dismissScrollReveal,
     getModuleDraft,
     patchModuleDraft,
     clearModuleDraft,
     applyModuleResult,
     bootstrapPhase,
     bootstrapError,
-    facilitatorToolsProps,
-    pauseCanOpenGt101,
-    pauseCanOpenGt102,
     gt102InterviewArrivalMissedDeadline,
     guildPathExplorationBanner,
     guildPathQuestLogNote,
@@ -265,33 +263,24 @@ export function App() {
   ]);
 
   const showMapDebug = import.meta.env.DEV || import.meta.env.VITE_LH_MAP_DEBUG === 'true';
-  const showPauseGuildModuleShortcuts =
-    import.meta.env.DEV || import.meta.env.VITE_LH_PAUSE_MODULE_SHORTCUTS === 'true';
 
-  const manifestActComplete = useMemo(
-    () => quests.some((q) => q.quest_id === 'mq-106' && isTerminalQuestStatus(q.status)),
-    [quests],
-  );
-  const oracleActComplete = useMemo(
-    () => quests.some((q) => q.quest_id === 'mq-202' && isTerminalQuestStatus(q.status)),
-    [quests],
-  );
+  const surveyRiasecScores = useMemo(() => {
+    const draft = exploration.module_drafts?.mod_master_scribe_survey;
+    if (!draft) return null;
+    const r = Number(draft.riasec_r);
+    const i = Number(draft.riasec_i);
+    const a = Number(draft.riasec_a);
+    const s = Number(draft.riasec_s);
+    const e = Number(draft.riasec_e);
+    const c = Number(draft.riasec_c);
+    if ([r, i, a, s, e, c].every((v) => v === 0)) return null;
+    return { r, i, a, s, e, c };
+  }, [exploration.module_drafts?.mod_master_scribe_survey]);
+
   const vaultRitualComplete = useMemo(
     () => quests.some((q) => q.quest_id === 'mq-203' && isTerminalQuestStatus(q.status)),
     [quests],
   );
-  const enrollmentRuneQuest = useMemo(
-    () => quests.find((q) => q.quest_id === 'gt-101'),
-    [quests],
-  );
-  const trialOfTonguesQuest = useMemo(
-    () => quests.find((q) => q.quest_id === 'gt-102'),
-    [quests],
-  );
-  const enrollmentRuneQuestReachable = Boolean(
-    enrollmentRuneQuest && enrollmentRuneQuest.status !== 'locked',
-  );
-  const trialOfTonguesQuestReachable = Boolean(trialOfTonguesQuest && trialOfTonguesQuest.status !== 'locked');
 
   const manifestRealmPickList = useMemo(
     () => sortRealmsCanon(allRealms).map((r) => ({ realm_id: r.realm_id, label: r.display_name })),
@@ -399,68 +388,33 @@ export function App() {
         />
       ) : null}
 
-      {!teacherDashboardOpen ? <PauseMenu
+      {!teacherDashboardOpen ? <ScrollOfDestinyDisplay
         open={pauseOpen && screen === 'explore'}
-        onResume={navigate.closePause}
+        onClose={navigate.closePause}
+        player={player}
+        quests={quests}
+        allRealms={allRealms}
+        foretoldSignpostRealmIds={exploration.foretold_signpost_realm_ids ?? []}
+        oracleDraft={exploration.module_drafts?.mod_oracle_of_fate}
+        riasecScores={surveyRiasecScores}
+        onSave={handleManualSave}
         onOpenQuestLog={() => {
           navigate.closePause();
           navigate.openQuestLog();
         }}
-        onOpenEnrollmentRune={
-          showPauseGuildModuleShortcuts || (pauseCanOpenGt101 && enrollmentRuneQuestReachable)
-            ? () => navigate.openModule('mod_gt101_enrollment_rune')
-            : undefined
-        }
-        onOpenTrialOfTongues={
-          showPauseGuildModuleShortcuts || (pauseCanOpenGt102 && trialOfTonguesQuestReachable)
-            ? () => navigate.openModule('mod_gt102_trial_of_tongues')
-            : undefined
-        }
-        onOpenManifest={() => navigate.openModule('mod_manifest_sod')}
-        onOpenOracleOfFate={
-          showPauseGuildModuleShortcuts || manifestActComplete
-            ? () => navigate.openModule('mod_oracle_of_fate')
-            : undefined
-        }
-        onOpenVaultOfRunes={
-          showPauseGuildModuleShortcuts || oracleActComplete
-            ? () => navigate.openModule('mod_vault_of_runes')
-            : undefined
-        }
         onOpenRealmAtlas={navigate.openRealmAtlas}
-        onOpenWorldMap={navigate.openWorldMap}
-        charterWorldMapTooltip={
-          vaultRitualComplete
-            ? 'Charter tiles, fog, realm notes, guild research, and comparison ledger are all active for Act III.'
-            : 'Charter tiles stay open. Fog, notes, HQ research stamps, and the comparison ledger unlock after the Vault of Runes (Pause → Act II).'
-        }
-        charterWorldMapHint={
-          showPauseGuildModuleShortcuts || vaultRitualComplete
-            ? undefined
-            : 'Act II: finish the Vault of Runes, then return here for fog, notes, and the comparison ledger (Act III).'
-        }
         onOpenInventory={() => {
           navigate.closePause();
           navigate.openInventory();
         }}
-        onSave={handleManualSave}
-        onEndSession={handleEndSessionRitual}
-        onResearchWorksheets={navigate.openResearchWorksheets}
-        onQuitToTitle={navigate.quitToTitle}
-        displayPreferences={{
-          textScale: a11y.textScale,
-          onTextScaleChange: a11y.setTextScale,
-          motion: a11y.motion,
-          onMotionChange: a11y.setMotion,
-          lowClutter: a11y.lowClutter,
-          onLowClutterChange: a11y.setLowClutter,
-          audioMuted: a11y.audioMuted,
-          onAudioMutedChange: a11y.setAudioMuted,
-          musicMuted: a11y.musicMuted,
-          onMusicMutedChange: a11y.setMusicMuted,
+        onReviewProphecy={() => {
+          const url = exploration.module_drafts?.mod_oracle_of_fate?.prophecy_research_url;
+          if (url) window.open(url, '_blank');
         }}
-        classroomTools={classroomTools}
-        facilitatorTools={facilitatorToolsProps ? <TeacherToolsPanel {...facilitatorToolsProps} /> : null}
+        onOpenQuestOfFateWorksheet={() => {
+          navigate.closePause();
+          navigate.openModule('mod_quest_of_fate_worksheet');
+        }}
       /> : null}
 
       {!teacherDashboardOpen ? (
@@ -551,6 +505,14 @@ export function App() {
           navigate.closeModule();
         }}
       /> : null}
+      {!teacherDashboardOpen && scrollRevealOpen && surveyRiasecScores ? (
+        <ScrollRevealSequence
+          foretoldSignpostRealmIds={exploration.foretold_signpost_realm_ids ?? []}
+          riasecScores={surveyRiasecScores}
+          allRealms={allRealms}
+          onDismiss={dismissScrollReveal}
+        />
+      ) : null}
       </main>
     </div>
   );

@@ -62,7 +62,7 @@
     "tier": "main",
     "act": 1,
     "status": "locked",
-    "objective_short": "Review the three signposted realms calling to you",
+    "objective_short": "Reflect on your Scroll of Destiny near the tranquility of the Oracle's altar",
     "realm_ids": [],
     "prerequisite_quest_ids": [
       "mq-105"
@@ -106,11 +106,11 @@
   },
   {
     "quest_id": "mq-204",
-    "title": "Complete the Quest of Fate",
+    "title": "Return to the Master Scribe",
     "tier": "main",
     "act": 2,
     "status": "locked",
-    "objective_short": "Record research findings in the Quest of Fate Worksheet",
+    "objective_short": "Return to the Scribe for guidance after receiving your prophecy",
     "realm_ids": [],
     "prerequisite_quest_ids": [
       "mq-203"
@@ -118,11 +118,11 @@
   },
   {
     "quest_id": "mq-205",
-    "title": "Return to the Oracle",
+    "title": "Complete the Quest of Fate",
     "tier": "main",
     "act": 2,
     "status": "locked",
-    "objective_short": "Return to the Oracle after completing the worksheet",
+    "objective_short": "Access the Quest of Fate Worksheet from your Scroll of Destiny and complete your research",
     "realm_ids": [],
     "prerequisite_quest_ids": [
       "mq-204"

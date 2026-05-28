@@ -5,13 +5,20 @@ import { lineMatchesConditions, type DialogueEvalContext } from './dialogueCondi
 
 export function interpolateLhDialogueTemplate(text: string, ctx: DialogueEvalContext): string {
   const { player, realm } = ctx;
-  return text
+  let out = text
     .replace(/\{display_name\}/g, player.display_name)
     .replace(/\{realm_display_name\}/g, realm.display_name)
     .replace(/\{current_act\}/g, String(player.current_act))
     .replace(/\{required_next_action\}/g, player.required_next_action)
     .replace(/\{last_completed_summary\}/g, player.last_completed_summary)
     .replace(/\{active_main_quest_title\}/g, player.active_main_quest_title);
+  // Replace any extra_tokens supplied by the caller (e.g. {prophecy_number}, {career_cluster_name}).
+  if (ctx.extra_tokens) {
+    for (const [key, value] of Object.entries(ctx.extra_tokens)) {
+      out = out.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+    }
+  }
+  return out;
 }
 
 export function pickFirstMatchingDialogueLine(lines: LhDialogueLine[], ctx: DialogueEvalContext): LhDialogueLine | null {

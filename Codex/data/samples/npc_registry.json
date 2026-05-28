@@ -32,6 +32,26 @@
       "role_label": "Assignments & charters",
       "default_dialogue_bank": "guild_manager_default",
       "card_title": "Guild business"
+    },
+    {
+      "npc_id": "villager_generic_m",
+      "display_name": "Villager",
+      "role_label": "Townsperson",
+      "role": "Generic male villager NPC — ambient world presence, no quest gating",
+      "tone": "friendly, brief",
+      "default_interaction_kind": "npc_dialogue",
+      "default_dialogue_bank": "villager_generic",
+      "card_title": "A passing word"
+    },
+    {
+      "npc_id": "villager_generic_f",
+      "display_name": "Villager",
+      "role_label": "Townsperson",
+      "role": "Generic female villager NPC — ambient world presence, no quest gating",
+      "tone": "friendly, brief",
+      "default_interaction_kind": "npc_dialogue",
+      "default_dialogue_bank": "villager_generic",
+      "card_title": "A passing word"
     }
   ]
 }

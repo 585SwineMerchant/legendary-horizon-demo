@@ -51,6 +51,14 @@ interface ImportMetaEnv {
   readonly VITE_LH_INTRO_CINEMATIC_SRC?: string;
   /** Override intro video URL/path (default: registry `intro` video). */
   readonly VITE_LH_INTRO_VIDEO_URL?: string;
+  /**
+   * Override Oracle cinematic iframe HTML path (default: no cutscene — Oracle module skips straight
+   * to the prophecy reveal when this is unset).
+   * Example: `assets/intro/oracle-player.html`
+   */
+  readonly VITE_LH_ORACLE_CINEMATIC_SRC?: string;
+  /** Background image URL/path for the Scroll of Destiny reveal cinematic parchment. Falls back to amber fill (#f0e4c0). */
+  readonly VITE_LH_SCROLL_BG_IMAGE?: string;
 }
 
 interface ImportMeta {

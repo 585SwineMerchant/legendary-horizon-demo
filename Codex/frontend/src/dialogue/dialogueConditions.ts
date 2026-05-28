@@ -5,6 +5,11 @@ export type DialogueEvalContext = {
   player: PlayerSave;
   realm: RealmDefinition;
   quests: QuestDefinition[];
+  /**
+   * Optional freeform tokens for template interpolation (e.g. `{prophecy_number}`,
+   * `{career_cluster_name}` resolved from Oracle module drafts).
+   */
+  extra_tokens?: Record<string, string>;
 };
 
 export function evalLhDialogueCondition(cond: LhDialogueCondition, ctx: DialogueEvalContext): boolean {
