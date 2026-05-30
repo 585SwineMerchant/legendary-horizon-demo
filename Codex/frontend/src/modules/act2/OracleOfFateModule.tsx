@@ -98,6 +98,10 @@ export function OracleOfFateModule({ draft, onDraftChange, onSubmitResult }: Pro
   }
 
   function handleCinematicComplete() {
+    // Mark the cutscene as seen so subsequent viewings can show the Skip button.
+    if (!draft.oracle_cutscene_seen) {
+      onDraftChange({ oracle_cutscene_seen: new Date().toISOString() });
+    }
     setPhase('prophecyReveal');
   }
 
@@ -127,7 +131,14 @@ export function OracleOfFateModule({ draft, onDraftChange, onSubmitResult }: Pro
   // --- fullscreen overlays (rendered outside the module panel) ---
 
   if (phase === 'cutscene') {
-    return <OracleCinematicPlayer onComplete={handleCinematicComplete} />;
+    // allowSkip = true only if the student has already watched the cutscene before
+    // (flag saved to draft at the end of the first viewing).
+    return (
+      <OracleCinematicPlayer
+        onComplete={handleCinematicComplete}
+        allowSkip={Boolean(draft.oracle_cutscene_seen)}
+      />
+    );
   }
 
   if (phase === 'prophecyReveal' && prophecy) {

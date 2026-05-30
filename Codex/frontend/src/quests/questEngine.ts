@@ -38,6 +38,9 @@ export function normalizeQuestRow(raw: unknown): QuestDefinition | null {
     ? realmRaw.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
     : [];
 
+  const xp_reward = Number.isFinite(Number(o.xp_reward)) ? Number(o.xp_reward) : 0;
+  const item_reward = typeof o.item_reward === 'string' && o.item_reward.trim() ? o.item_reward.trim() : null;
+
   return {
     quest_id: o.quest_id.trim(),
     title: typeof o.title === 'string' ? o.title : 'Untitled quest',
@@ -47,6 +50,8 @@ export function normalizeQuestRow(raw: unknown): QuestDefinition | null {
     objective_short: typeof o.objective_short === 'string' ? o.objective_short : '',
     realm_ids,
     prerequisite_quest_ids: prerequisite_quest_ids.length ? prerequisite_quest_ids : undefined,
+    xp_reward: xp_reward || undefined,
+    item_reward: item_reward ?? undefined,
   };
 }
 
@@ -88,6 +93,11 @@ export function markQuestCompleted(quests: QuestDefinition[], questId: string): 
   return reconcileQuestPrerequisites(
     quests.map((q) => (q.quest_id === questId ? { ...q, status: 'completed' as const } : q)),
   );
+}
+
+/** Look up XP reward for a quest by id (returns 0 when absent). */
+export function getQuestXpReward(quests: readonly QuestDefinition[], questId: string): number {
+  return quests.find((q) => q.quest_id === questId)?.xp_reward ?? 0;
 }
 
 export function forceUnlockQuest(quests: QuestDefinition[], questId: string): QuestDefinition[] {

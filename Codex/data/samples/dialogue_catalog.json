@@ -105,6 +105,83 @@
             "any_of": ["active", "available"]
           }
         ]
+      },
+      {
+        "line_id": "scribe_sq202_handout",
+        "text": "Traveler, before your path is fully sealed, the Codex asks that you seek wisdom beyond these walls. Here is the Echoes of Experience parchment — carry it to a trusted elder in your life and record their story. Return when their wisdom is yours.",
+        "conditions": [
+          {
+            "kind": "quest_status",
+            "quest_id": "mq-207",
+            "any_of": ["completed", "turned_in"]
+          }
+        ]
+      },
+      {
+        "line_id": "scribe_sq202_return_check",
+        "text": "Have you spoken with your trusted elder, Traveler? Do their words now live on your parchment?",
+        "conditions": [
+          {
+            "kind": "quest_status",
+            "quest_id": "sq-202",
+            "any_of": ["active", "available"]
+          }
+        ]
+      },
+      {
+        "line_id": "scribe_act3_to_act4_transition",
+        "text": "Traveler — you have walked these roads and recorded the wisdom of many realms. The Ledger speaks clearly now. But a Traveler cannot wander the realms forever. The time has come to choose the one road you will claim as your own. This is your True Path — the guild that will test you, train you, and call you by name. Choose wisely. There is no wrong answer, only your answer.",
+        "conditions": [
+          {
+            "kind": "quest_status",
+            "quest_id": "mq-311",
+            "any_of": ["completed", "turned_in"]
+          }
+        ]
+      },
+      {
+        "line_id": "scribe_true_path_confirmed",
+        "text": "So it is spoken. Your True Path leads to {true_path_guild_name}. The road ahead holds trials, but you do not walk it unprepared. Go now — your Guild Manager awaits.",
+        "conditions": [
+          {
+            "kind": "quest_status",
+            "quest_id": "mq-401",
+            "any_of": ["completed", "turned_in"]
+          }
+        ]
+      },
+      {
+        "line_id": "scribe_act5_chronicle_assignment",
+        "text": "Traveler, you have walked farther than most would dare. But the realm must hear your story. You will craft a Chronicle of the Horizon — a presentation of your True Path, your research, and the wisdom you have gathered. When the Grand Council convenes, your voice will be among those heard.",
+        "conditions": [
+          {
+            "kind": "quest_status",
+            "quest_id": "mq-405",
+            "any_of": ["completed", "turned_in"]
+          }
+        ]
+      },
+      {
+        "line_id": "scribe_grand_council_complete",
+        "text": "The Grand Council has convened. Your voice was heard among your peers. The realm remembers what you have shared, and what you have learned from others.",
+        "conditions": [
+          {
+            "kind": "quest_status",
+            "quest_id": "fa-104",
+            "any_of": ["completed", "turned_in"]
+          }
+        ]
+      },
+      {
+        "line_id": "scribe_epilogue_transition",
+        "text": "One final matter, Traveler. Each year, new paths open — new studies, new skills, new choices. The courses you select now will carry you closer to your True Path. Choose the studies that serve your journey.",
+        "conditions": [
+          {
+            "kind": "quest_status",
+            "quest_id": "fa-104",
+            "any_of": ["completed", "turned_in"]
+          }
+        ]
       }
     ],
     "oracle_default": [
@@ -152,6 +229,104 @@
       "npc_id": "oracle_veiled",
       "text": "Aethelwood's roots drink slow rain, {display_name}. Here the Oracle counsels patience: fog lifts only where your quest sheet says you have already walked.",
       "conditions": [{ "kind": "always" }]
+    }
+  ],
+  "guild_manager_arrival": [
+    {
+      "realm_id": "realm_valors_watchtower",
+      "npc_name": "Commander Aldric",
+      "career_cluster": "Law & Public Safety",
+      "text": "You're here. Good. I don't waste words on travelers who haven't earned the walk. Valor's Watchtower doesn't recruit — it accepts. You'll face the Enrollment Rune, the Trial of Tongues, and the Artificer's Ethics before I consider you one of ours. Begin when you're ready."
+    },
+    {
+      "realm_id": "realm_etheric_nexus",
+      "npc_name": "Archivist Sylenne",
+      "career_cluster": "Information Technology",
+      "text": "Interesting. The wards registered your presence before you even crossed the threshold — which means the Nexus has already decided you belong here. Whether you agree is, of course, the purpose of these trials. The Enrollment Rune, the Trial of Tongues, the Ethics examination. Shall we see if your mind is as sharp as the Nexus believes?"
+    },
+    {
+      "realm_id": "realm_vulcanis_forge",
+      "npc_name": "Forge-Master Brynn",
+      "career_cluster": "Manufacturing",
+      "text": "HA! You made it! I was just — never mind, I'm always at the anvil. Listen, Vulcanis Forge doesn't care about titles or fancy words. We care about what you can BUILD. But first — guild rules say you've got to pass the Enrollment Rune, the Trial of Tongues, and the Ethics tests. Formalities! But important ones. Let's get to it!"
+    },
+    {
+      "realm_id": "realm_odysees_harbor",
+      "npc_name": "Quartermaster Tess",
+      "career_cluster": "Transportation & Logistics",
+      "text": "Well, well. A new face at the docks. Let me guess — the Scribe sent you, the Ledger told you, and now you want in. Fine. Here's the deal: nothing moves through this harbor without paperwork, and nothing moves through these trials without grit. Enrollment Rune, Trial of Tongues, Ethics check. We square on that? Good. Let's trade."
+    },
+    {
+      "realm_id": "realm_chroniclers_spire",
+      "npc_name": "Lorekeeper Voss",
+      "career_cluster": "Education & Training",
+      "text": "...Ah. You've come. I wondered when. The Spire has stood for ages, and in that time, many travelers have stood where you stand now. Some rushed. They failed. Some waited. They understood. The trials ahead — the Enrollment Rune, the Trial of Tongues, the Ethics examination — they are not obstacles. They are... lessons. Take your time."
+    },
+    {
+      "realm_id": "realm_monolith_of_masonry",
+      "npc_name": "Overseer Dagan",
+      "career_cluster": "Architecture & Construction",
+      "text": "State your business. ...The True Path, is it. We'll see. The Monolith doesn't open its gates to anyone who shows up with a Ledger and a dream. You'll prove yourself through the Enrollment Rune, the Trial of Tongues, and the Ethics trial. Every stone in this place was earned. Yours will be too."
+    },
+    {
+      "realm_id": "realm_guilded_vault",
+      "npc_name": "Accountant Petra",
+      "career_cluster": "Finance",
+      "text": "You are traveler number — actually, it doesn't matter. What matters is your conversion rate. Time invested versus value returned. The Guilded Vault operates on efficiency. Three trials: Enrollment Rune, Trial of Tongues, Artificer's Ethics. Completion time will be noted. Begin."
+    },
+    {
+      "realm_id": "realm_aurora_apothecary",
+      "npc_name": "Curator Linn",
+      "career_cluster": "Health Science",
+      "text": "Oh! Oh, you're here — I was just cataloging a fascinating new — but that doesn't matter right now because YOU'RE here! The Aurora Apothecary has been waiting for someone with your particular... well, we'll find out, won't we? There are trials — the Enrollment Rune, the Trial of Tongues, Ethics — but honestly I'm just excited to see what you discover about yourself. Shall we?"
+    },
+    {
+      "realm_id": "realm_bards_beacon",
+      "npc_name": "Director Emile",
+      "career_cluster": "Arts, AV & Communications",
+      "text": "ENTER! Enter, dear traveler, onto the grandest stage of your journey thus far! The Bard's Beacon has hosted legends, and today — today it hosts YOU. Every great story has its trials: the Enrollment Rune, your opening act. The Trial of Tongues, your monologue. The Artificer's Ethics, your character revealed. Are you ready for your performance?"
+    },
+    {
+      "realm_id": "realm_alchemical_observatory",
+      "npc_name": "Theorist Rowan",
+      "career_cluster": "STEM",
+      "text": "Oh — oh good, you're here, I had a hypothesis that you'd arrive on a Tuesday but clearly my temporal modeling needs work — ANYWAY. The Observatory! You're joining! Or — well, you're TRYING to join, there are trials, the Enrollment Rune and the Trial of Tongues and Ethics, very important, very structured, unlike most of what happens here. Let's begin before I forget what I was — yes, let's begin."
+    },
+    {
+      "realm_id": "realm_sanctum_silver_chalice",
+      "npc_name": "Warden Isolde",
+      "career_cluster": "Hospitality & Tourism",
+      "text": "Welcome, Traveler. Truly welcome. In the Sanctum, that word is not a greeting — it is a promise. Every soul who enters here is cared for, and every member of this guild learns to offer that same care to others. But care without discipline is chaos. The Enrollment Rune, the Trial of Tongues, and the Ethics trial will show us if you understand the difference. Please — sit. Begin when you are comfortable."
+    },
+    {
+      "realm_id": "realm_verdant_covenant",
+      "npc_name": "Keeper Theron",
+      "career_cluster": "Agriculture & Natural Resources",
+      "text": "You've come at a good time. The soil is ready, and so — I think — are you. The Verdant Covenant doesn't rush. Things grow when they're ready, not when you want them to. But the trials must be completed: Enrollment Rune, Trial of Tongues, Artificer's Ethics. Think of them as planting season. The harvest comes later."
+    },
+    {
+      "realm_id": "realm_ironhold_bastion",
+      "npc_name": "Foreman Maren",
+      "career_cluster": "Construction & Engineering",
+      "text": "Feet on the ground, eyes on the blueprint. That's rule one at the Bastion. You've read your Ledger, you've made your choice, and now you're standing in the most structurally sound guild hall on this map. That's not an accident — it's engineering. Three trials ahead of you: Enrollment Rune, Trial of Tongues, Ethics. Every beam in this place passed inspection. So will you."
+    },
+    {
+      "realm_id": "realm_wanderers_meridian",
+      "npc_name": "Chancellor Oris",
+      "career_cluster": "Government & Public Administration",
+      "text": "Traveler. Your arrival has been recorded and your intent noted. The Meridian operates on process, and process begins with documentation. You will complete the Enrollment Rune, submit to the Trial of Tongues, and demonstrate ethical standing through the Artificer's trial. This is not bureaucracy for its own sake — it is the foundation of every system that serves the public. Proceed when prepared."
+    },
+    {
+      "realm_id": "realm_prismatic_circuit",
+      "npc_name": "Promoter Kael",
+      "career_cluster": "Marketing & Sales",
+      "text": "There you are! I've been telling everyone a new recruit was coming — don't worry, I didn't oversell it. Much. The Prismatic Circuit is all about connection: knowing your audience, reading the room, making the pitch. But first, the guild needs to know YOU. Enrollment Rune, Trial of Tongues, Ethics check. Think of it as your first campaign — and you're the product. Let's go!"
+    },
+    {
+      "realm_id": "realm_emberheart_collective",
+      "npc_name": "Counselor Dessa",
+      "career_cluster": "Human Services",
+      "text": "I'm glad you're here. I mean that. The Emberheart Collective exists because people need people — and the fact that you chose this path tells me something about you already. The trials ahead are the same as every guild: Enrollment Rune, Trial of Tongues, Artificer's Ethics. But here, we pay attention to HOW you answer, not just what. Take a breath. Begin when you're ready."
     }
   ]
 }

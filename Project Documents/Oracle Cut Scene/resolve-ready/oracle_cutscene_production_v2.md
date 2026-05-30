@@ -7,16 +7,6 @@
 **Pipeline:** Matches intro cinematic exactly → upload to GitHub Releases →
 set `VITE_LH_ORACLE_CINEMATIC_SRC` env var
 
-**What changed in v2:**
-- IMG-02 (scroll close-up) now depicts the actual Scroll of Destiny design:
-  Elder Futhark-style runes, thematic descriptors visible, guild names sealed
-- IMG-01 references the actual altar tileset visual language (ERW Grass Land
-  2.0 v1.9 — stone altar on grass, ornate, shrine aesthetic)
-- IMG-03 and IMG-04 updated to reflect runic visual language established
-  for the game (angular, carved, no curves)
-- All "sigil" references replaced with "rune" language consistent with the
-  game's established iconography
-
 ---
 
 ## PART 1 — SCRIPT

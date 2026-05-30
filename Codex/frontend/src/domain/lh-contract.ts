@@ -54,6 +54,10 @@ export type QuestDefinition = {
   realm_ids: string[];
   /** When all listed quests reach a terminal state (`completed` / `turned_in`), a `locked` row becomes `available`. */
   prerequisite_quest_ids?: string[];
+  /** XP awarded on completion (from Quest List v3 xlsx). */
+  xp_reward?: number;
+  /** Named item granted on completion (from Quest List v3 xlsx); null or absent means no item. */
+  item_reward?: string | null;
 };
 
 export type MediaAssetRecord = {
@@ -132,7 +136,10 @@ export type AcademicTaskKind =
   | 'quest_of_choice'
   | 'manifest'
   | 'great_transcription'
-  | 'chronicle';
+  | 'chronicle'
+  | 'career_interview'
+  | 'grand_council'
+  | 'course_selection';
 
 /** Worksheet lifecycle for facilitator review loops. */
 export type AcademicTaskStatus = 'locked' | 'available' | 'in_progress' | 'submitted' | 'reviewed';

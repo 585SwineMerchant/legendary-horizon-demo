@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 
 import { normalizeForetoldSignpostRealmIds, signpostsFromManifestDraft } from '../../exploration/foretoldSignposts';
 import type { ModuleResultPayload } from '../../types';
+import { ScrollOfDestinyViewer } from './ScrollOfDestinyViewer';
 
 type RealmPick = { realm_id: string; label: string };
 
@@ -59,6 +60,7 @@ function copyText(text: string): Promise<boolean> {
 export function ManifestSodModule({ draft, onDraftChange, onSubmitResult, canonRealmPickList }: Props) {
   const [step, setStep] = useState<StepId>('self');
   const [copyStatus, setCopyStatus] = useState<string>('');
+  const [showScrollPreview, setShowScrollPreview] = useState(false);
 
   const completionPct = useMemo(() => {
     const keys = [
@@ -427,6 +429,38 @@ export function ManifestSodModule({ draft, onDraftChange, onSubmitResult, canonR
 
         {step === 'export' ? (
           <div className="lh-panel" style={{ padding: 12, marginTop: 12 }}>
+            {/* Scroll of Destiny preview */}
+            <div style={{ marginBottom: 16 }}>
+              <button
+                type="button"
+                className="lh-button lh-button--secondary lh-button--small"
+                onClick={() => setShowScrollPreview((v) => !v)}
+                style={{ marginBottom: showScrollPreview ? 10 : 0 }}
+              >
+                {showScrollPreview ? '▲ Hide Scroll Preview' : '▼ View Scroll of Destiny'}
+              </button>
+              {showScrollPreview && (
+                <ScrollOfDestinyViewer
+                  playerName={String(draft.student_name ?? '')}
+                  foretoldSignpostRealmIds={[
+                    String(draft.foretold_signpost_realm_1 ?? ''),
+                    String(draft.foretold_signpost_realm_2 ?? ''),
+                    String(draft.foretold_signpost_realm_3 ?? ''),
+                  ].filter(Boolean)}
+                  allRealms={canonRealmPickList.map((x) => ({
+                    realm_id: x.realm_id,
+                    display_name: x.label,
+                  }))}
+                  lifeGoals={mirrorA.personal}
+                  careerValues={mirrorA.academic}
+                  workspacePrefs={mirrorA.pref}
+                  skills={mirrorA.abilities}
+                  titleDesignation={mirrorB.career}
+                  prophecySummary={mirrorC.goal}
+                />
+              )}
+            </div>
+
             <section className="lh-manifest-scroll" aria-label="Scroll of Destiny signposts">
               <h4 className="lh-heading-sm" style={{ marginTop: 0 }}>
                 Scroll of Destiny — three Foretold Signposts

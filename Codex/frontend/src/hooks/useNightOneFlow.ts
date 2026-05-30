@@ -135,6 +135,19 @@ import {
   type ExplorationLoopState,
 } from '../exploration/explorationTypes';
 import { applyLedgerEntryToQuests } from '../exploration/ledgerQuestBridge';
+import {
+  getActiveSignpostCycleQuestId,
+  isForetoldSignpostRealm,
+  COMPARE_QUEST_ID,
+  ENTER_REALMS_QUEST_ID,
+} from '../exploration/signpostQuestBridge';
+import {
+  checkEncounterSideQuests,
+  checkEthicsBonusSideQuest,
+  checkGuildResearchSideQuests,
+  checkClearAllFogSideQuest,
+  checkCareerInterviewSideQuest,
+} from '../quests/sideQuestBridge';
 import { selectActiveWaypoint, waypointKey } from '../exploration/waypoints';
 import type { EncounterLaunchPayload } from '../components/EncounterOverlay';
 import { appendEncounterLog, awardEncounterXp } from '../encounter/encounterXp';
@@ -162,6 +175,7 @@ import {
   forceUnlockQuest,
   isTerminalQuestStatus,
   reconcileQuestPrerequisites,
+  getQuestXpReward,
 } from '../quests/questEngine';
 import { getRealmById, resolveActiveRealm } from '../realm/realmRegistry';
 import { PRIMARY_WORLD_TRIGGER_REALM_ID } from '../runtime/primaryWorldMap';
@@ -318,6 +332,23 @@ export function useNightOneFlow() {
   const maiaHandoffOpenedAtRef = useRef<number>(0);
   const maiaHandoffClosedOnceRef = useRef(false);
   const [realmAtlasOpen, setRealmAtlasOpen] = useState(false);
+  /**
+   * Complete a quest AND award its XP reward to the player in one shot.
+   * Uses `markQuestCompleted` (which auto-reconciles prerequisites) + increments `xp_total`.
+   */
+  const completeQuestWithXp = useCallback(
+    (questId: string) => {
+      setQuests((q) => {
+        const xp = getQuestXpReward(q, questId);
+        if (xp > 0) {
+          setPlayer((p) => (p ? { ...p, xp_total: p.xp_total + xp } : p));
+        }
+        return markQuestCompleted(q, questId);
+      });
+    },
+    [],
+  );
+
   /** Pause → World Atlas entry: optional guild sheet first + fog lift after close (guild HQ research trigger). */
   const [realmAtlasEntryIntent, setRealmAtlasEntryIntent] = useState<{
     initialGuildRealmId: string | null;
@@ -926,8 +957,13 @@ export function useNightOneFlow() {
           stamina_upgrade_applied_after: ensureDemoGuidanceState(nextE).stamina_upgrade_applied,
         });
       }
-      setPlayer(qLink.nextPlayer);
-      setQuests(qLink.nextQuests);
+      // Side quest bridges: SQ-201 (first win), SQ-203 (10 wins), SQ-204 (20 wins).
+      const sqEnc = checkEncounterSideQuests(qLink.nextQuests, nextE.encounter_log ?? []);
+      const playerAfterEnc = sqEnc.xpAwarded > 0 && qLink.nextPlayer
+        ? { ...qLink.nextPlayer, xp_total: qLink.nextPlayer.xp_total + sqEnc.xpAwarded }
+        : qLink.nextPlayer;
+      setPlayer(playerAfterEnc);
+      setQuests(sqEnc.nextQuests);
       setExploration(nextE);
       setVisitedInteractableIds((ids) => (ids.includes(cur.interactableId) ? ids : [...ids, cur.interactableId]));
       setActiveEncounter(null);
@@ -1252,6 +1288,12 @@ export function useNightOneFlow() {
 
         if (visitedInteractableIds.includes(interactableId)) return;
 
+        // MQ-403 "Meet the Guild Manager": complete on first guild_manager_hq encounter.
+        const mq403 = quests.find((q) => q.quest_id === 'mq-403');
+        if (mq403 && (mq403.status === 'available' || mq403.status === 'active')) {
+          completeQuestWithXp('mq-403');
+        }
+
         setExploration((e) =>
           mergeGuildHqAtlasRevealed(
             mergeGuildEndgameIntoExploration(e, {
@@ -1283,6 +1325,12 @@ export function useNightOneFlow() {
                 ? e
                 : { ...e, fog_keys_cleared: [...e.fog_keys_cleared, fogKey] },
             );
+            // Act 3 fog cycle quest bridge: if this realm is a foretold signpost, complete the active fog quest.
+            const curRealm = player.current_realm_id;
+            if (isForetoldSignpostRealm(curRealm, exploration.foretold_signpost_realm_ids)) {
+              const fogQid = getActiveSignpostCycleQuestId(quests, 'fog');
+              if (fogQid) completeQuestWithXp(fogQid);
+            }
           }
         } else if (import.meta.env.DEV && typeof console !== 'undefined') {
           console.warn('[LhTrigger] fog_clear trigger has no lh_fog_key — set it in Tiled', { interactableId });
@@ -1657,10 +1705,33 @@ export function useNightOneFlow() {
           phase: 'true_path_chosen',
         });
       });
+
+      // --- Act 3 quest bridges ---
+      // MQ-301 "Enter the realms": complete on first realm entry when active/available.
+      const enterQ = quests.find((q) => q.quest_id === ENTER_REALMS_QUEST_ID);
+      if (enterQ && (enterQ.status === 'available' || enterQ.status === 'active')) {
+        completeQuestWithXp(ENTER_REALMS_QUEST_ID);
+      }
+      // Travel cycle quest (MQ-302/305/308): complete when the selected realm is a foretold signpost.
+      if (isForetoldSignpostRealm(realmId, exploration.foretold_signpost_realm_ids)) {
+        const travelQid = getActiveSignpostCycleQuestId(quests, 'travel');
+        if (travelQid) completeQuestWithXp(travelQid);
+      }
+
+      // --- Act 4 quest bridge ---
+      // MQ-402 "Travel to Chosen Guild HQ": complete when arriving at the True Path realm.
+      const ge = exploration.guild_endgame_v1;
+      if (ge?.true_path_realm_id && ge.true_path_realm_id === realmId) {
+        const mq402 = quests.find((q) => q.quest_id === 'mq-402');
+        if (mq402 && (mq402.status === 'available' || mq402.status === 'active')) {
+          completeQuestWithXp('mq-402');
+        }
+      }
+
       setWorldMapOpen(false);
       setScreen('explore');
     },
-    [allRealms],
+    [allRealms, quests, exploration.foretold_signpost_realm_ids, exploration.guild_endgame_v1, completeQuestWithXp],
   );
 
   const clearFogKey = useCallback(
@@ -1841,13 +1912,53 @@ export function useNightOneFlow() {
       }
     }
 
-    // Mark the owning quest completed if the module finished in a terminal “success” state.
+    // GT-103 ethics bonus side quest (SQ-205): if GT-103 passed with high score.
+    if (payload.module_id === 'mod_gt103_artificers_ethics' && payload.status === 'passed' && typeof payload.score === 'number') {
+      setQuests((q) => {
+        const result = checkEthicsBonusSideQuest(q, payload.score!);
+        if (result.xpAwarded > 0) {
+          setPlayer((p) => (p ? { ...p, xp_total: p.xp_total + result.xpAwarded } : p));
+        }
+        return result.nextQuests;
+      });
+    }
+
+    // SQ-202 “Echoes of Experience” — career interview submitted.
+    // Transitions the quest to `turned_in` (awaiting teacher review), NOT `completed`.
+    // XP is held until the teacher confirms the assignment via the dashboard.
+    if (payload.module_id === 'mod_sq202_career_interview' && payload.status === 'submitted') {
+      setQuests((q) => {
+        const result = checkCareerInterviewSideQuest(q);
+        // result.xpAwarded is always 0 for SQ-202 (teacher confirms before XP fires)
+        return result.nextQuests;
+      });
+      setSaveFeedback({
+        tone: 'success',
+        text: 'Echoes of Experience recorded — your teacher has been notified and will confirm when they have reviewed your interview.',
+      });
+      // Return early: skip the generic completeQuestWithXp below (SQ-202 must not auto-complete).
+      return;
+    }
+
+    // GT-100 “Face the Guardian” — boss encounter complete.
+    // Falls through to generic completeQuestWithXp below (which auto-reconciles prerequisites,
+    // unlocking GT-101). We just add a custom victory feedback here first.
+    if (payload.module_id === 'mod_gt100_guardian_boss' && payload.status === 'submitted') {
+      setSaveFeedback({
+        tone: 'success',
+        text: 'The Guardian is defeated! The seal on the Enrollment Realm is broken — GT-101: Rite of Enrollment is now unlocked.',
+      });
+      // Fall through to completeQuestWithXp below — GT-101 unlocks automatically via prerequisite reconciliation.
+    }
+
+    // Mark the owning quest completed + award XP if the module finished in a terminal “success” state.
+    // (SQ-202 is excluded above via early return — it uses turned_in, not completed.)
     if (payload.quest_id && (payload.status === 'submitted' || payload.status === 'completed' || payload.status === 'passed')) {
-      setQuests((q) => markQuestCompleted(q, payload.quest_id));
+      completeQuestWithXp(payload.quest_id);
     }
 
     // Guild interview unlock is deferred to `guild_endgame_v1` gates (interview_invited + HQ; deadline affects GT-102 scoring), not GT-101 unlock shortcuts.
-  }, []);
+  }, [completeQuestWithXp]);
 
   const submitLedgerEntry = useCallback(
     (partial: Omit<ComparisonLedgerEntry, 'id' | 'created_iso'>) => {
@@ -1867,18 +1978,32 @@ export function useNightOneFlow() {
       const scrollMs = signpostLedgerMilestone(entriesAfter, exploration.foretold_signpost_realm_ids);
       setQuests((q) => {
         let next = applyLedgerEntryToQuests(q);
-        const act3q = next.find((x) => x.quest_id === 'mq-301');
-        if (act3q && (act3q.status === 'available' || act3q.status === 'active')) {
-          const fogLedgerReady = !scrollMs.guidesMilestone || scrollMs.milestoneComplete;
-          if (fogLedgerReady) {
-            next = markQuestCompleted(next, 'mq-301');
+
+        // Act 3 ledger cycle quest bridge (MQ-304/307/310): complete when ledger entry realm is a signpost.
+        if (isForetoldSignpostRealm(entry.realm_id, exploration.foretold_signpost_realm_ids)) {
+          const ledgerQid = getActiveSignpostCycleQuestId(next, 'ledger');
+          if (ledgerQid) {
+            const xp = getQuestXpReward(next, ledgerQid);
+            if (xp > 0) setPlayer((p) => (p ? { ...p, xp_total: p.xp_total + xp } : p));
+            next = markQuestCompleted(next, ledgerQid);
           }
         }
+
+        // MQ-311 "Compare the Three Foretold Paths": complete when all 3 signpost realms have ledger entries.
+        if (scrollMs.guidesMilestone && scrollMs.milestoneComplete) {
+          const cmpQ = next.find((x) => x.quest_id === COMPARE_QUEST_ID);
+          if (cmpQ && (cmpQ.status === 'available' || cmpQ.status === 'active')) {
+            const xp = getQuestXpReward(next, COMPARE_QUEST_ID);
+            if (xp > 0) setPlayer((p) => (p ? { ...p, xp_total: p.xp_total + xp } : p));
+            next = markQuestCompleted(next, COMPARE_QUEST_ID);
+          }
+        }
+
         return next;
       });
       setLedgerDraft(emptyLedgerDraft());
     },
-    [quests, exploration.ledger_entries, exploration.foretold_signpost_realm_ids],
+    [quests, exploration.ledger_entries, exploration.foretold_signpost_realm_ids, completeQuestWithXp],
   );
 
   const applyAcademicTasks = useCallback((nextTasks: NonNullable<ExplorationLoopState['academic_tasks']>) => {
@@ -2382,6 +2507,22 @@ export function useNightOneFlow() {
   };
 
   // Which parsed map + tilemap URL to send to the renderer (and act3 totals).
+  // --- Side quest bridge: guild research (SQ-206–218) + clear all fog (SQ-219) ---
+  // Fires whenever the guild HQ atlas revealed list changes.
+  const guildHqRevealedCount = exploration.guild_hq_atlas_revealed_realm_ids?.length ?? 0;
+  useEffect(() => {
+    if (guildHqRevealedCount < 4) return; // nothing to check until 4+ guilds
+    setQuests((q) => {
+      const res = checkGuildResearchSideQuests(q, guildHqRevealedCount);
+      const fog = checkClearAllFogSideQuest(res.nextQuests, guildHqRevealedCount);
+      const totalXp = res.xpAwarded + fog.xpAwarded;
+      if (totalXp > 0) {
+        setPlayer((p) => (p ? { ...p, xp_total: p.xp_total + totalXp } : p));
+      }
+      return fog.nextQuests;
+    });
+  }, [guildHqRevealedCount]);
+
   const activeMap: ParsedLhMap = mapVariant === 'stable' && stableMapState.map
     ? stableMapState.map
     : PARSED_PRIMARY_MAP;

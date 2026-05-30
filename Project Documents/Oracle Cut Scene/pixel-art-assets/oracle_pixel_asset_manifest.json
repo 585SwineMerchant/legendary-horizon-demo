@@ -1,0 +1,22 @@
+{
+  "generated": [
+    "oracle_00_stage_plate_clean_1920x1080.png",
+    "oracle_01_traveler_approach_plate_1920x1080.png",
+    "oracle_01a_traveler_reference_cutouts_4dir_96x128.png",
+    "oracle_02_altar_activation_ring_sheet_12f_288x256.png",
+    "oracle_03_oracle_aura_particles_sheet_10f_96x96.png",
+    "oracle_04_ghost_manifest_sheet_10f_96x96.png",
+    "oracle_09_ghost_vanish_sheet_10f_96x96.png",
+    "oracle_05_prophecy_lower_third_rune_overlay_1920x1080.png",
+    "oracle_06_prophecy_beam_sheet_12f_192x192.png",
+    "oracle_07_signpost_rune_reveal_sheet_12f_192x64.png",
+    "oracle_08_floor_mist_sheet_12f_320x96.png"
+  ],
+  "source_assets": {
+    "altar": "C:\\Antigravity local\\LH\\Video Game\\ERW - Grass Land 2.0 v1.9\\ERW - Grass Land 2.0 v1.9\\Props\\Static props\\sheet2-sprites\\altar - on grass - complete.png",
+    "traveler_reference_only": "C:\\Antigravity local\\LH\\Video Game\\Project Documents\\New Traveler concept.png",
+    "ghost_oracle": "C:\\Antigravity local\\LH\\Video Game\\Game Map\\Tilesets\\ghost_oracle_pixel.png"
+  },
+  "project_copy": "C:\\Antigravity local\\LH\\Video Game\\Codex\\frontend\\public\\assets\\cutscenes\\oracle",
+  "notes": "Transparent sprite sheets use horizontal frames. Frame sizes are encoded in filenames."
+}

@@ -19,6 +19,7 @@ import { TitleScreen } from './screens/TitleScreen';
 import { TeacherDashboardScreen } from './screens/TeacherDashboardScreen';
 import { isTerminalQuestStatus } from './quests/questEngine';
 import { sortRealmsCanon } from './realm/realmRegistry';
+import { getGuildById } from './data/guildData';
 import { getLhAudioDirector } from './lib/lhAudioDirector';
 import {
   exitLhEmbedFullscreen,
@@ -287,6 +288,12 @@ export function App() {
     [allRealms],
   );
 
+  const truePathGuildName = useMemo(() => {
+    const rid = exploration.guild_endgame_v1?.true_path_realm_id;
+    if (!rid) return undefined;
+    return getGuildById(rid)?.name ?? allRealms.find((r) => r.realm_id === rid)?.display_name;
+  }, [exploration.guild_endgame_v1?.true_path_realm_id, allRealms]);
+
   const explorationSignpostStrip = useMemo(() => {
     const ids = exploration.foretold_signpost_realm_ids ?? [];
     if (!ids.length) return null;
@@ -494,6 +501,7 @@ export function App() {
         realmId={player?.current_realm_id ?? realm.realm_id}
         gt102InterviewArrivalMissedDeadline={gt102InterviewArrivalMissedDeadline}
         manifestRealmPickList={manifestRealmPickList}
+        truePathGuildName={truePathGuildName}
         draft={activeModuleId ? getModuleDraft(activeModuleId) : {}}
         onDraftChange={(patch) => {
           if (!activeModuleId) return;
