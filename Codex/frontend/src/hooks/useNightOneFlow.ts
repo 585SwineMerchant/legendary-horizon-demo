@@ -104,6 +104,9 @@ import {
   GUILD_MANAGER_DESK_INTERVIEW_RETRY,
 } from '../exploration/guildGt102OutcomeCopy';
 import { emptyLedgerDraft, ritualDraftsFromLedgerDraft } from '../exploration/comparisonLedger';
+import { selectCampfirePrompt, addUsedPromptId, parseUsedPromptIds } from '../services/campfirePromptEngine';
+import { applyStreakMilestones, parseSatchelInventory } from '../data/itemCatalog';
+import { applyResolveDamage, rollResolveDamage, restoreResolveToFull } from '../services/resolveSystem';
 import { normalizeForetoldSignpostRealmIds, signpostLedgerMilestone } from '../exploration/foretoldSignposts';
 import {
   LH_NPC_ID_MASTER_SCRIBE,
@@ -381,6 +384,8 @@ export function useNightOneFlow() {
   const [realmTravelNotice, setRealmTravelNotice] = useState<string | null>(null);
   const [academicWorksheetsOpen, setAcademicWorksheetsOpen] = useState(false);
   const [inventoryOpen, setInventoryOpen] = useState(false);
+  const [satchelOpen, setSatchelOpen] = useState(false);
+  const [restedReadinessOpen, setRestedReadinessOpen] = useState(false);
   const [moduleHostOpen, setModuleHostOpen] = useState(false);
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null);
   const [scrollRevealOpen, setScrollRevealOpen] = useState(false);
@@ -418,6 +423,17 @@ export function useNightOneFlow() {
       setRealmProgress((p) => touchRealmEntered(p, rid));
     }
   }, [screen, player?.current_realm_id]);
+
+  // Show Rested Readiness modal on first session-start when player has a graded campfire score.
+  const restedReadinessShownRef = useRef(false);
+  useEffect(() => {
+    if (screen !== 'explore') return;
+    if (restedReadinessShownRef.current) return;
+    if (!player) return;
+    if (player.last_campfire_score == null) return;
+    restedReadinessShownRef.current = true;
+    setRestedReadinessOpen(true);
+  }, [screen, player?.last_campfire_score]);
 
   useEffect(() => {
     if (!player || player.required_next_action === demoGuidance.current_objective) return;
@@ -921,6 +937,14 @@ export function useNightOneFlow() {
         }),
       );
     }
+    // Apply Resolve damage on retreat.
+    setPlayer((p) => {
+      if (!p) return p;
+      const damageKind: 'combat_retreat' | 'vocab_retreat' =
+        cur?.kind === 'combat_encounter' ? 'combat_retreat' : 'vocab_retreat';
+      const dmg = rollResolveDamage(damageKind);
+      return applyResolveDamage(p, dmg);
+    });
     setActiveEncounter(null);
   }, []);
 
@@ -1592,18 +1616,67 @@ export function useNightOneFlow() {
     tryPlayCatalogAudioAsset(LH_MEDIA_ASSET_ID_SAVE_CHIME, BLUEPRINT.media_assets);
   }, [player, quests, realm.realm_id, visitedInteractableIds, exploration, realmProgress, ledgerDraft]);
 
-  const handleEndSessionRitual = useCallback(async () => {
-    if (!player) return;
+  const campfirePromptSelection = useMemo(() => {
+    const overrideText = BLUEPRINT.session_config?.campfire_prompt?.trim();
+    if (overrideText) return { id: 'blueprint_override', text: overrideText };
+    if (!player) {
+      return {
+        id: 'default',
+        text: 'Describe one thing you discovered today in the realms, and one question you are still carrying with you.',
+      };
+    }
+    return selectCampfirePrompt({
+      act: typeof player.current_act === 'number' ? player.current_act : 1,
+      guild_id: exploration.foretold_signpost_realm_ids?.[0] ?? undefined,
+      used_prompt_ids: parseUsedPromptIds(player.used_campfire_prompt_ids_json),
+      is_first_save: !player.last_campfire_iso,
+    });
+  }, [player, exploration.foretold_signpost_realm_ids]);
+
+  const campfirePrompt: string = campfirePromptSelection.text;
+
+  const handleEndSessionRitual = useCallback(async (campfireEntry: string): Promise<{ ok: boolean; message: string }> => {
+    if (!player) return { ok: false, message: 'No player loaded.' };
 
     const validation = validatePlayerForManualSave(player);
     if (validation.length) {
-      setSaveFeedback({ tone: 'error', text: validation.join('\n') });
-      return;
+      return { ok: false, message: validation.join('\n') };
     }
 
-    const sessionSummary = buildSessionSummary({ player, quests, exploration });
+    // --- Campfire streak + cosmetics ---
+    const prevStreak = player.campfire_streak ?? 0;
+    const newStreak = prevStreak + 1;
+
+    // LRU-rotate used prompt IDs.
+    const prevUsed = parseUsedPromptIds(player.used_campfire_prompt_ids_json);
+    const updatedUsed = addUsedPromptId(prevUsed, campfirePromptSelection.id);
+
+    // Apply any newly earned streak milestone rewards.
+    const inventory = parseSatchelInventory(player.satchel_inventory_json);
+    const { cosmetics: updatedCosmetics } = applyStreakMilestones(newStreak, inventory.cosmetics);
+    const updatedSatchelInventory = { ...inventory, cosmetics: updatedCosmetics };
+
+    // Build enriched player snapshot that includes all new fields.
+    // restoreResolveToFull returns a full PlayerSave with resolve reset to max.
+    const playerWithResolveRestored = restoreResolveToFull(player);
+    const enrichedPlayer: PlayerSave = {
+      ...playerWithResolveRestored,
+      campfire_streak: newStreak,
+      last_campfire_iso: new Date().toISOString(),
+      used_campfire_prompt_ids_json: JSON.stringify(updatedUsed),
+      satchel_inventory_json: JSON.stringify(updatedSatchelInventory),
+    };
+
+    const sessionSummary = {
+      ...buildSessionSummary({ player: enrichedPlayer, quests, exploration }),
+      ...(campfireEntry.trim() ? { exit_ticket_body: campfireEntry.trim() } : {}),
+      campfire_prompt_id: campfirePromptSelection.id,
+      campfire_streak: newStreak,
+      player_display_name: enrichedPlayer.display_name || enrichedPlayer.player_id,
+    };
+
     const envelope = buildManualSaveEnvelope({
-      player,
+      player: enrichedPlayer,
       questsSnapshot: quests,
       realmId: realm.realm_id,
       visitedTriggerInteractableIds: visitedInteractableIds,
@@ -1618,46 +1691,35 @@ export function useNightOneFlow() {
     setPauseOpen(false);
 
     if (!persist.ok) {
-      setSaveFeedback({
-        tone: 'error',
-        text: persist.message + (persist.errors ? `\n${persist.errors.join('\n')}` : ''),
-        retryLabel: 'Retry end session',
-        onRetry: () => {
-          void handleEndSessionRitual();
-        },
-      });
-      return;
+      return {
+        ok: false,
+        message: persist.message + (persist.errors ? `\n${persist.errors.join('\n')}` : ''),
+      };
     }
 
     const mergedPlayer: PlayerSave = {
-      ...player,
+      ...enrichedPlayer,
       revision_token:
-        persist.revision ?? player.revision_token ?? `${player.player_id}:${Date.now().toString(36)}`,
+        persist.revision ?? enrichedPlayer.revision_token ?? `${enrichedPlayer.player_id}:${Date.now().toString(36)}`,
       last_manual_save_iso: envelope.saved_at_iso,
     };
     setPlayer(mergedPlayer);
 
-    const prompt = buildExitTicketPrompt({ player: mergedPlayer, quests });
-
     const hist = await appendSessionHistoryRemote(sessionSummary);
     const ticket = await markExitTicketRemote(mergedPlayer.player_id, 'sent');
 
-    const lines = [
-      persist.message,
-      '',
-      'Exit ticket recorded in-game (no email draft).',
-      '',
-      prompt,
-      '',
+    tryPlayCatalogAudioAsset(LH_MEDIA_ASSET_ID_SAVE_CHIME, BLUEPRINT.media_assets);
+
+    const warnings = [
       !hist.ok ? `Session log: ${hist.message ?? 'append failed'} (save still stored).` : null,
       !ticket.ok ? `Exit ticket state: ${ticket.message ?? 'update failed'}.` : null,
     ].filter(Boolean);
 
-    setSaveFeedback({
-      tone: 'success',
-      text: lines.join('\n'),
-    });
-  }, [player, quests, realm.realm_id, visitedInteractableIds, exploration, realmProgress, ledgerDraft]);
+    return {
+      ok: true,
+      message: warnings.length ? warnings.join('\n') : persist.message,
+    };
+  }, [player, quests, realm.realm_id, visitedInteractableIds, exploration, realmProgress, ledgerDraft, campfirePromptSelection]);
 
   const dismissSaveFeedback = () => setSaveFeedback(null);
 
@@ -2371,6 +2433,21 @@ export function useNightOneFlow() {
         }
       : null;
 
+  /** Uses a consumable from the player's satchel, updating player state in-place. */
+  const handleUseConsumable = useCallback((itemId: string) => {
+    setPlayer((p) => {
+      if (!p) return p;
+      const inventory = parseSatchelInventory(p.satchel_inventory_json);
+      const idx = inventory.consumables.findIndex((c) => c.item_id === itemId);
+      if (idx === -1 || inventory.consumables[idx].qty <= 0) return p;
+      const updatedConsumables = inventory.consumables.map((c, i) =>
+        i === idx ? { ...c, qty: c.qty - 1 } : c,
+      );
+      const updatedInventory = { ...inventory, consumables: updatedConsumables };
+      return { ...p, satchel_inventory_json: JSON.stringify(updatedInventory) };
+    });
+  }, []);
+
   const navigate: NightOneNavigate = {
     beginDemo,
     quitToTitle,
@@ -2450,9 +2527,19 @@ export function useNightOneFlow() {
       setInventoryOpen(true);
     },
     closeInventory: () => setInventoryOpen(false),
+    openSatchel: () => {
+      setPauseOpen(false);
+      setSatchelOpen(true);
+    },
+    closeSatchel: () => setSatchelOpen(false),
+    dismissRestedReadiness: () => setRestedReadinessOpen(false),
     openDemoClosing: () => {
       setPauseOpen(false);
       setScreen('demoClosing');
+    },
+    openCampfireSave: () => {
+      setPauseOpen(false);
+      setScreen('campfireSave');
     },
     openModule: (moduleId: string) => {
       const devBypass = import.meta.env.DEV || import.meta.env.VITE_LH_PAUSE_MODULE_SHORTCUTS === 'true';
@@ -2576,6 +2663,9 @@ export function useNightOneFlow() {
     realmTravelNotice,
     academicWorksheetsOpen,
     inventoryOpen,
+    satchelOpen,
+    restedReadinessOpen,
+    handleUseConsumable,
     moduleHostOpen,
     activeModuleId,
     scrollRevealOpen,
@@ -2633,6 +2723,7 @@ export function useNightOneFlow() {
 
     handleManualSave,
     handleEndSessionRitual,
+    campfirePrompt,
     ledgerDraft,
     setLedgerDraft,
     markQuestTurnedIn,

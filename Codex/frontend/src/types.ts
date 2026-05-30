@@ -7,7 +7,8 @@ export type Screen =
   | 'scrollReveal'
   | 'resume'
   | 'explore'
-  | 'demoClosing';
+  | 'demoClosing'
+  | 'campfireSave';
 
 export type NightOneNavigate = {
   beginDemo: () => Promise<void>;
@@ -35,7 +36,11 @@ export type NightOneNavigate = {
   closeResearchWorksheets: () => void;
   openInventory: () => void;
   closeInventory: () => void;
+  openSatchel: () => void;
+  closeSatchel: () => void;
+  dismissRestedReadiness: () => void;
   openDemoClosing: () => void;
+  openCampfireSave: () => void;
   openModule: (moduleId: string) => void;
   closeModule: () => void;
 };
@@ -46,11 +51,16 @@ export type {
   AcademicTaskStatus,
   AcademicWorksheetFieldDef,
   AcademicWorksheetTaskDef,
+  CampfireReflectionRow,
+  CampfireGradeSubmission,
+  CosmeticsV1,
   EncounterLogEntryV1,
+  FieldKitToolV1,
   GuildEndgameInterviewOutcomeV1,
   GuildEndgameV1,
   InventoryLineItem,
   InventorySummary,
+  MementoEntryV1,
   ModuleDefinition,
   ModuleProgressState,
   ModuleResultPayload,
@@ -62,8 +72,11 @@ export type {
   QuestDefinition,
   RealmDefinition,
   RealmExplorationProgressEntry,
+  RestedReadinessTier,
   RitualDraftsV1,
   RosterStudentRecord,
+  SatchelConsumableV1,
+  SatchelInventoryV1,
   SessionSummaryV1,
 } from './domain/lh-contract';
 

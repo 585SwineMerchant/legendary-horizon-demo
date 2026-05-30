@@ -64,6 +64,24 @@ var LH_PLAYER_SAVE_HEADERS = {
   foretold_signpost_3_guild_id: 'foretold_signpost_3_guild_id',
   /** ISO timestamp when the Scroll of Destiny was first generated (Manifest sealed). */
   scroll_generated_at: 'scroll_generated_at',
+  /** Resolve / HP system. */
+  resolve_current: 'resolve_current',
+  resolve_max: 'resolve_max',
+  resolve_shaken: 'resolve_shaken',
+  last_safe_camp_position_json: 'last_safe_camp_position_json',
+  /** Campfire streak + prompt rotation. */
+  campfire_streak: 'campfire_streak',
+  last_campfire_iso: 'last_campfire_iso',
+  used_campfire_prompt_ids_json: 'used_campfire_prompt_ids_json',
+  /** Campfire grading / Rested Readiness. */
+  last_campfire_score: 'last_campfire_score',
+  rested_readiness_tier: 'rested_readiness_tier',
+  rested_readiness_multiplier: 'rested_readiness_multiplier',
+  rested_readiness_wake_index: 'rested_readiness_wake_index',
+  /** Item system. */
+  satchel_inventory_json: 'satchel_inventory_json',
+  /** Cosmetics / titles. */
+  active_title: 'active_title',
 };
 
 var LH_ROSTER_HEADERS = {
@@ -119,4 +137,12 @@ var LH_SESSION_HISTORY_HEADERS = {
   ended_iso: 'ended_iso',
   summary_json: 'summary_json',
   device_hint: 'device_hint',
+  campfire_log_entry: 'campfire_log_entry',
+  /** Campfire grading columns — filled by teacher via grade_campfire action. */
+  campfire_score: 'campfire_score',
+  campfire_comment: 'campfire_comment',
+  campfire_graded_at: 'campfire_graded_at',
+  campfire_graded_by: 'campfire_graded_by',
+  /** Display name snapshot for teacher grading queue. */
+  player_display_name: 'player_display_name',
 };

@@ -6,11 +6,15 @@ import { RealmAtlasOverlay } from './components/RealmAtlasOverlay';
 import { WorldMapOverlay } from './components/WorldMapOverlay';
 import { AcademicWorksheetsOverlay } from './components/AcademicWorksheetsOverlay';
 import { InventoryOverlay } from './components/InventoryOverlay';
+import { SatchelOverlay } from './components/SatchelOverlay';
+import { RestedReadinessModal } from './components/RestedReadinessModal';
+import { computeRestedReadinessTier } from './services/restedReadiness';
 import { QuestLogShell } from './components/QuestLogShell';
 import { SystemToastOverlay } from './components/SystemToastOverlay';
 import { ModuleHostOverlay } from './components/ModuleHostOverlay';
 import { useLhAccessibilityPrefs } from './hooks/useLhAccessibilityPrefs';
 import { useNightOneFlow } from './hooks/useNightOneFlow';
+import { CampfireSaveScreen } from './screens/CampfireSaveScreen';
 import { DemoClosingScreen } from './screens/DemoClosingScreen';
 import { ExplorationScreen } from './screens/ExplorationScreen';
 import { GameTitleScreen } from './screens/GameTitleScreen';
@@ -64,6 +68,8 @@ export function App() {
     hotspotControls,
     navigate,
     handleManualSave,
+    handleEndSessionRitual,
+    campfirePrompt,
     ledgerDraft,
     setLedgerDraft,
     tiledMapDebug,
@@ -100,6 +106,9 @@ export function App() {
     startAcademicTask,
     academicWorksheetDefs,
     inventoryOpen,
+    satchelOpen,
+    restedReadinessOpen,
+    handleUseConsumable,
     moduleHostOpen,
     activeModuleId,
     scrollRevealOpen,
@@ -395,16 +404,28 @@ export function App() {
         />
       ) : null}
 
+      {!teacherDashboardOpen && screen === 'campfireSave' && player ? (
+        <CampfireSaveScreen
+          player={player}
+          prompt={campfirePrompt}
+          onSubmit={(response) => handleEndSessionRitual(response)}
+          onComplete={navigate.quitToTitle}
+        />
+      ) : null}
+
       {!teacherDashboardOpen ? <ScrollOfDestinyDisplay
         open={pauseOpen && screen === 'explore'}
         onClose={navigate.closePause}
         player={player}
         quests={quests}
         allRealms={allRealms}
+        exploration={exploration}
+        realmProgress={realmProgress}
         foretoldSignpostRealmIds={exploration.foretold_signpost_realm_ids ?? []}
         oracleDraft={exploration.module_drafts?.mod_oracle_of_fate}
         riasecScores={surveyRiasecScores}
         onSave={handleManualSave}
+        onEndSession={navigate.openCampfireSave}
         onOpenQuestLog={() => {
           navigate.closePause();
           navigate.openQuestLog();
@@ -412,7 +433,7 @@ export function App() {
         onOpenRealmAtlas={navigate.openRealmAtlas}
         onOpenInventory={() => {
           navigate.closePause();
-          navigate.openInventory();
+          navigate.openSatchel();
         }}
         onReviewProphecy={() => {
           const url = exploration.module_drafts?.mod_oracle_of_fate?.prophecy_research_url;
@@ -430,6 +451,23 @@ export function App() {
 
       {!teacherDashboardOpen && inventoryOpen && player ? (
         <InventoryOverlay open={inventoryOpen} onClose={navigate.closeInventory} player={player} />
+      ) : null}
+
+      {!teacherDashboardOpen && satchelOpen && player ? (
+        <SatchelOverlay
+          open={satchelOpen}
+          player={player}
+          onClose={navigate.closeSatchel}
+          onUseConsumable={handleUseConsumable}
+        />
+      ) : null}
+
+      {!teacherDashboardOpen && restedReadinessOpen && player && player.last_campfire_score != null ? (
+        <RestedReadinessModal
+          tier={computeRestedReadinessTier(player.last_campfire_score)}
+          lastWakeIndex={player.rested_readiness_wake_index ?? 0}
+          onDismiss={navigate.dismissRestedReadiness}
+        />
       ) : null}
 
       {!teacherDashboardOpen && academicWorksheetsOpen && player ? (

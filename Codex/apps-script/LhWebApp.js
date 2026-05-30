@@ -226,6 +226,48 @@ function doPost(e) {
       return lhWebJsonOutput_(out);
     }
 
+    if (action === 'list_campfire_reflections' || action === 'listcampfirereflections') {
+      var lcr = LhSession_listUngradedReflections(spreadsheetId);
+      if (!lcr.ok) {
+        out.error = lcr.error || 'list_campfire_reflections_failed';
+        return lhWebJsonOutput_(out);
+      }
+      out.ok = true;
+      out.reflections = lcr.reflections || [];
+      return lhWebJsonOutput_(out);
+    }
+
+    if (action === 'grade_campfire' || action === 'gradecampfire') {
+      var gcSid = body.session_id;
+      var gcScore = body.score;
+      var gcComment = body.comment != null ? String(body.comment) : '';
+      var gcBy = body.graded_by != null ? String(body.graded_by) : '';
+      if (!gcSid || gcScore === undefined || gcScore === null) {
+        out.error = 'session_id_and_score_required';
+        return lhWebJsonOutput_(out);
+      }
+      var scoreNum = Number(gcScore);
+      if (isNaN(scoreNum) || scoreNum < 0 || scoreNum > 5) {
+        out.error = 'score_must_be_0_to_5';
+        return lhWebJsonOutput_(out);
+      }
+      var gc = LhSession_gradeCampfireReflection(spreadsheetId, gcSid, {
+        score: scoreNum,
+        comment: gcComment,
+        graded_by: gcBy,
+      });
+      if (gc.ok) {
+        out.ok = true;
+        out.message = 'Campfire reflection graded.';
+        out.graded_at = gc.graded_at;
+      } else {
+        out.ok = false;
+        out.message = 'grade_campfire failed.';
+        out.errors = [gc.error || 'grade_campfire_failed'];
+      }
+      return lhWebJsonOutput_(out);
+    }
+
     out.error = 'unknown_action';
     return lhWebJsonOutput_(out);
   } catch (err) {

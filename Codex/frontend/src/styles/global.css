@@ -3944,3 +3944,479 @@ html[data-lh-motion='reduce'] *::after {
   border-radius: 8px;
   color: var(--lh-muted);
 }
+
+/* ── Campfire Save Screen ────────────────────────────────────────── */
+
+.lh-campfire-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #080408;
+  overflow: hidden;
+  padding: 1rem;
+}
+
+.lh-campfire-glow {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(200, 90, 10, 0.22) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 30% at 50% 90%, rgba(244, 140, 30, 0.14) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.lh-campfire-pyre {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  gap: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.lh-campfire-smoke {
+  width: 64px;
+  height: auto;
+  image-rendering: pixelated;
+  opacity: 0.55;
+  animation: lh-campfire-smoke-rise 3s ease-in-out infinite alternate;
+}
+
+.lh-campfire-flame {
+  width: 80px;
+  height: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 18px rgba(244, 140, 30, 0.7)) drop-shadow(0 0 6px rgba(255, 80, 0, 0.5));
+  margin-top: -8px;
+}
+
+.lh-campfire-log-base {
+  width: 56px;
+  height: 10px;
+  background: linear-gradient(90deg, #3a1a08, #6b3010, #3a1a08);
+  border-radius: 3px;
+  margin-top: -4px;
+  box-shadow: 0 2px 8px rgba(200, 80, 0, 0.3);
+}
+
+@keyframes lh-campfire-smoke-rise {
+  from { transform: translateY(0) scaleX(1); opacity: 0.45; }
+  to   { transform: translateY(-6px) scaleX(1.05); opacity: 0.65; }
+}
+
+.lh-campfire-card {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 560px;
+  background: linear-gradient(160deg, #120b08 0%, #1a0f0a 100%);
+  border: 1px solid rgba(180, 100, 20, 0.35);
+  border-radius: 14px;
+  padding: 1.75rem 2rem;
+  box-shadow:
+    0 0 40px rgba(180, 80, 10, 0.18),
+    0 4px 24px rgba(0, 0, 0, 0.6);
+  transition: opacity 0.4s ease;
+}
+
+.lh-campfire-card--confirmed {
+  opacity: 0.88;
+}
+
+.lh-campfire-eyebrow {
+  color: #d4880e !important;
+  margin: 0 0 0.2rem !important;
+}
+
+.lh-campfire-card__header {
+  margin-bottom: 1.1rem;
+  border-bottom: 1px solid rgba(180, 100, 20, 0.2);
+  padding-bottom: 0.75rem;
+}
+
+.lh-campfire-context {
+  font-size: 0.78rem;
+  color: rgba(220, 180, 120, 0.6);
+  margin: 0;
+  letter-spacing: 0.03em;
+}
+
+.lh-campfire-prompt-block {
+  margin-bottom: 1.1rem;
+}
+
+.lh-campfire-prompt {
+  font-family: var(--lh-guild-lore);
+  font-size: 1rem;
+  line-height: 1.55;
+  color: #e8cfa0;
+  margin: 0;
+  font-style: italic;
+}
+
+.lh-campfire-input-block {
+  margin-bottom: 0.75rem;
+}
+
+.lh-campfire-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 0.7rem 0.85rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(180, 100, 20, 0.3);
+  border-radius: 8px;
+  color: #f0e0c0;
+  font-family: var(--lh-font-sans);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  resize: vertical;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.lh-campfire-textarea:focus {
+  outline: none;
+  border-color: rgba(220, 130, 30, 0.65);
+  box-shadow: 0 0 0 3px rgba(200, 100, 20, 0.15);
+}
+
+.lh-campfire-textarea::placeholder {
+  color: rgba(200, 160, 100, 0.3);
+}
+
+.lh-campfire-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lh-campfire-char-hint {
+  font-size: 0.75rem;
+  color: rgba(200, 160, 100, 0.4);
+  margin: 0.35rem 0 0;
+  text-align: right;
+  transition: color 0.3s;
+}
+
+.lh-campfire-char-hint--met {
+  color: rgba(140, 200, 100, 0.7);
+}
+
+.lh-campfire-error {
+  font-size: 0.82rem;
+  color: #e07070;
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(200, 60, 60, 0.1);
+  border-radius: 6px;
+  border: 1px solid rgba(200, 60, 60, 0.25);
+}
+
+.lh-campfire-submit {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #b86a10, #8a4a08);
+  color: #f8e8c8;
+  border: 1px solid rgba(220, 140, 40, 0.4);
+  border-radius: 8px;
+  font-family: var(--lh-guild-lore);
+  font-size: 0.95rem;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 12px rgba(180, 80, 10, 0.3);
+}
+
+.lh-campfire-submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #d48020, #a05a10);
+  box-shadow: 0 4px 20px rgba(200, 100, 20, 0.45);
+}
+
+.lh-campfire-submit:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.lh-campfire-confirmation {
+  text-align: center;
+  padding: 1rem 0;
+  animation: lh-campfire-fade-in 0.6s ease;
+}
+
+.lh-campfire-confirmation__line {
+  font-family: var(--lh-guild-lore);
+  font-size: 1.15rem;
+  font-style: italic;
+  color: #e8d0a0;
+  margin: 0 0 0.6rem;
+}
+
+.lh-campfire-confirmation__sub {
+  font-size: 0.83rem;
+  color: rgba(200, 160, 100, 0.5);
+  margin: 0;
+}
+
+@keyframes lh-campfire-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Campfire — amber flame tint (streak ≥ 3) ───────────────────── */
+.lh-campfire-screen--amber .lh-campfire-glow {
+  background:
+    radial-gradient(ellipse 60% 45% at 50% 100%, rgba(240, 160, 20, 0.28) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 30% at 50% 90%, rgba(255, 200, 40, 0.18) 0%, transparent 60%);
+}
+
+.lh-campfire-flame--amber {
+  filter:
+    drop-shadow(0 0 22px rgba(255, 180, 0, 0.85))
+    drop-shadow(0 0 8px rgba(255, 120, 0, 0.6))
+    sepia(0.35)
+    saturate(1.8)
+    hue-rotate(-10deg);
+}
+
+/* ── Campfire — streak badge ─────────────────────────────────────── */
+.lh-campfire-streak-badge {
+  position: absolute;
+  top: 1rem;
+  right: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: rgba(212, 160, 23, 0.12);
+  border: 1px solid rgba(212, 160, 23, 0.3);
+  border-radius: 12px;
+  z-index: 10;
+}
+
+.lh-campfire-streak-badge__icon { font-size: 14px; }
+.lh-campfire-streak-badge__count {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f59e0b;
+  letter-spacing: 0.04em;
+}
+.lh-campfire-streak-badge__hint {
+  font-size: 10px;
+  color: rgba(245, 158, 11, 0.6);
+  letter-spacing: 0.03em;
+}
+
+/* ── Campfire — char row (hint + count) ─────────────────────────── */
+.lh-campfire-char-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-top: 0.35rem;
+}
+
+.lh-campfire-char-count {
+  font-size: 0.72rem;
+  color: rgba(200, 160, 100, 0.4);
+  margin: 0;
+}
+
+.lh-campfire-char-count--over { color: #e07070; }
+.lh-campfire-char-hint--over  { color: #e07070; }
+.lh-campfire-textarea--over-limit {
+  border-color: rgba(200, 60, 60, 0.5) !important;
+}
+
+/* ── Campfire confirmation — streak line ─────────────────────────── */
+.lh-campfire-confirmation__streak {
+  font-size: 0.85rem;
+  color: #f59e0b;
+  margin: 0.5rem 0 0;
+  letter-spacing: 0.03em;
+}
+
+/* ── Resolve Bar ─────────────────────────────────────────────────── */
+.lh-resolve-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 120px;
+}
+
+.lh-resolve-bar--compact {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.lh-resolve-bar--overwhelmed .lh-resolve-bar__fill {
+  animation: lh-resolve-pulse 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes lh-resolve-pulse {
+  from { opacity: 0.5; }
+  to   { opacity: 1; }
+}
+
+.lh-resolve-bar__header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.lh-resolve-bar__title {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+}
+
+.lh-resolve-bar__fraction {
+  font-size: 11px;
+  font-weight: 700;
+  color: #e8dcc8;
+}
+
+.lh-resolve-bar__status {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f87171;
+  margin-left: auto;
+}
+
+.lh-resolve-bar__track {
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.lh-resolve-bar__fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease, background 0.4s ease;
+}
+
+.lh-resolve-bar__label {
+  font-size: 10px;
+  color: rgba(255,255,255,0.5);
+  white-space: nowrap;
+}
+
+.lh-resolve-bar__rr-badge {
+  font-size: 12px;
+  cursor: default;
+}
+
+.lh-resolve-bar__rr-row {
+  margin-top: 2px;
+}
+
+/* ── Field Journal / Pause Menu Tabs ─────────────────────────────── */
+.lh-field-journal-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(212,160,23,0.15);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.lh-field-journal-tabs::-webkit-scrollbar { display: none; }
+
+.lh-field-journal-tab {
+  padding: 8px 16px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-family: serif;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: rgba(212,160,23,0.5);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+.lh-field-journal-tab:hover { color: rgba(212,160,23,0.8); }
+.lh-field-journal-tab--active {
+  color: #f0dfa0;
+  border-bottom-color: #d4a017;
+  background: rgba(212,160,23,0.06);
+}
+
+/* ── Rested Readiness Wake-up Modal ──────────────────────────────── */
+.lh-rested-readiness-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 4, 2, 0.88);
+  padding: 1rem;
+  animation: lh-campfire-fade-in 0.5s ease;
+}
+
+.lh-rested-readiness-modal__card {
+  max-width: 480px;
+  width: 100%;
+  background: linear-gradient(160deg, #100b06, #18100a);
+  border: 1px solid rgba(212,160,23,0.25);
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 0 40px rgba(180,100,10,0.2);
+}
+
+.lh-rested-readiness-modal__tier {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(212,160,23,0.6);
+  margin: 0;
+}
+
+.lh-rested-readiness-modal__badge {
+  font-size: 28px;
+  letter-spacing: 0.1em;
+}
+
+.lh-rested-readiness-modal__message {
+  font-family: var(--lh-guild-lore, serif);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: #e8cfa0;
+  font-style: italic;
+  margin: 0;
+}
+
+.lh-rested-readiness-modal__multiplier {
+  font-size: 12px;
+  color: rgba(212,160,23,0.7);
+  margin: 0;
+  letter-spacing: 0.04em;
+}
+
+.lh-rested-readiness-modal__dismiss {
+  padding: 8px 24px;
+  background: linear-gradient(135deg,#d4a017,#b8912a);
+  border: 1px solid #8a6a1a;
+  border-radius: 6px;
+  color: #1a0e00;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: serif;
+  letter-spacing: 0.04em;
+  align-self: center;
+}
+

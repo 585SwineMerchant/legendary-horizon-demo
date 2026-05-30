@@ -5,6 +5,83 @@
 
 import type { LhDialogueCatalogV1, LhNpcRegistryV1 } from './lh-dialogue';
 
+// ─── Rested Readiness ─────────────────────────────────────────────────────────
+
+/** Six-tier sleep-quality result from teacher campfire grading (score 0–5). */
+export type RestedReadinessTier =
+  | 'restless'      // score 0 — multiplier 1.00
+  | 'light_rest'    // score 1 — multiplier 1.05
+  | 'steady_rest'   // score 2 — multiplier 1.10
+  | 'clear_rest'    // score 3 — multiplier 1.15
+  | 'strong_rest'   // score 4 — multiplier 1.25
+  | 'legendary_rest'; // score 5 — multiplier 1.40
+
+// ─── Item System ──────────────────────────────────────────────────────────────
+
+/** One consumable slot in the Satchel (use charges depleted in-session). */
+export type SatchelConsumableV1 = {
+  item_id: string;
+  label: string;
+  qty: number;
+  max_qty: number;
+};
+
+/** Permanent Field Kit tool (owned once, always active when present). */
+export type FieldKitToolV1 = {
+  item_id: string;
+  label: string;
+  owned: boolean;
+};
+
+/** Collectible cosmetic item logged in the Mementos grid. */
+export type MementoEntryV1 = {
+  item_id: string;
+  label: string;
+  description?: string;
+  icon_emoji?: string;
+  acquired_at_iso: string;
+};
+
+/** Cosmetics state — unlocked titles and badges from streak milestones and exploration. */
+export type CosmeticsV1 = {
+  unlocked_titles: string[];
+  active_title: string | null;
+  unlocked_badges: string[];
+};
+
+/** Flattened inventory envelope persisted as JSON in player save. */
+export type SatchelInventoryV1 = {
+  consumables: SatchelConsumableV1[];
+  field_kit: FieldKitToolV1[];
+  mementos: MementoEntryV1[];
+  cosmetics: CosmeticsV1;
+};
+
+// ─── Campfire Grading ─────────────────────────────────────────────────────────
+
+/** One campfire reflection row awaiting teacher review (loaded from LhSessionHistory). */
+export type CampfireReflectionRow = {
+  session_id: string;
+  player_id: string;
+  player_display_name?: string;
+  began_iso: string;
+  ended_iso?: string;
+  campfire_log_entry: string;
+  campfire_score?: number | null;
+  campfire_comment?: string;
+  campfire_graded_at?: string;
+  campfire_graded_by?: string;
+};
+
+/** Result of grading one campfire reflection. */
+export type CampfireGradeSubmission = {
+  session_id: string;
+  player_id: string;
+  score: number;       // 0–5
+  comment: string;     // max 140 chars
+  graded_by: string;   // teacher email
+};
+
 export type InventoryLineItem = {
   item_id: string;
   qty: number;
@@ -41,6 +118,40 @@ export type PlayerSave = {
   backup_checkpoint_json?: string;
   /** Exit-ticket workflow flag mirrored on the sheet (`none`, `draft_ready`, `sent`, …). */
   exit_ticket_state?: string;
+
+  // ── Resolve / HP (System 4) ──────────────────────────────────────────────
+  /** Current Resolve points (default 20 max). Replenished on campfire save. */
+  resolve_current?: number;
+  /** Maximum Resolve — normally 20. */
+  resolve_max?: number;
+  /** Shaken status: true when Resolve dropped below 25% during a session (−10% sprint). */
+  resolve_shaken?: boolean;
+  /** Last safe camp position JSON `{ x: number; y: number }` — Overwhelmed retreat anchor. */
+  last_safe_camp_position_json?: string;
+
+  // ── Campfire Streak (System 2) ────────────────────────────────────────────
+  /** Consecutive sessions with a submitted campfire reflection. Resets on miss. */
+  campfire_streak?: number;
+  /** ISO timestamp when the most recent campfire ritual was completed. */
+  last_campfire_iso?: string;
+  /** JSON array (string[]) of recently used campfire prompt IDs — last 10 for cooldown. */
+  used_campfire_prompt_ids_json?: string;
+
+  // ── Teacher Grading → Rested Readiness (Systems 3 + 7) ───────────────────
+  /** Score (0–5) assigned by the teacher for the most recent campfire reflection. */
+  last_campfire_score?: number;
+  /** Rested Readiness tier derived from `last_campfire_score`. */
+  rested_readiness_tier?: RestedReadinessTier;
+  /** XP multiplier derived from `rested_readiness_tier` (1.00–1.40). */
+  rested_readiness_multiplier?: number;
+  /** Wake-up message rotation index — prevents showing the same message twice in a row. */
+  rested_readiness_wake_index?: number;
+
+  // ── Item / Satchel System (System 5) ─────────────────────────────────────
+  /** JSON-serialized `SatchelInventoryV1` — consumables, field kit, mementos, cosmetics. */
+  satchel_inventory_json?: string;
+  /** Active display title (e.g. "Thoughtful Traveler"). */
+  active_title?: string;
 };
 
 /** Quest definition row baseline (matches quest workbook MVP columns + M10 engine fields). */
@@ -240,6 +351,16 @@ export type ExplorationLoopState = {
    * Anchors Act II/III comparison and exploration guidance; empty until Act I manifest completion.
    */
   foretold_signpost_realm_ids?: string[];
+
+  // ── Resolve tracking (System 4) — session-only, synced with PlayerSave ────
+  /** Current Resolve for active session. Mirrored to/from PlayerSave.resolve_current on save. */
+  resolve_current?: number;
+  /** Shaken flag mirrors PlayerSave.resolve_shaken; affects sprint speed in Phaser. */
+  resolve_shaken?: boolean;
+  /** World-space tile X of last campfire save — anchor for Overwhelmed retreat. */
+  last_safe_camp_x?: number;
+  /** World-space tile Y of last campfire save. */
+  last_safe_camp_y?: number;
 };
 
 /**
@@ -265,6 +386,16 @@ export type SessionSummaryV1 = {
   quest_open_count: number;
   ledger_entry_count: number;
   captured_at_iso: string;
+  /** Student's campfire reflection response — collected via CampfireSaveScreen before session end. */
+  exit_ticket_body?: string;
+  /** Campfire prompt ID used for this session's reflection (for cooldown tracking). */
+  campfire_prompt_id?: string;
+  /** Campfire streak at time of session end. */
+  campfire_streak?: number;
+  /** Rested Readiness tier from previous session's teacher grade (applied at session start). */
+  rested_readiness_tier?: RestedReadinessTier;
+  /** Player display name snapshot — written to LhSessionHistory for teacher grading queue. */
+  player_display_name?: string;
 };
 
 /** Half-written ritual fields flushed on save (Milestone 8). */
@@ -314,6 +445,11 @@ export type LhRuntimeFixture = {
   tiled_demo_map_relative_path: string;
   /** Hydrated Codex-local Tiled export for the primary world map; omit when pulling remote-only payloads. */
   tiled_map_payload?: unknown;
+  /** Optional per-session configuration overrides (e.g. teacher-set campfire prompt). */
+  session_config?: {
+    /** Override the default campfire reflection prompt for this session. */
+    campfire_prompt?: string;
+  };
 };
 
 export type ManualSaveEnvelopeV1 = {

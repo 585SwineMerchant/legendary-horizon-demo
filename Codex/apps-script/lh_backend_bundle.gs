@@ -201,6 +201,48 @@ function doPost(e) {
       return lhWebJsonOutput_(out);
     }
 
+    if (action === 'list_campfire_reflections' || action === 'listcampfirereflections') {
+      var lcr = LhSession_listUngradedReflections(spreadsheetId);
+      if (!lcr.ok) {
+        out.error = lcr.error || 'list_campfire_reflections_failed';
+        return lhWebJsonOutput_(out);
+      }
+      out.ok = true;
+      out.reflections = lcr.reflections || [];
+      return lhWebJsonOutput_(out);
+    }
+
+    if (action === 'grade_campfire' || action === 'gradecampfire') {
+      var gcSid = body.session_id;
+      var gcScore = body.score;
+      var gcComment = body.comment != null ? String(body.comment) : '';
+      var gcBy = body.graded_by != null ? String(body.graded_by) : '';
+      if (!gcSid || gcScore === undefined || gcScore === null) {
+        out.error = 'session_id_and_score_required';
+        return lhWebJsonOutput_(out);
+      }
+      var scoreNum = Number(gcScore);
+      if (isNaN(scoreNum) || scoreNum < 0 || scoreNum > 5) {
+        out.error = 'score_must_be_0_to_5';
+        return lhWebJsonOutput_(out);
+      }
+      var gc = LhSession_gradeCampfireReflection(spreadsheetId, gcSid, {
+        score: scoreNum,
+        comment: gcComment,
+        graded_by: gcBy,
+      });
+      if (gc.ok) {
+        out.ok = true;
+        out.message = 'Campfire reflection graded.';
+        out.graded_at = gc.graded_at;
+      } else {
+        out.ok = false;
+        out.message = 'grade_campfire failed.';
+        out.errors = [gc.error || 'grade_campfire_failed'];
+      }
+      return lhWebJsonOutput_(out);
+    }
+
     out.error = 'unknown_action';
     return lhWebJsonOutput_(out);
   } catch (err) {
@@ -259,8 +301,39 @@ var LH_PLAYER_SAVE_HEADERS = {
   realm_progress_json: 'realm_progress_json',
   session_summary_json: 'session_summary_json',
   ritual_drafts_json: 'ritual_drafts_json',
-  /** M8 â€” `{ visited_trigger_object_ids: string[] }` from manual-save envelope. */
+  /** M8 — `{ visited_trigger_object_ids: string[] }` from manual-save envelope. */
   progression_flags_json: 'progression_flags_json',
+  /** Act I — Traveler's Survey RIASEC scores (0–20 each). */
+  riasec_r: 'riasec_r',
+  riasec_i: 'riasec_i',
+  riasec_a: 'riasec_a',
+  riasec_s: 'riasec_s',
+  riasec_e: 'riasec_e',
+  riasec_c: 'riasec_c',
+  /** Act I — Foretold Signpost guild realm_ids (up to three). */
+  foretold_signpost_1_guild_id: 'foretold_signpost_1_guild_id',
+  foretold_signpost_2_guild_id: 'foretold_signpost_2_guild_id',
+  foretold_signpost_3_guild_id: 'foretold_signpost_3_guild_id',
+  /** ISO timestamp when the Scroll of Destiny was first generated (Manifest sealed). */
+  scroll_generated_at: 'scroll_generated_at',
+  /** Resolve / HP system. */
+  resolve_current: 'resolve_current',
+  resolve_max: 'resolve_max',
+  resolve_shaken: 'resolve_shaken',
+  last_safe_camp_position_json: 'last_safe_camp_position_json',
+  /** Campfire streak + prompt rotation. */
+  campfire_streak: 'campfire_streak',
+  last_campfire_iso: 'last_campfire_iso',
+  used_campfire_prompt_ids_json: 'used_campfire_prompt_ids_json',
+  /** Campfire grading / Rested Readiness. */
+  last_campfire_score: 'last_campfire_score',
+  rested_readiness_tier: 'rested_readiness_tier',
+  rested_readiness_multiplier: 'rested_readiness_multiplier',
+  rested_readiness_wake_index: 'rested_readiness_wake_index',
+  /** Item system. */
+  satchel_inventory_json: 'satchel_inventory_json',
+  /** Cosmetics / titles. */
+  active_title: 'active_title',
 };
 
 var LH_ROSTER_HEADERS = {
@@ -315,6 +388,14 @@ var LH_SESSION_HISTORY_HEADERS = {
   ended_iso: 'ended_iso',
   summary_json: 'summary_json',
   device_hint: 'device_hint',
+  campfire_log_entry: 'campfire_log_entry',
+  /** Campfire grading columns — filled by teacher via grade_campfire action. */
+  campfire_score: 'campfire_score',
+  campfire_comment: 'campfire_comment',
+  campfire_graded_at: 'campfire_graded_at',
+  campfire_graded_by: 'campfire_graded_by',
+  /** Display name snapshot for teacher grading queue. */
+  player_display_name: 'player_display_name',
 };
 /**
  * AssetService â€” Milestone 3 media lookup + realm/NPC filtered bundles.
@@ -1525,8 +1606,121 @@ function LhSession_writeSessionHistory(spreadsheetId, playerId, summaryObj) {
   row[LH_SESSION_HISTORY_HEADERS.ended_iso] = iso;
   row[LH_SESSION_HISTORY_HEADERS.summary_json] = JSON.stringify(summaryObj || {});
   row[LH_SESSION_HISTORY_HEADERS.device_hint] = 'writeSessionHistory';
+  row[LH_SESSION_HISTORY_HEADERS.campfire_log_entry] =
+    (summaryObj && typeof summaryObj.exit_ticket_body === 'string')
+      ? summaryObj.exit_ticket_body
+      : '';
+  row[LH_SESSION_HISTORY_HEADERS.player_display_name] =
+    (summaryObj && typeof summaryObj.player_display_name === 'string')
+      ? summaryObj.player_display_name
+      : '';
   lhSession_appendObjectRow_(sheet, row);
   return { ok: true, session_id: sessionId };
+}
+
+/**
+ * Lists all session history rows that have a campfire_log_entry but have NOT been graded.
+ */
+function LhSession_listUngradedReflections(spreadsheetId) {
+  var sheet = lhSheetTryGet_(spreadsheetId, LH_SCHEMA.SESSION_HISTORY_TAB);
+  if (!sheet) {
+    return { ok: false, error: 'session_tab_missing' };
+  }
+  var headerMap = lhSheetReadHeaderMap_(sheet);
+  var rows = lhSheetReadTable_(sheet);
+  if (rows.length < 2) {
+    return { ok: true, reflections: [] };
+  }
+  var sidIdx    = headerMap[LH_SESSION_HISTORY_HEADERS.session_id];
+  var pidIdx    = headerMap[LH_SESSION_HISTORY_HEADERS.player_id];
+  var beganIdx  = headerMap[LH_SESSION_HISTORY_HEADERS.began_iso];
+  var endedIdx  = headerMap[LH_SESSION_HISTORY_HEADERS.ended_iso];
+  var logIdx    = headerMap[LH_SESSION_HISTORY_HEADERS.campfire_log_entry];
+  var scoreIdx  = headerMap[LH_SESSION_HISTORY_HEADERS.campfire_score];
+  var nameIdx   = headerMap[LH_SESSION_HISTORY_HEADERS.player_display_name];
+
+  if (logIdx === undefined) {
+    return { ok: false, error: 'campfire_log_entry_column_missing' };
+  }
+
+  var results = [];
+  for (var i = 1; i < rows.length; i++) {
+    var r = rows[i];
+    var logEntry = String(r[logIdx] || '').trim();
+    if (!logEntry) continue;
+    var scoreRaw = scoreIdx !== undefined ? String(r[scoreIdx] || '').trim() : '';
+    if (scoreRaw !== '') continue;
+    results.push({
+      session_id:          sidIdx !== undefined ? String(r[sidIdx] || '') : '',
+      player_id:           pidIdx !== undefined ? String(r[pidIdx] || '') : '',
+      player_display_name: nameIdx !== undefined ? String(r[nameIdx] || '') : '',
+      began_iso:           beganIdx !== undefined ? String(r[beganIdx] || '') : '',
+      ended_iso:           endedIdx !== undefined ? String(r[endedIdx] || '') : '',
+      campfire_log_entry:  logEntry,
+    });
+  }
+  return { ok: true, reflections: results };
+}
+
+/**
+ * Writes campfire grade columns and propagates score to player save for Rested Readiness.
+ */
+function LhSession_gradeCampfireReflection(spreadsheetId, sessionId, gradeObj) {
+  var sheet = lhSheetTryGet_(spreadsheetId, LH_SCHEMA.SESSION_HISTORY_TAB);
+  if (!sheet) {
+    return { ok: false, error: 'session_tab_missing' };
+  }
+  var headerMap = lhSheetReadHeaderMap_(sheet);
+  var rows = lhSheetReadTable_(sheet);
+  var sidCol = headerMap[LH_SESSION_HISTORY_HEADERS.session_id];
+  if (sidCol === undefined) {
+    return { ok: false, error: 'session_id_column_missing' };
+  }
+  var rowIndex = lhSheetFindRowIndex_(rows, sidCol, sessionId);
+  if (rowIndex === -1) {
+    return { ok: false, error: 'session_not_found' };
+  }
+  var targetRow = rowIndex + 1;
+  var gradedAt = new Date().toISOString();
+  var score = typeof gradeObj.score === 'number' ? gradeObj.score : Number(gradeObj.score);
+  var comment = typeof gradeObj.comment === 'string' ? gradeObj.comment.slice(0, 140) : '';
+  var gradedBy = typeof gradeObj.graded_by === 'string' ? gradeObj.graded_by : '';
+
+  lhSave_writeFieldIfPresent_(sheet, headerMap, targetRow, LH_SESSION_HISTORY_HEADERS.campfire_score, score);
+  lhSave_writeFieldIfPresent_(sheet, headerMap, targetRow, LH_SESSION_HISTORY_HEADERS.campfire_comment, comment);
+  lhSave_writeFieldIfPresent_(sheet, headerMap, targetRow, LH_SESSION_HISTORY_HEADERS.campfire_graded_at, gradedAt);
+  lhSave_writeFieldIfPresent_(sheet, headerMap, targetRow, LH_SESSION_HISTORY_HEADERS.campfire_graded_by, gradedBy);
+  SpreadsheetApp.flush();
+
+  var pidIdx = headerMap[LH_SESSION_HISTORY_HEADERS.player_id];
+  var playerId = pidIdx !== undefined ? String(rows[rowIndex][pidIdx] || '') : '';
+  if (playerId) {
+    LhSession_updatePlayerLastCampfireScore(spreadsheetId, playerId, score);
+  }
+  return { ok: true, graded_at: gradedAt };
+}
+
+/**
+ * Updates last_campfire_score on a player save row for Rested Readiness.
+ */
+function LhSession_updatePlayerLastCampfireScore(spreadsheetId, playerId, score) {
+  var sheet = lhSheetTryGet_(spreadsheetId, LH_SCHEMA.PLAYER_SAVE_TAB);
+  if (!sheet) {
+    return { ok: false, error: 'player_save_tab_missing' };
+  }
+  var headerMap = lhSheetReadHeaderMap_(sheet);
+  var rows = lhSheetReadTable_(sheet);
+  var idCol = headerMap[LH_PLAYER_SAVE_HEADERS.player_id];
+  if (idCol === undefined) {
+    return { ok: false, error: 'player_id_column_missing' };
+  }
+  var rowIndex = lhSheetFindRowIndex_(rows, idCol, playerId);
+  if (rowIndex === -1) {
+    return { ok: false, error: 'player_not_found' };
+  }
+  lhSave_writeFieldIfPresent_(sheet, headerMap, rowIndex + 1, LH_PLAYER_SAVE_HEADERS.last_campfire_score, score);
+  SpreadsheetApp.flush();
+  return { ok: true };
 }
 
 function createSessionHints_(teacherContext) {

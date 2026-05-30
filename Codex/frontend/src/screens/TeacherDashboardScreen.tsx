@@ -9,8 +9,10 @@ import {
   teacherUnlockQuestRemote,
 } from '../services/teacherToolsGateway';
 import { TeacherToolsPanel } from '../components/TeacherToolsPanel';
+import { CampfireGradingPanel } from '../components/CampfireGradingPanel';
 import { createEmptyExplorationLoopState } from '../exploration/explorationTypes';
 import { postLhWebAppJson } from '../services/lhWebAppClient';
+import type { CampfireReflectionRow } from '../domain/lh-contract';
 
 type RosterRow = {
   student_email?: string;
@@ -97,6 +99,31 @@ async function listPlayerSummaries(filters: { player_ids?: string[] }): Promise<
   return Array.isArray(rows) ? (rows as PlayerSummary[]) : [];
 }
 
+async function listCampfireReflections(): Promise<CampfireReflectionRow[]> {
+  const res = await postLhWebAppJson({ action: 'list_campfire_reflections' });
+  if (!res.ok) throw new Error(res.message);
+  if (!res.payload.ok) throw new Error(String(res.payload.error ?? 'list_campfire_reflections_failed'));
+  const rows = (res.payload.reflections as unknown) ?? [];
+  return Array.isArray(rows) ? (rows as CampfireReflectionRow[]) : [];
+}
+
+async function gradeCampfireReflection(
+  sessionId: string,
+  _playerId: string,
+  score: number,
+  comment: string,
+): Promise<{ ok: boolean; message: string }> {
+  const res = await postLhWebAppJson({
+    action: 'grade_campfire',
+    session_id: sessionId,
+    score,
+    comment,
+  });
+  if (!res.ok) return { ok: false, message: res.message };
+  if (!res.payload.ok) return { ok: false, message: String(res.payload.message ?? res.payload.error ?? 'grade_campfire failed') };
+  return { ok: true, message: String(res.payload.message ?? 'Graded.') };
+}
+
 export function TeacherDashboardScreen(props: { onBack: () => void }) {
   const enabled = import.meta.env.DEV || import.meta.env.VITE_LH_TEACHER_DASHBOARD === 'true';
   const [teacherEmail, setTeacherEmail] = useState('');
@@ -105,6 +132,11 @@ export function TeacherDashboardScreen(props: { onBack: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [roster, setRoster] = useState<RosterRow[]>([]);
   const [summaries, setSummaries] = useState<PlayerSummary[]>([]);
+
+  // Campfire grading queue
+  const [reflections, setReflections] = useState<CampfireReflectionRow[]>([]);
+  const [reflectionsLoading, setReflectionsLoading] = useState(false);
+  const [reflectionsError, setReflectionsError] = useState<string | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string>('');
 
   const [detailBusy, setDetailBusy] = useState(false);
@@ -199,6 +231,28 @@ export function TeacherDashboardScreen(props: { onBack: () => void }) {
         setLoading(false);
       }
     })();
+  }, [enabled]);
+
+  const refreshReflections = () => {
+    if (!enabled) return;
+    void (async () => {
+      setReflectionsLoading(true);
+      setReflectionsError(null);
+      try {
+        const rows = await listCampfireReflections();
+        setReflections(rows);
+      } catch (e) {
+        setReflectionsError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setReflectionsLoading(false);
+      }
+    })();
+  };
+
+  useEffect(() => {
+    if (!enabled) return;
+    refreshReflections();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled]);
 
   useEffect(() => {
@@ -409,6 +463,16 @@ export function TeacherDashboardScreen(props: { onBack: () => void }) {
               ) : null}
             </tbody>
           </table>
+        </div>
+
+        <div className="lh-stack" style={{ marginTop: 20 }}>
+          <CampfireGradingPanel
+            reflections={reflections}
+            loading={reflectionsLoading}
+            error={reflectionsError}
+            onGrade={gradeCampfireReflection}
+            onRefresh={refreshReflections}
+          />
         </div>
 
         <div className="lh-stack" style={{ marginTop: 14 }}>
