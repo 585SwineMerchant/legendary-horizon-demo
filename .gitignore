@@ -5,6 +5,8 @@ frontend/dist
 
 .env
 .env.local
+.env.*
+!.env.example
 .vscode/
 .idea/
 
@@ -27,3 +29,7 @@ Codex/frontend/public/assets/intro/*.mp4
 Codex/frontend/public/assets/intro/*.mov
 *.mp4
 .claude/worktrees/youthful-taussig-0ff3fc/
+
+# Baked/standalone prototype builds — contain embedded deployment URLs
+LegendaryHorizon_Playable.html
+CTE Remarkable Learning Experience/index-baked.html

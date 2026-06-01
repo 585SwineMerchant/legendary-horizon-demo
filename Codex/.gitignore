@@ -6,6 +6,8 @@ frontend/dist
 # local env / editor
 .env
 .env.local
+.env.*
+!.env.example
 .vscode/
 .idea/
 
