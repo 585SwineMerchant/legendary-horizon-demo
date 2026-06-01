@@ -22942,7 +22942,7 @@
                  "opacity":1,
                  "properties":[
                         {
-                         "name":"activation mode",
+                         "name":"lh_activation_mode",
                          "type":"string",
                          "value":"trigger"
                         }, 
@@ -23009,7 +23009,7 @@
                          "value":"lh_collision"
                         }, 
                         {
-                         "name":"lh_collion_kind",
+                         "name":"lh_collision_kind",
                          "type":"string",
                          "value":"building"
                         }, 

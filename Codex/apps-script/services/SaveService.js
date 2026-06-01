@@ -160,6 +160,10 @@ function lhSave_recordToPlayer_(rec) {
     inventory_summary: inv,
     revision_token: rec.revision_token ? String(rec.revision_token) : '',
     last_manual_save_iso: rec.last_manual_save_iso ? String(rec.last_manual_save_iso) : '',
+    last_campfire_score: (rec.last_campfire_score !== undefined && rec.last_campfire_score !== '')
+      ? Number(rec.last_campfire_score) : undefined,
+    campfire_streak: (rec.campfire_streak !== undefined && rec.campfire_streak !== '')
+      ? Number(rec.campfire_streak) : undefined,
   };
 }
 
@@ -469,6 +473,28 @@ function lhSave_writeEnvelopeExtensionColumns_(sheet, headerMap, targetRow, enve
         );
       }
     }
+    // Teacher-visibility: True Path selection from guild_endgame_v1.
+    var ge = ex.guild_endgame_v1;
+    if (ge && typeof ge === 'object' && typeof ge.true_path_realm_id === 'string' && ge.true_path_realm_id) {
+      lhSave_writeFieldIfPresent_(sheet, headerMap, targetRow, LH_PLAYER_SAVE_HEADERS.true_path_selected, ge.true_path_realm_id);
+    }
+    // Teacher-visibility: flatten academic_tasks into unlocked / completed arrays.
+    var tasks = ex.academic_tasks;
+    if (tasks && typeof tasks === 'object') {
+      var unlocked = [];
+      var completed = [];
+      var taskKeys = Object.keys(tasks);
+      for (var ti = 0; ti < taskKeys.length; ti++) {
+        var t = tasks[taskKeys[ti]];
+        if (t && typeof t === 'object') {
+          var tid = t.task_id || taskKeys[ti];
+          if (t.status !== 'locked') unlocked.push(tid);
+          if (t.status === 'completed') completed.push(tid);
+        }
+      }
+      lhSave_writeFieldIfPresent_(sheet, headerMap, targetRow, LH_PLAYER_SAVE_HEADERS.unlocked_assignments_json, JSON.stringify(unlocked));
+      lhSave_writeFieldIfPresent_(sheet, headerMap, targetRow, LH_PLAYER_SAVE_HEADERS.completed_assignments_json, JSON.stringify(completed));
+    }
   }
 }
 
@@ -558,6 +584,9 @@ function LhSave_listPlayerSummaries(spreadsheetId, tabNameOverride, filters) {
     var idxLevel = idx('level_cached');
     var idxLastManual = idx('last_manual_save_iso');
     var idxExit = idx('exit_ticket_state');
+    var idxClassroom = idx('classroom_email');
+    var idxTruePath = idx('true_path_selected');
+    var idxCompleted = idx('completed_assignments_json');
 
     var out = [];
     for (var r = 1; r < rows.length; r++) {
@@ -579,6 +608,9 @@ function LhSave_listPlayerSummaries(spreadsheetId, tabNameOverride, filters) {
         level_cached: idxLevel !== undefined ? Number(row[idxLevel]) || 1 : 1,
         last_manual_save_iso: idxLastManual !== undefined ? String(row[idxLastManual] || '') : '',
         exit_ticket_state: idxExit !== undefined ? String(row[idxExit] || '') : '',
+        classroom_email: idxClassroom !== undefined ? String(row[idxClassroom] || '') : '',
+        true_path_selected: idxTruePath !== undefined ? String(row[idxTruePath] || '') : '',
+        completed_assignments_json: idxCompleted !== undefined ? String(row[idxCompleted] || '') : '',
         save_row: r + 1,
       });
     }
@@ -609,6 +641,40 @@ function LhSave_writeExitTicketState(spreadsheetId, tabNameOverride, playerId, s
     return { ok: true };
   } catch (err) {
     Logger.log('LhSave_writeExitTicketState failure: ' + err);
+    return { ok: false, error: String(err) };
+  }
+}
+
+/**
+ * Writes `classroom_email` on the player row from roster data.
+ * Called by RosterService after a successful identity resolution so the teacher's email
+ * is always visible on the LhPlayerSave row without requiring a JSON-blob parse.
+ * Safe to call on every login — no-ops when the column is absent or the value is unchanged.
+ *
+ * @param {string} spreadsheetId
+ * @param {string | null} tabOverride
+ * @param {string} playerId
+ * @param {string} teacherEmail
+ */
+function LhSave_syncClassroomEmail(spreadsheetId, tabOverride, playerId, teacherEmail) {
+  try {
+    if (!teacherEmail) return { ok: true };
+    var tab = tabOverride || LH_SCHEMA.PLAYER_SAVE_TAB;
+    var sheet = lhSheetTryGet_(spreadsheetId, tab);
+    if (!sheet) return { ok: false, error: 'player_save_tab_missing' };
+    var headerMap = lhSheetReadHeaderMap_(sheet);
+    var colIdx = headerMap[LH_PLAYER_SAVE_HEADERS.classroom_email];
+    if (colIdx === undefined) return { ok: true };
+    var rows = lhSheetReadTable_(sheet);
+    var idCol = headerMap[LH_PLAYER_SAVE_HEADERS.player_id];
+    if (idCol === undefined) return { ok: false, error: 'player_id_column_missing' };
+    var rowIndex = lhSheetFindRowIndex_(rows, idCol, playerId);
+    if (rowIndex === -1) return { ok: false, error: 'player_not_found' };
+    lhSave_writeFieldIfPresent_(sheet, headerMap, rowIndex + 1, LH_PLAYER_SAVE_HEADERS.classroom_email, teacherEmail);
+    SpreadsheetApp.flush();
+    return { ok: true };
+  } catch (err) {
+    Logger.log('LhSave_syncClassroomEmail failure: ' + err);
     return { ok: false, error: String(err) };
   }
 }

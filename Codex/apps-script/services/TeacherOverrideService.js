@@ -67,6 +67,61 @@ function LhTeacher_restoreItem(spreadsheetId, tabOverride, playerId, itemId, qty
 }
 
 /**
+ * Sets narrative force target columns on a player row.
+ * These are teacher-only writes — player saves never touch these columns.
+ * The frontend reads them on load and routes the player toward the forced act/realm.
+ * Pass null for either value to leave it unchanged.
+ *
+ * @param {string} spreadsheetId
+ * @param {string | null} tabOverride
+ * @param {string} playerId
+ * @param {number | null} targetAct   — act number to force, or null to skip
+ * @param {string | null} targetRealm — realm_id to force, or null to skip
+ */
+function LhTeacher_setNarrativeForce(spreadsheetId, tabOverride, playerId, targetAct, targetRealm) {
+  var tab = tabOverride || LH_SCHEMA.PLAYER_SAVE_TAB;
+  var sheet = lhSheetTryGet_(spreadsheetId, tab);
+  if (!sheet) return { ok: false, error: 'player_save_tab_missing' };
+  var headerMap = lhSheetReadHeaderMap_(sheet);
+  var rows = lhSheetReadTable_(sheet);
+  var idCol = headerMap[LH_PLAYER_SAVE_HEADERS.player_id];
+  if (idCol === undefined) return { ok: false, error: 'player_id_column_missing' };
+  var rowIndex = lhSheetFindRowIndex_(rows, idCol, playerId);
+  if (rowIndex === -1) return { ok: false, error: 'player_not_found' };
+  var targetRow = rowIndex + 1;
+  if (targetAct !== null && targetAct !== undefined) {
+    var act = Number(targetAct);
+    if (!act || act < 1) return { ok: false, error: 'invalid_target_act' };
+    lhSave_writeFieldIfPresent_(sheet, headerMap, targetRow, LH_PLAYER_SAVE_HEADERS.narrative_force_target_act, act);
+  }
+  if (targetRealm !== null && targetRealm !== undefined) {
+    lhSave_writeFieldIfPresent_(sheet, headerMap, targetRow, LH_PLAYER_SAVE_HEADERS.narrative_force_target_realm, String(targetRealm));
+  }
+  SpreadsheetApp.flush();
+  return { ok: true };
+}
+
+/**
+ * Clears both narrative force columns on a player row (restores normal self-directed progression).
+ */
+function LhTeacher_clearNarrativeForce(spreadsheetId, tabOverride, playerId) {
+  var tab = tabOverride || LH_SCHEMA.PLAYER_SAVE_TAB;
+  var sheet = lhSheetTryGet_(spreadsheetId, tab);
+  if (!sheet) return { ok: false, error: 'player_save_tab_missing' };
+  var headerMap = lhSheetReadHeaderMap_(sheet);
+  var rows = lhSheetReadTable_(sheet);
+  var idCol = headerMap[LH_PLAYER_SAVE_HEADERS.player_id];
+  if (idCol === undefined) return { ok: false, error: 'player_id_column_missing' };
+  var rowIndex = lhSheetFindRowIndex_(rows, idCol, playerId);
+  if (rowIndex === -1) return { ok: false, error: 'player_not_found' };
+  var targetRow = rowIndex + 1;
+  lhSave_writeFieldIfPresent_(sheet, headerMap, targetRow, LH_PLAYER_SAVE_HEADERS.narrative_force_target_act, '');
+  lhSave_writeFieldIfPresent_(sheet, headerMap, targetRow, LH_PLAYER_SAVE_HEADERS.narrative_force_target_realm, '');
+  SpreadsheetApp.flush();
+  return { ok: true };
+}
+
+/**
  * Rewinds narrative act index (does not auto-reset quests — pair with quest fixes as needed).
  */
 function LhTeacher_resetActState(spreadsheetId, tabOverride, playerId, targetAct) {

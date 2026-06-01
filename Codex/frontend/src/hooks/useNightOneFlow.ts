@@ -105,7 +105,7 @@ import {
 } from '../exploration/guildGt102OutcomeCopy';
 import { emptyLedgerDraft, ritualDraftsFromLedgerDraft } from '../exploration/comparisonLedger';
 import { selectCampfirePrompt, addUsedPromptId, parseUsedPromptIds } from '../services/campfirePromptEngine';
-import { applyStreakMilestones, parseSatchelInventory } from '../data/itemCatalog';
+import { parseSatchelInventory } from '../data/itemCatalog';
 import { applyResolveDamage, rollResolveDamage, restoreResolveToFull } from '../services/resolveSystem';
 import { normalizeForetoldSignpostRealmIds, signpostLedgerMilestone } from '../exploration/foretoldSignposts';
 import {
@@ -1643,35 +1643,26 @@ export function useNightOneFlow() {
       return { ok: false, message: validation.join('\n') };
     }
 
-    // --- Campfire streak + cosmetics ---
-    const prevStreak = player.campfire_streak ?? 0;
-    const newStreak = prevStreak + 1;
-
-    // LRU-rotate used prompt IDs.
+    // LRU-rotate used prompt IDs (prompt cooldown tracking).
     const prevUsed = parseUsedPromptIds(player.used_campfire_prompt_ids_json);
     const updatedUsed = addUsedPromptId(prevUsed, campfirePromptSelection.id);
 
-    // Apply any newly earned streak milestone rewards.
-    const inventory = parseSatchelInventory(player.satchel_inventory_json);
-    const { cosmetics: updatedCosmetics } = applyStreakMilestones(newStreak, inventory.cosmetics);
-    const updatedSatchelInventory = { ...inventory, cosmetics: updatedCosmetics };
-
-    // Build enriched player snapshot that includes all new fields.
-    // restoreResolveToFull returns a full PlayerSave with resolve reset to max.
+    // Build enriched player snapshot — Resolve restored to full, prompt rotation applied.
+    // campfire_streak is intentionally NOT incremented here. Streak is updated server-side
+    // by LhSession_gradeCampfireReflection after the teacher assigns a score (>= 3 increments,
+    // < 3 resets). Cosmetic milestone rewards are applied at the same time.
     const playerWithResolveRestored = restoreResolveToFull(player);
     const enrichedPlayer: PlayerSave = {
       ...playerWithResolveRestored,
-      campfire_streak: newStreak,
       last_campfire_iso: new Date().toISOString(),
       used_campfire_prompt_ids_json: JSON.stringify(updatedUsed),
-      satchel_inventory_json: JSON.stringify(updatedSatchelInventory),
     };
 
     const sessionSummary = {
       ...buildSessionSummary({ player: enrichedPlayer, quests, exploration }),
       ...(campfireEntry.trim() ? { exit_ticket_body: campfireEntry.trim() } : {}),
       campfire_prompt_id: campfirePromptSelection.id,
-      campfire_streak: newStreak,
+      campfire_streak: player.campfire_streak ?? 0,
       player_display_name: enrichedPlayer.display_name || enrichedPlayer.player_id,
     };
 

@@ -19,6 +19,14 @@ import {
   type LhKnowledgeBattlePresentationDetail,
   type LhKnowledgeCombatVisualDetail,
 } from '../lib/lhKnowledgeCombatBridge';
+import {
+  subscribeToPhaserVfx,
+  VFX_COLOR_HIT_SPARK,
+  VFX_COLOR_RUNE_BURST,
+  VFX_COLOR_DUST_PUFF,
+  VFX_COLOR_GRASS_RUSTLE,
+} from '../lib/lhVfxManager';
+// hasAmberFlameVisual is computed in ExplorationScreen and passed as the `hasAmberFlame` prop.
 
 /** Scratch corners for mapping camera viewport → world-space rects (JRPG battle layer). */
 const jrpgViewportCornerScratch = [
@@ -77,6 +85,22 @@ type Props = {
   tileMapUrl?: string;
   /** DEV — mirrors React `visitedInteractableIds` for Lost Echo diagnostic logs only. */
   lostEchoDiagVisitedTriggerIds?: readonly string[];
+  /**
+   * True when the Traveler's Resolve is below the Shaken threshold (< 25%).
+   * Applies a −10% sprint speed penalty while active.
+   */
+  resolveShaken?: boolean;
+  /**
+   * Rested Readiness tier multiplier (1.0–1.40) derived from last_campfire_score.
+   * Applied to sprint stamina capacity and recovery amount each session.
+   * Defaults to 1.0 (score 0 / Restless — no change).
+   */
+  restedReadinessMultiplier?: number;
+  /**
+   * True when the player has the Amber Flame visual unlocked (campfire streak ≥ 3).
+   * When set, campfire node fire sprites are tinted with a warm amber hue (0xE8A020).
+   */
+  hasAmberFlame?: boolean;
 };
 
 type TriggerRect = {
@@ -295,10 +319,8 @@ const TILESET_IMAGES = [
   'Windmill_baked_anim',
   'wind-cartoonish-fx-288X64- 48frames',
   'props',
-  'Tileset-Terrain2',
   'Tileset-ruins-Terrain',
   'Tileset-ruins-Terrain2',
-  'Tileset-Terrain3',
   'altar',
   'altar - on grass - complete',
   'altar-stone columns-1',
@@ -1024,6 +1046,9 @@ export function PhaserExplorationView({
   onPause,
   tileMapUrl,
   lostEchoDiagVisitedTriggerIds,
+  resolveShaken = false,
+  restedReadinessMultiplier = 1.0,
+  hasAmberFlame = false,
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
@@ -1036,6 +1061,9 @@ export function PhaserExplorationView({
   const dialogueNpcIdRef = useRef<string | undefined>(dialogueNpcId);
   const completionByIdRef = useRef<Map<string, boolean>>(new Map());
   const lostEchoDiagVisitedRef = useRef<readonly string[]>(lostEchoDiagVisitedTriggerIds ?? []);
+  const resolveShakenRef = useRef<boolean>(resolveShaken);
+  const restedReadinessMultiplierRef = useRef<number>(restedReadinessMultiplier);
+  const hasAmberFlameRef = useRef<boolean>(hasAmberFlame);
 
   useEffect(() => {
     lostEchoDiagVisitedRef.current = lostEchoDiagVisitedTriggerIds ?? [];
@@ -1056,6 +1084,18 @@ export function PhaserExplorationView({
   useEffect(() => {
     demoGuidanceRef.current = demoGuidance;
   }, [demoGuidance]);
+
+  useEffect(() => {
+    resolveShakenRef.current = resolveShaken;
+  }, [resolveShaken]);
+
+  useEffect(() => {
+    restedReadinessMultiplierRef.current = restedReadinessMultiplier;
+  }, [restedReadinessMultiplier]);
+
+  useEffect(() => {
+    hasAmberFlameRef.current = hasAmberFlame;
+  }, [hasAmberFlame]);
 
   useEffect(() => {
     dialogueNpcIdRef.current = dialogueNpcId;
@@ -1084,6 +1124,9 @@ export function PhaserExplorationView({
       const _parsedMap = parsedMapRef.current;
       const _completionById = completionByIdRef;
       const _demoGuidance = demoGuidanceRef;
+      const _resolveShaken = resolveShakenRef;
+      const _restedReadinessMultiplier = restedReadinessMultiplierRef;
+      const _hasAmberFlame = hasAmberFlameRef;
       const _dialogueNpcId = dialogueNpcIdRef;
       const _onActivate = (interactableId: string) => onActivateHotspotRef.current(interactableId);
       const _lostEchoDiagVisited = lostEchoDiagVisitedRef;
@@ -1265,6 +1308,12 @@ export function PhaserExplorationView({
           preEnter: { x: number; y: number; alpha: number; scale: number };
         } = null;
         private facing: TravelerDirection = 'down';
+        // ─── VFX ────────────────────────────────────────────────────────────
+        /** Unsubscribe fn returned by subscribeToPhaserVfx — called on scene shutdown. */
+        private _vfxUnsub?: () => void;
+        // ─── Campfire animation ──────────────────────────────────────────────
+        /** Animated fire sprites placed at campfire node world positions. */
+        private campfireFireSprites: Phaser.GameObjects.Sprite[] = [];
         /** Reused for trigger overlap tests (Tiled top-left x,y + size — matches parser / React). */
         private scratchPlayerGeom = new Phaser.Geom.Rectangle(0, 0, 0, 0);
         private scratchTriggerGeom = new Phaser.Geom.Rectangle(0, 0, 0, 0);
@@ -3362,6 +3411,19 @@ export function PhaserExplorationView({
             path: JRPG_BATTLE_BG_PATH,
             url: publicAssetUrl(JRPG_BATTLE_BG_PATH),
           });
+
+          // ── Campfire fire strip (8 frames × 160px) — animated at campfire nodes ──
+          this.load.spritesheet(
+            'lh_campfire_fire',
+            publicAssetUrl('assets/maps/campfire1 - fire.png'),
+            { frameWidth: 160, frameHeight: 160 },
+          );
+          // ── Hit spark FX strip (~14 frames × 160px) — one-shot on combat hit ──
+          this.load.spritesheet(
+            'lh_hit_spark',
+            publicAssetUrl('assets/maps/atk1 fx-energy ish fx-single.png'),
+            { frameWidth: 160, frameHeight: 160 },
+          );
         }
 
         create() {
@@ -3546,8 +3608,26 @@ export function PhaserExplorationView({
           }
           registerLostEchoAnimsIfNeeded(this);
 
+          // ── Campfire fire loop animation ──────────────────────────────────
+          if (this.textures.exists('lh_campfire_fire') && !this.anims.exists('lh_campfire_fire_loop')) {
+            this.anims.create({
+              key: 'lh_campfire_fire_loop',
+              // campfire1 - fire.png: 1280×160 = 8 frames × 160px
+              frames: this.anims.generateFrameNumbers('lh_campfire_fire', { start: 0, end: 7 }),
+              frameRate: 8,
+              repeat: -1,
+            });
+          }
+
           // Trigger zones (Maia portal overlap scales with Tiled object size — widen the portal rect in Tiled for a friendlier hit box.)
           _triggers.forEach((tr) => {
+            // campfire_node: purely decorative — spawn animated fire sprite, skip trigger rect.
+            // Author a Tiled object with lh_kind = campfire_node at each campfire tile position.
+            if (tr.kind === 'campfire_node') {
+              this.spawnCampfireAtNode(tr.x + tr.w / 2, tr.y + tr.h / 2, _hasAmberFlame.current);
+              return;
+            }
+
             if (tr.kind === 'maia_portal' && this.textures.exists('lh_maia_portal_idle')) {
               const portal = this.add.sprite(tr.x + tr.w / 2, tr.y + tr.h, 'lh_maia_portal_idle');
               const scale = Phaser.Math.Clamp(Math.max(tr.h, 72) / 192, 0.48, 1.2);
@@ -3937,6 +4017,8 @@ export function PhaserExplorationView({
           window.addEventListener(LH_WINDOW_KNOWLEDGE_BATTLE_PRESENTATION, this.handleKnowledgeBattlePresentation);
           window.addEventListener(LH_WINDOW_ORACLE_BUILDUP_START, this.handleOracleBuildupStart);
           window.addEventListener(LH_WINDOW_ORACLE_RETURN_TRANSITION, this.handleOracleReturnTransition);
+          // ── VFX event bridge (dispatched via dispatchVfx in lhVfxManager) ──
+          this._vfxUnsub = subscribeToPhaserVfx((payload) => this.handleVfxEvent(payload));
           this.scale.on('resize', this.handleKnowledgeBattleResize);
           this.events.once('shutdown', () => {
             window.removeEventListener('lh:maia-handoff-opened', this.handleMaiaOpened);
@@ -3947,6 +4029,9 @@ export function PhaserExplorationView({
             window.removeEventListener(LH_WINDOW_KNOWLEDGE_BATTLE_PRESENTATION, this.handleKnowledgeBattlePresentation);
             window.removeEventListener(LH_WINDOW_ORACLE_BUILDUP_START, this.handleOracleBuildupStart);
             window.removeEventListener(LH_WINDOW_ORACLE_RETURN_TRANSITION, this.handleOracleReturnTransition);
+            this._vfxUnsub?.();
+            this._vfxUnsub = undefined;
+            this.campfireFireSprites = [];
             this.scale.off('resize', this.handleKnowledgeBattleResize);
             this.windmillAnimTimer?.remove(false);
             this.windmillAnimTimer = null;
@@ -3992,6 +4077,161 @@ export function PhaserExplorationView({
           }
           this.playLostEchoAnimation(detail.interactableId, LOST_ECHO_IDLE_ANIM_KEY);
         };
+
+        // ─── VFX event handler ───────────────────────────────────────────────
+
+        private handleVfxEvent = (payload: { kind: string; worldX?: number; worldY?: number; intensity?: number }) => {
+          const cx = payload.worldX ?? this.player?.x ?? 0;
+          const cy = payload.worldY ?? this.player?.y ?? 0;
+          const intensity = payload.intensity ?? 1.0;
+          switch (payload.kind) {
+            case 'hit_spark':   this.playHitSpark(cx, cy, intensity);   break;
+            case 'rune_burst':  this.playRuneBurst(cx, cy, intensity);  break;
+            case 'dust_puff':   this.playDustPuff(cx, cy, intensity);   break;
+            case 'grass_rustle':this.playGrassRustle(cx, cy, intensity);break;
+          }
+        };
+
+        /**
+         * Hit spark — plays the `lh_hit_spark` spritesheet one-shot at world pos.
+         * Falls back to a procedural Graphics flash if the texture didn't load.
+         */
+        private playHitSpark(x: number, y: number, intensity: number): void {
+          if (this.textures.exists('lh_hit_spark')) {
+            const sp = this.add.sprite(x, y, 'lh_hit_spark');
+            sp.setOrigin(0.5, 0.5);
+            sp.setScale(0.35 * Math.max(0.3, intensity));
+            sp.setDepth(20000);
+            if (!this.anims.exists('lh_hit_spark_play')) {
+              // atk1 fx-energy ish fx-single.png: 2304×160 ≈ 14 frames @ 160px
+              const frameCount = Math.floor(
+                (this.textures.get('lh_hit_spark').source[0]?.width ?? 2240) / 160,
+              );
+              this.anims.create({
+                key: 'lh_hit_spark_play',
+                frames: this.anims.generateFrameNumbers('lh_hit_spark', {
+                  start: 0,
+                  end: Math.max(0, frameCount - 1),
+                }),
+                frameRate: 18,
+                repeat: 0,
+              });
+            }
+            sp.play('lh_hit_spark_play');
+            sp.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => sp.destroy());
+            return;
+          }
+          // Procedural fallback: orange ring flash
+          const g = this.add.graphics().setDepth(20000);
+          g.lineStyle(3, VFX_COLOR_HIT_SPARK, 1);
+          g.strokeCircle(0, 0, 14 * intensity);
+          g.setPosition(x, y);
+          this.tweens.add({
+            targets: g,
+            alpha: { from: 1, to: 0 },
+            scaleX: { from: 0.4, to: 1.6 },
+            scaleY: { from: 0.4, to: 1.6 },
+            duration: 280,
+            ease: 'Quad.easeOut',
+            onComplete: () => g.destroy(),
+          });
+        }
+
+        /**
+         * Rune burst — expanding ring tween (knowledge battle special).
+         */
+        private playRuneBurst(x: number, y: number, intensity: number): void {
+          const g = this.add.graphics().setDepth(20000);
+          g.lineStyle(3, VFX_COLOR_RUNE_BURST, 1);
+          g.strokeCircle(0, 0, 24);
+          g.setPosition(x, y);
+          this.tweens.add({
+            targets: g,
+            alpha: { from: 1, to: 0 },
+            scaleX: { from: 0.3, to: 2.8 * intensity },
+            scaleY: { from: 0.3, to: 2.8 * intensity },
+            duration: 600,
+            ease: 'Sine.easeOut',
+            onComplete: () => g.destroy(),
+          });
+          // Inner fill flash
+          const fill = this.add.graphics().setDepth(19999);
+          fill.fillStyle(VFX_COLOR_RUNE_BURST, 0.18);
+          fill.fillCircle(0, 0, 24);
+          fill.setPosition(x, y);
+          this.tweens.add({
+            targets: fill,
+            alpha: { from: 0.5, to: 0 },
+            scaleX: { from: 0.3, to: 2.2 * intensity },
+            scaleY: { from: 0.3, to: 2.2 * intensity },
+            duration: 480,
+            ease: 'Quad.easeOut',
+            onComplete: () => fill.destroy(),
+          });
+        }
+
+        /**
+         * Dust puff — tan circle bloom (surface step FX).
+         */
+        private playDustPuff(x: number, y: number, intensity: number): void {
+          const g = this.add.graphics().setDepth(20000);
+          g.fillStyle(VFX_COLOR_DUST_PUFF, 0.7);
+          g.fillCircle(0, 0, 10 * intensity);
+          g.setPosition(x, y);
+          this.tweens.add({
+            targets: g,
+            alpha: { from: 0.7, to: 0 },
+            scaleX: { from: 0.4, to: 2.0 },
+            scaleY: { from: 0.3, to: 1.2 },
+            duration: 380,
+            ease: 'Quad.easeOut',
+            onComplete: () => g.destroy(),
+          });
+        }
+
+        /**
+         * Grass rustle — bright green circle bloom (enhanced movement on grass).
+         */
+        private playGrassRustle(x: number, y: number, intensity: number): void {
+          const g = this.add.graphics().setDepth(20000);
+          g.fillStyle(VFX_COLOR_GRASS_RUSTLE, 0.55);
+          g.fillCircle(0, 0, 12 * intensity);
+          g.setPosition(x, y);
+          this.tweens.add({
+            targets: g,
+            alpha: { from: 0.55, to: 0 },
+            scaleX: { from: 0.3, to: 2.4 },
+            scaleY: { from: 0.3, to: 1.4 },
+            duration: 420,
+            ease: 'Sine.easeOut',
+            onComplete: () => g.destroy(),
+          });
+        }
+
+        // ─── Campfire node sprite ────────────────────────────────────────────
+
+        /**
+         * Spawns an animated fire sprite at `(worldX, worldY)`.
+         * Called for each Tiled object with `lh_kind = campfire_node`.
+         * If hasAmberFlame is true, tints the sprite 0xE8A020 (warm amber).
+         */
+        private spawnCampfireAtNode(worldX: number, worldY: number, hasAmberFlame: boolean): void {
+          if (!this.textures.exists('lh_campfire_fire')) return;
+          // campfire1 - fire.png frames are 160×160 but the in-world campfire tile is 64×64.
+          const scale = 64 / 160; // ≈ 0.4
+          const sp = this.add.sprite(worldX, worldY, 'lh_campfire_fire');
+          sp.setOrigin(0.5, 0.75); // anchor near the base of the flame
+          sp.setScale(scale);
+          sp.setDepth(worldY);
+          if (this.anims.exists('lh_campfire_fire_loop')) {
+            sp.play('lh_campfire_fire_loop');
+          }
+          if (hasAmberFlame) {
+            // VISUAL_AMBER_FLAME cosmetic (streak ≥ 3) — warm amber tint (COS-CAM-001).
+            sp.setTint(0xe8a020);
+          }
+          this.campfireFireSprites.push(sp);
+        }
 
         private handleMaiaOpened = () => {
           if (import.meta.env.DEV || import.meta.env.VITE_LH_MAIA_DEBUG === 'true') {
@@ -4417,6 +4657,9 @@ export function PhaserExplorationView({
             if (stage !== 'demo_seek_maia') {
               this.lostEchoDiagActivateGate(hit, 'maia_portal_stage_gate', { stage_id: stage });
               _onActivate(hit.interactable_id);
+              // Lock briefly so the gate toast fires only once and the player can't walk through.
+              this.triggerTransitionLocked = true;
+              this.time.delayedCall(2500, () => { this.triggerTransitionLocked = false; });
               return;
             }
           }
@@ -4603,7 +4846,10 @@ export function PhaserExplorationView({
           const body = this.player?.body as Phaser.Physics.Arcade.Body | undefined;
           if (!body) return;
           const guidance = _demoGuidance.current;
-          const staminaMaxMs = Math.max(guidance?.max_stamina_ms ?? SPRINT_FUEL_MAX_MS, SPRINT_FUEL_MAX_MS);
+          // Rested Readiness scales sprint stamina capacity and recovery amount.
+          // Multiplier is 1.0 for score 0 (Restless) — no change from base.
+          const restedMult = _restedReadinessMultiplier.current;
+          const staminaMaxMs = Math.max(guidance?.max_stamina_ms ?? SPRINT_FUEL_MAX_MS, SPRINT_FUEL_MAX_MS) * restedMult;
           if (this.sprintFuelMs > staminaMaxMs) this.sprintFuelMs = staminaMaxMs;
           this.playMasterScribeByDialogueState();
           const lostEchoFightStage = guidance?.stage_id === 'demo_combat_trial_available';
@@ -4688,6 +4934,11 @@ export function PhaserExplorationView({
               this.sprintFuelMs = 0;
               this.sprintCooldownUntil = now + SPRINT_COOLDOWN_MS;
             }
+          }
+          // Shaken penalty: Resolve below 25% → −10% sprint speed (RESOLVE_SHAKEN_SPRINT_PENALTY).
+          // Does not apply in DEMO_UNLIMITED_SPRINT mode (dev escape hatch).
+          if (sprintingMove && !DEMO_UNLIMITED_SPRINT && _resolveShaken.current) {
+            moveSpeed *= 0.90;
           }
 
           if (inputLen > 0) {

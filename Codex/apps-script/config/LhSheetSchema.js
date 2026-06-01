@@ -82,6 +82,16 @@ var LH_PLAYER_SAVE_HEADERS = {
   satchel_inventory_json: 'satchel_inventory_json',
   /** Cosmetics / titles. */
   active_title: 'active_title',
+  /** Teacher-visibility columns — written by the save pipeline, never by player-side game logic. */
+  classroom_email: 'classroom_email',
+  unlocked_assignments_json: 'unlocked_assignments_json',
+  completed_assignments_json: 'completed_assignments_json',
+  /** Set when the student selects their True Path (mq-401 completes). Blank until then. */
+  true_path_selected: 'true_path_selected',
+  /** Teacher override: forces the frontend to treat this act as the current target. Blank = no override. Never overwritten by player saves. */
+  narrative_force_target_act: 'narrative_force_target_act',
+  /** Teacher override: forces a specific realm_id as the narrative target. Blank = no override. Never overwritten by player saves. */
+  narrative_force_target_realm: 'narrative_force_target_realm',
 };
 
 var LH_ROSTER_HEADERS = {
@@ -145,4 +155,16 @@ var LH_SESSION_HISTORY_HEADERS = {
   campfire_graded_by: 'campfire_graded_by',
   /** Display name snapshot for teacher grading queue. */
   player_display_name: 'player_display_name',
+  /** Teacher audit columns — per-session reporting data for teacher dashboard. */
+  student_id: 'student_id',
+  section_code: 'section_code',
+  session_number: 'session_number',
+  start_realm: 'start_realm',
+  end_realm: 'end_realm',
+  quests_completed_json: 'quests_completed_json',
+  campfire_log_entry_json: 'campfire_log_entry_json',
+  xp_gained: 'xp_gained',
+  manual_save_completed: 'manual_save_completed',
+  exit_ticket_sent: 'exit_ticket_sent',
+  draft_response_saved: 'draft_response_saved',
 };

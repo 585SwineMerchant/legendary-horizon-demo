@@ -211,6 +211,44 @@ function doPost(e) {
       return lhWebJsonOutput_(out);
     }
 
+    if (action === 'teacher_set_narrative_force' || action === 'teachersetnarrativeforce') {
+      var snfPid = body.player_id;
+      if (!snfPid) {
+        out.error = 'player_id_required';
+        return lhWebJsonOutput_(out);
+      }
+      var snfAct = body.target_act != null ? body.target_act : null;
+      var snfRealm = body.target_realm != null ? String(body.target_realm) : null;
+      var snf = LhTeacher_setNarrativeForce(spreadsheetId, tabPlayer, snfPid, snfAct, snfRealm);
+      if (snf.ok) {
+        out.ok = true;
+        out.message = 'Narrative force override set.';
+      } else {
+        out.ok = false;
+        out.message = 'teacher_set_narrative_force failed.';
+        out.errors = [snf.error || 'teacher_set_narrative_force_failed'];
+      }
+      return lhWebJsonOutput_(out);
+    }
+
+    if (action === 'teacher_clear_narrative_force' || action === 'teacherclearnarrativeforce') {
+      var cnfPid = body.player_id;
+      if (!cnfPid) {
+        out.error = 'player_id_required';
+        return lhWebJsonOutput_(out);
+      }
+      var cnf = LhTeacher_clearNarrativeForce(spreadsheetId, tabPlayer, cnfPid);
+      if (cnf.ok) {
+        out.ok = true;
+        out.message = 'Narrative force override cleared.';
+      } else {
+        out.ok = false;
+        out.message = 'teacher_clear_narrative_force failed.';
+        out.errors = [cnf.error || 'teacher_clear_narrative_force_failed'];
+      }
+      return lhWebJsonOutput_(out);
+    }
+
     if (action === 'gt102_turn' || action === 'trial_of_tongues_turn') {
       var turn = LhInterview_runGt102Turn(body);
       if (turn.ok) {

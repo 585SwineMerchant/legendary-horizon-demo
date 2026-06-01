@@ -11,6 +11,7 @@
 
 import { useState } from 'react';
 import type { PlayerSave, SatchelInventoryV1, MementoEntryV1 } from '../domain/lh-contract';
+import { publicAssetUrl } from '../lib/publicAssetUrl';
 import {
   parseSatchelInventory,
   SATCHEL_CONSUMABLE_DEFS,
@@ -91,7 +92,16 @@ function ConsumableCard({
         opacity: qty === 0 ? 0.45 : 1,
       }}
     >
-      <span style={{ fontSize: 28, lineHeight: 1 }} aria-hidden>{def?.icon_emoji ?? '◆'}</span>
+      {def?.iconAssetPath ? (
+        <img
+          src={publicAssetUrl(def.iconAssetPath)}
+          alt=""
+          aria-hidden
+          style={{ width: 32, height: 32, imageRendering: 'pixelated', flexShrink: 0 }}
+        />
+      ) : (
+        <span style={{ fontSize: 28, lineHeight: 1 }} aria-hidden>{def?.icon_emoji ?? '◆'}</span>
+      )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#e8dcc8' }}>{label}</p>
         <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.4 }}>
@@ -148,7 +158,16 @@ function FieldKitCard({
         opacity: owned ? 1 : 0.35,
       }}
     >
-      <span style={{ fontSize: 26, lineHeight: 1 }} aria-hidden>{def?.icon_emoji ?? '◆'}</span>
+      {def?.iconAssetPath ? (
+        <img
+          src={publicAssetUrl(def.iconAssetPath)}
+          alt=""
+          aria-hidden
+          style={{ width: 32, height: 32, imageRendering: 'pixelated', flexShrink: 0, opacity: owned ? 1 : 0.4 }}
+        />
+      ) : (
+        <span style={{ fontSize: 26, lineHeight: 1 }} aria-hidden>{def?.icon_emoji ?? '◆'}</span>
+      )}
       <div style={{ flex: 1 }}>
         <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: owned ? '#e8dcc8' : 'rgba(232,220,200,0.5)' }}>
           {label}
@@ -455,8 +474,8 @@ export function SatchelOverlay({ open, player, onClose, onUseConsumable, onDevGr
               </button>
             </div>
             <div style={{ marginTop: 8, fontSize: 10, color: 'rgba(255,255,255,0.3)' }}>
-              Consumable IDs: SAT-REM-001, SAT-FOC-001, SAT-WPN-001, SAT-MAG-001 ·
-              Kit IDs: KIT-COMPASS-001, KIT-LANTERN-001, KIT-TRAIL-001, KIT-CAMP-001, KIT-JOURNAL-001
+              Consumable IDs: SAT-REM-001, SAT-REM-002, SAT-FOC-001, SAT-WPN-001, SAT-MAG-001 ·
+              Kit IDs: FK-COM-001, FK-LAN-001, FK-MAR-001, FK-CAM-001, FK-JOU-001
             </div>
           </div>
         ) : null}

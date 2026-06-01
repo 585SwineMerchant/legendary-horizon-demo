@@ -50,6 +50,7 @@ export function PauseMenu({
   onOpenRealmAtlas,
   onOpenInventory,
   onSave,
+  onEndSession,
   displayPreferences,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -166,6 +167,11 @@ export function PauseMenu({
           <button type="button" className="lh-button lh-button--secondary" onClick={onSave}>
             Save
           </button>
+          {onEndSession ? (
+            <button type="button" className="lh-button lh-button--secondary" onClick={onEndSession}>
+              End Session
+            </button>
+          ) : null}
           <button type="button" className="lh-button lh-button--secondary" onClick={onOpenQuestLog}>
             Quest log
           </button>

@@ -1,0 +1,6 @@
+,asset_id,asset_name,asset_type,realm_id,guild_hq_name,drive_file_id,delivery_mode,resolved_url,status,notes
+0,ui_title_logo,Title Logo,ui_global,,,,embedded,/assets/ui/title_logo.png,placeholder,Always-load asset
+1,realm_bg_the_etheric_nexus,Etheric Nexus Background,background,the_etheric_nexus,The Etheric Nexus,1AbcMock,drive_preview,https://drive.google.com/uc?export=view&id=1AbcMock,draft,Realm-load asset
+2,ambience_the_great_vulcanis_forge,Vulcanis Forge Ambience,audio_loop,the_great_vulcanis_forge,The Great Vulcanis Forge,1DefMock,drive_download,https://drive.google.com/uc?export=download&id=1DefMock,draft,Realm-load asset
+3,npc_master_scribe_portrait,Master Scribe Portrait,npc_portrait,,,1GhiMock,drive_preview,https://drive.google.com/uc?export=view&id=1GhiMock,draft,Character art
+4,guild_hq_archives_panel,Archives of Ascension Panel Art,panel_art,the_archives_of_ascension,The Archives of Ascension,1JklMock,drive_preview,https://drive.google.com/uc?export=view&id=1JklMock,draft,Realm/Guild art

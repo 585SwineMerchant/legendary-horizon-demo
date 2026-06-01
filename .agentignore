@@ -1,0 +1,59 @@
+# Legendary Horizon agent context ignore/deprioritization list.
+#
+# This is NOT a deletion list. These files and folders may still be useful as
+# historical references, prototype material, generated output, or media drafts.
+# Future agents should avoid treating them as current beta runtime canon unless
+# the prompt specifically asks for archive/prototype/history/media-draft work.
+
+# Agent worktrees and prior assistant scratch space.
+/.claude/
+
+# Generated dependency/build output.
+/Codex/frontend/node_modules/
+/Codex/frontend/dist/
+
+# Historical root-level prototypes. Active app code is in /Codex/frontend.
+/src/
+/phaser-game/
+/character-creation/
+/CTE Remarkable Learning Experience/
+/LegendaryHorizon_Playable.html
+
+# Standalone Project Documents HTML prototypes.
+/Project Documents/Current Scroll of Destiny.html
+/Project Documents/Fog of the unknown.html
+/Project Documents/intro_video_v2.html
+/Project Documents/LH game mentor prompts Video.html
+/Project Documents/Quest_of_Fate.html
+/Project Documents/Vault_of_ancient_runes.html
+/Project Documents/Oracle Cut Scene/oracle-scroll-closeup-reference.html
+
+# Stale map exports / older Tiled mirrors. Current runtime export is:
+# /Codex/frontend/public/assets/maps/Legendary_Horizon_Map.json
+# Current likely authoring source is:
+# /Game Map/Legendary_Horizon_Map.tmx
+#
+# Protected active vertical-slice runtime map:
+# /Codex/frontend/public/assets/maps/Legendary_Horizon_Map_before_move_towards_final.json
+# Do not archive, move, rename, delete, replace, or ignore it as stale until
+# the vertical slice demo is intentionally migrated away from it.
+/Codex/tiled/Legendary_Horizon_Map.json
+/Codex/tiled/Legendary_Horizon_Map.tmj
+/Project Documents/Legendary_Horizon_Map1.json
+/Project Documents/Legendary_Horizon_Map1.tmj
+/Game Map/Legendary_Horizon_Map_before_move_towards_final.tmx
+
+# Superseded planning/doc drafts. Prefer CANON_DECISIONS.md plus current runtime
+# code when these conflict.
+/Project Documents/Legendary_Horizon_Master_GDD_v1.docx.md
+/Project Documents/Legendary_Horizon_Integrated_Implementation_Plan_v3.md
+/Project Documents/Implementation_Plan_v4.md
+
+# Intro media production drafts/caches. Do not move from public without explicit
+# approval and a reference check.
+/Codex/frontend/public/assets/intro/davinci edit/
+**/.gallery/
+**/CacheClip/
+**/Resolve Project Backups/
+**/drafts/*.mov
+**/drafts/*.mp4

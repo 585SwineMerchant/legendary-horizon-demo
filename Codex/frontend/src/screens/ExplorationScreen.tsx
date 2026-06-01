@@ -11,6 +11,8 @@ import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { summarizeInventoryBrief } from '../lib/formatInventoryBrief';
 import type { ParsedLhMap } from '../maps/parseLhTiledMap';
 import { PhaserExplorationView } from '../rendering/PhaserExplorationView';
+import { getRestedMultiplier } from '../services/restedReadiness';
+import { hasAmberFlameVisual, parseSatchelInventory } from '../data/itemCatalog';
 
 import type { PlayerSave, QuestDefinition, RealmDefinition } from '../types';
 
@@ -178,6 +180,9 @@ export function ExplorationScreen({
           onPause={onPause}
           tileMapUrl={tileMapUrl}
           lostEchoDiagVisitedTriggerIds={lostEchoDiagVisitedTriggerIds}
+          resolveShaken={player.resolve_shaken ?? false}
+          restedReadinessMultiplier={getRestedMultiplier(player.rested_readiness_tier)}
+          hasAmberFlame={hasAmberFlameVisual(parseSatchelInventory(player.satchel_inventory_json).cosmetics)}
         />
       ) : null}
 

@@ -422,6 +422,8 @@ function coercePlayerSave(raw: unknown): PlayerSave | null {
     ),
     revision_token: typeof o.revision_token === 'string' ? o.revision_token : undefined,
     last_manual_save_iso: typeof o.last_manual_save_iso === 'string' ? o.last_manual_save_iso : undefined,
+    last_campfire_score: typeof o.last_campfire_score === 'number' ? o.last_campfire_score : undefined,
+    campfire_streak: typeof o.campfire_streak === 'number' ? o.campfire_streak : undefined,
     backup_checkpoint_json:
       typeof o.backup_checkpoint_json === 'string' ? o.backup_checkpoint_json : undefined,
     exit_ticket_state: typeof o.exit_ticket_state === 'string' ? o.exit_ticket_state : undefined,

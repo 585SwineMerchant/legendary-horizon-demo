@@ -3018,7 +3018,7 @@
   <object id="420" gid="10286" x="4187.67" y="2300.67" width="32" height="32"/>
   <object id="4731" name="lh_oracle_encounter" x="7149.33" y="4726.67" width="366.667" height="326.667">
    <properties>
-    <property name="activation mode" value="trigger"/>
+    <property name="lh_activation_mode" value="trigger"/>
     <property name="lh_kind" value="oracle_encounter"/>
    </properties>
    <ellipse/>
@@ -3035,7 +3035,7 @@
   <object id="4475" name="maia_collision_1" type="lh_collision" x="7343.5" y="5347" width="62" height="43.5">
    <properties>
     <property name="class" value="lh_collision"/>
-    <property name="lh_collion_kind" value="building"/>
+    <property name="lh_collision_kind" value="building"/>
     <property name="lh_kind" value="collision"/>
    </properties>
   </object>

@@ -509,7 +509,7 @@ function ReflectionArchiveTab({ player }: { player: PlayerSave | null }) {
           {[
             { label: 'Current Streak', value: streak > 0 ? `🔥 ${streak}` : '—' },
             { label: 'Last Session', value: lastIso ? new Date(lastIso).toLocaleDateString() : '—' },
-            { label: 'Last Score', value: lastScore !== undefined && lastScore !== null ? `${lastScore}/5` : '—' },
+            { label: 'Last Reflection', value: lastScore !== undefined && lastScore !== null ? `${lastScore}/5` : '—' },
             { label: 'Rested Readiness', value: tier ? tier.replace(/_/g, ' ') : '—' },
           ].map((stat) => (
             <div key={stat.label} style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 3 }}>
@@ -523,7 +523,7 @@ function ReflectionArchiveTab({ player }: { player: PlayerSave | null }) {
         <h2 style={{ margin: '0 0 10px', fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.7)' }}>About the Codex</h2>
         <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 1.6, margin: 0 }}>
           Your campfire reflections are recorded in the Codex and reviewed by your teacher. A strong reflection earns
-          a higher Rested Readiness score, which increases the XP multiplier at the start of your next session.
+          a higher Rested Readiness tier, which increases the XP multiplier at the start of your next session.
           Maintain your streak to unlock titles and honors.
         </p>
       </section>

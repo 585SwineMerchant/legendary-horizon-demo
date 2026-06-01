@@ -7,6 +7,9 @@
  *  3. Cosmetics / titles   — streak milestone rewards
  *
  * Item IDs correspond to reference doc: Legendary_Horizon_Item_Inventory_Deployment_Plan.xlsx
+ *
+ * Field Kit canonical IDs use FK-* prefix (e.g. FK-COM-001).
+ * Legacy KIT-* IDs from early builds are migrated transparently via normalizeLegacyFieldKitIds().
  */
 
 import type {
@@ -23,6 +26,8 @@ export type ConsumableItemDef = {
   label: string;
   description: string;
   icon_emoji: string;
+  /** Optional pixel-art icon path (relative to /public). Falls back to icon_emoji. */
+  iconAssetPath?: string;
   max_qty: number;
   /** What happens when this item is used. */
   effect_description: string;
@@ -34,8 +39,18 @@ export const SATCHEL_CONSUMABLE_DEFS: readonly ConsumableItemDef[] = [
     label: 'Remedy Herb',
     description: 'A bundle of restorative herbs gathered from the Brambleholt Sanctuary.',
     icon_emoji: '🌿',
+    iconAssetPath: 'assets/maps/items-flowers3_0.png',
     max_qty: 3,
-    effect_description: 'Restores 8 Resolve.',
+    effect_description: 'Restore 8 HP.',
+  },
+  {
+    item_id: 'SAT-REM-002',
+    label: 'Greater Remedy',
+    description: 'A potent elixir distilled from the rarest herbs in Brambleholt.',
+    icon_emoji: '🧪',
+    iconAssetPath: 'assets/maps/vendor - potion 2.png',
+    max_qty: 1,
+    effect_description: 'Restore 15 HP.',
   },
   {
     item_id: 'SAT-FOC-001',
@@ -43,15 +58,16 @@ export const SATCHEL_CONSUMABLE_DEFS: readonly ConsumableItemDef[] = [
     description: 'A concentrated brew that sharpens the mind before a challenge.',
     icon_emoji: '🍵',
     max_qty: 2,
-    effect_description: 'Ignore the first damage hit in the next encounter.',
+    effect_description: 'One hint in the next knowledge encounter.',
   },
   {
     item_id: 'SAT-WPN-001',
     label: 'Sharpening Stone',
     description: 'A flat stone imbued with the forge-craft of Ironveil.',
     icon_emoji: '⚒',
+    iconAssetPath: 'assets/maps/items-stone_0.png',
     max_qty: 2,
-    effect_description: 'Next combat encounter win awards +50% XP.',
+    effect_description: 'Next weapon attacks deal 50% bonus damage for 3 minutes.',
   },
   {
     item_id: 'SAT-MAG-001',
@@ -59,7 +75,7 @@ export const SATCHEL_CONSUMABLE_DEFS: readonly ConsumableItemDef[] = [
     description: 'A small vial of enchanted oil that amplifies the power of arcane knowledge.',
     icon_emoji: '⚗️',
     max_qty: 2,
-    effect_description: 'Next knowledge battle: +10 points added to all answer scores.',
+    effect_description: 'Next magic attacks deal 50% bonus damage for 3 minutes.',
   },
 ] as const;
 
@@ -70,47 +86,77 @@ export type FieldKitItemDef = {
   label: string;
   description: string;
   icon_emoji: string;
+  /** Optional pixel-art icon path (relative to /public). Falls back to icon_emoji. */
+  iconAssetPath?: string;
   /** Passive effect description shown in Field Kit panel. */
   effect_description: string;
 };
 
 export const FIELD_KIT_DEFS: readonly FieldKitItemDef[] = [
   {
-    item_id: 'KIT-COMPASS-001',
+    item_id: 'FK-COM-001',
     label: 'Compass',
     description: 'A brass compass inscribed with the sixteen guild symbols.',
     icon_emoji: '🧭',
     effect_description: 'Shows the direction of the nearest active waypoint on the HUD.',
   },
   {
-    item_id: 'KIT-LANTERN-001',
+    item_id: 'FK-LAN-001',
     label: 'Lantern',
     description: 'A lantern crafted from Cindermaw glass that burns without fuel.',
     icon_emoji: '🏮',
     effect_description: 'Expands your fog-clearing radius by 20% on the World Atlas.',
   },
   {
-    item_id: 'KIT-TRAIL-001',
+    item_id: 'FK-MAR-001',
     label: 'Trail Markers',
     description: 'A set of carved stone markers that remember where you have been.',
     icon_emoji: '📍',
+    iconAssetPath: 'assets/maps/sign 1.png',
     effect_description: 'Saves your last 3 visited waypoints in the Quest Log.',
   },
   {
-    item_id: 'KIT-CAMP-001',
+    item_id: 'FK-CAM-001',
     label: 'Campfire Kit',
     description: 'A portable kit that lets you make camp anywhere in the realms.',
     icon_emoji: '🔥',
+    iconAssetPath: 'assets/maps/campfire 1.png',
     effect_description: 'Allows campfire save from the pause menu without finding a campfire node.',
   },
   {
-    item_id: 'KIT-JOURNAL-001',
+    item_id: 'FK-JOU-001',
     label: 'Field Journal',
     description: 'A worn leather journal that unlocks the full Field Journal panel.',
     icon_emoji: '📖',
+    iconAssetPath: 'assets/maps/items-books_3.png',
     effect_description: 'Unlocks all 6 tabs in the Field Journal (pause menu).',
   },
 ] as const;
+
+// ─── Legacy ID migration map ─────────────────────────────────────────────────
+
+/**
+ * Maps early-build KIT-* IDs to the canonical FK-* IDs used from v1.1 onward.
+ * Used by normalizeLegacyFieldKitIds() to patch saved player data on load.
+ */
+const FIELD_KIT_LEGACY_ID_MAP: Record<string, string> = {
+  'KIT-COMPASS-001': 'FK-COM-001',
+  'KIT-LANTERN-001': 'FK-LAN-001',
+  'KIT-TRAIL-001':   'FK-MAR-001',
+  'KIT-CAMP-001':    'FK-CAM-001',
+  'KIT-JOURNAL-001': 'FK-JOU-001',
+};
+
+/**
+ * Rewrites any legacy KIT-* IDs in a saved field_kit array to their canonical FK-* equivalents.
+ * Safe to call on every load — items with current IDs pass through unchanged.
+ */
+export function normalizeLegacyFieldKitIds(field_kit: FieldKitToolV1[]): FieldKitToolV1[] {
+  return field_kit.map((t) => {
+    const canonical = FIELD_KIT_LEGACY_ID_MAP[t.item_id];
+    return canonical ? { ...t, item_id: canonical } : t;
+  });
+}
 
 // ─── Streak Milestone Cosmetics ─────────────────────────────────────────────
 
@@ -196,7 +242,10 @@ export function parseSatchelInventory(json: string | undefined): SatchelInventor
     const parsed = raw as Partial<SatchelInventoryV1>;
     return {
       consumables: Array.isArray(parsed.consumables) ? parsed.consumables : defaultSatchelConsumables(),
-      field_kit: Array.isArray(parsed.field_kit) ? parsed.field_kit : defaultFieldKit(),
+      // normalizeLegacyFieldKitIds patches KIT-* IDs from pre-v1.1 saves to FK-* canonical IDs.
+      field_kit: Array.isArray(parsed.field_kit)
+        ? normalizeLegacyFieldKitIds(parsed.field_kit)
+        : defaultFieldKit(),
       mementos: Array.isArray(parsed.mementos) ? parsed.mementos : [],
       cosmetics:
         parsed.cosmetics && typeof parsed.cosmetics === 'object'

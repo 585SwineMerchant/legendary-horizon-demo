@@ -55,7 +55,19 @@ function LhRoster_resolvePlayerId(spreadsheetId, tabNameOverride, identity) {
       return { ok: false, error: 'roster_missing_bound_player_id' };
     }
 
-    return { ok: true, player_id: String(playerIdCell), roster_row: rowMatch + 1 };
+    var resolvedPlayerId = String(playerIdCell);
+
+    // Sync classroom_email onto the player save row so the teacher dashboard always has
+    // the teacher email visible without parsing JSON blobs.
+    var teacherEmailIdx = headerMap[LH_ROSTER_HEADERS.teacher_email];
+    if (teacherEmailIdx !== undefined) {
+      var teacherEmail = String(rows[rowMatch][teacherEmailIdx] || '');
+      if (teacherEmail) {
+        LhSave_syncClassroomEmail(spreadsheetId, null, resolvedPlayerId, teacherEmail);
+      }
+    }
+
+    return { ok: true, player_id: resolvedPlayerId, roster_row: rowMatch + 1 };
   } catch (err) {
     Logger.log('LhRoster_resolvePlayerId failure: ' + err);
     return { ok: false, error: String(err) };

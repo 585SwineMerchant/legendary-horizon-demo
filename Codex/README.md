@@ -16,7 +16,7 @@ The **Night One checklist** prioritized proving an end-to-end *local* slice: aut
 |-------|------------------|
 | `frontend/` | Vite + React + TypeScript SPA. Screen flow, HUD, dialogs, modular data-loading seam (fixtures now, HTTP to Apps Script later). |
 | `apps-script/` | Google Apps Script modules for validation/persistence/query surfaces (currently stub implementations + logging placeholders). Sheets remain the eventual source of truth. |
-| `data/samples/` | JSON fixtures (`player_save`, roster, **`realm_registry.json`** — 17 canon realms, quests, media). |
+| `data/samples/` | JSON fixtures (`player_save`, roster, quests, media). Current beta runtime canon is 16 active realms; Energy / Arcanum Reactor exists in older concept materials as archived future-expansion material and should not be reintroduced into runtime logic unless explicitly approved. |
 | `tiled/` | Reserved export target for authoritative map collisions & trigger metadata consumed by future rendering layers. |
 | `assets/` | Repo-hosted media not yet vaulted in Drive—optional thumbnails, sfx prototypes, branded UI trims. |
 

@@ -77,7 +77,7 @@ Optional tabs keyed by `quest_id`, `realm_id`, `item_id` for **`LookupService`**
 
 ### Assets / quests / realms
 
-Remain consistent with **`data/samples/quests.json`**, **`realm_registry.json`** (17 canon realms), and **`media_assets.json`** (optional `realm_ids` on media rows) — extend workbook tabs before adding unexplained keys. **Milestone 8** persists exploration state, realm progress map, progression flags, session summary, and ritual drafts via the columns above (SPA `ManualSaveEnvelopeV1` ⇄ `LhSave_applyManualSaveEnvelope`).
+Remain consistent with **`data/samples/quests.json`**, **`realm_registry.json`** (current beta runtime canon is 16 active realms. Energy / Arcanum Reactor exists in older concept materials as archived future-expansion material and should not be reintroduced into runtime logic unless explicitly approved), and **`media_assets.json`** (optional `realm_ids` on media rows) — extend workbook tabs before adding unexplained keys. **Milestone 8** persists exploration state, realm progress map, progression flags, session summary, and ritual drafts via the columns above (SPA `ManualSaveEnvelopeV1` ⇄ `LhSave_applyManualSaveEnvelope`).
 
 **Milestone 10 — `QuestDefinition` (SPA + `quests_snapshot_json`):** `tier` ∈ `main` \| `side` \| `guild`; `status` ∈ `active` \| `available` \| `locked` \| `completed` \| `turned_in`; optional `prerequisite_quest_ids` (unlock to `available` when all listed quests are `completed` or `turned_in`). Runtime logic: `frontend/src/quests/questEngine.ts` (`loadQuestDefinitionsFromJson`, `reconcileQuestPrerequisites`, `groupQuestsForQuestLog`, `markQuestTurnedIn`).
 
