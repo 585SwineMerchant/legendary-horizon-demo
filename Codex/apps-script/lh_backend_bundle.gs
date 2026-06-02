@@ -626,6 +626,10 @@ function lhSave_writePlayerSnapshot_(sheet, headerMap, targetRow, ps, opts) {
   if (opts.exitState !== undefined && opts.exitState !== null) {
     w(LH_PLAYER_SAVE_HEADERS.exit_ticket_state, opts.exitState);
   }
+  // Campfire timestamp — written as plain text so Sheets does not convert to local datetime.
+  if (ps.last_campfire_iso) {
+    w(LH_PLAYER_SAVE_HEADERS.last_campfire_iso, lhSave_isoForSheet_(ps.last_campfire_iso));
+  }
 }
 
 /**
@@ -1427,8 +1431,8 @@ function LhSession_writeSessionHistory(spreadsheetId, playerId, summaryObj) {
   var row = {};
   row[LH_SESSION_HISTORY_HEADERS.session_id] = sessionId;
   row[LH_SESSION_HISTORY_HEADERS.player_id] = playerId;
-  row[LH_SESSION_HISTORY_HEADERS.began_iso] = iso;
-  row[LH_SESSION_HISTORY_HEADERS.ended_iso] = iso;
+  row[LH_SESSION_HISTORY_HEADERS.began_iso] = lhSave_isoForSheet_(iso);
+  row[LH_SESSION_HISTORY_HEADERS.ended_iso] = lhSave_isoForSheet_(iso);
   row[LH_SESSION_HISTORY_HEADERS.summary_json] = JSON.stringify(s);
   row[LH_SESSION_HISTORY_HEADERS.device_hint] = 'writeSessionHistory';
   row[LH_SESSION_HISTORY_HEADERS.campfire_log_entry] =

@@ -197,10 +197,18 @@ export function applyDemoStaminaReward(exploration: ExplorationLoopState): Explo
   });
 }
 
-/** True for the vertical-slice Lost Echo encounter (Tiled name `lost_echo_demo` or synthetic twin). */
-export function isLostEchoDemoTrigger(trigger: Pick<ParsedLhTrigger, 'kind' | 'tiled_name'>): boolean {
-  return trigger.kind === 'combat_encounter' && trigger.tiled_name === 'lost_echo_demo';
+/** True for any knowledge-combat trigger (`knowledge_combat_*` naming convention). */
+export function isKnowledgeCombatTrigger(trigger: Pick<ParsedLhTrigger, 'kind' | 'tiled_name'>): boolean {
+  return trigger.kind === 'combat_encounter' && Boolean(trigger.tiled_name?.startsWith('knowledge_combat_'));
 }
+
+/** True for the first (gate-keeping) knowledge combat encounter — `knowledge_combat_first`. */
+export function isFirstKnowledgeCombatTrigger(trigger: Pick<ParsedLhTrigger, 'kind' | 'tiled_name'>): boolean {
+  return trigger.kind === 'combat_encounter' && trigger.tiled_name === 'knowledge_combat_first';
+}
+
+/** @deprecated Use {@link isFirstKnowledgeCombatTrigger}. */
+export const isLostEchoDemoTrigger = isFirstKnowledgeCombatTrigger;
 
 /** Physical guild HQ research portal (first atlas discovery). */
 export function canDiscoverGuildHqResearch(stage_id: DemoGuidanceStageId): boolean {
@@ -224,6 +232,8 @@ export function isLostEchoDemoSuppressedByStage(stage_id: DemoGuidanceStageId): 
 }
 
 export function buildDemoGuidanceMap(parsedMap: ParsedLhMap): ParsedLhMap {
+  if (!import.meta.env.DEV) return parsedMap;
+
   const hasMasterScribe = parsedMap.triggers.some(
     (trigger) => trigger.kind === 'npc_dialogue' && trigger.npc_id === LH_NPC_ID_MASTER_SCRIBE,
   );
@@ -234,6 +244,9 @@ export function buildDemoGuidanceMap(parsedMap: ParsedLhMap): ParsedLhMap {
   const synthetic: ParsedLhTrigger[] = [];
 
   if (!hasMasterScribe) {
+    console.warn(
+      '[DEV] buildDemoGuidanceMap: no master_scribe npc_dialogue trigger found in map — injecting synthetic fallback. Add the trigger in Tiled to remove this warning.',
+    );
     synthetic.push({
       tiled_object_id: 9001,
       tiled_name: 'demo_master_scribe_intro',
@@ -248,13 +261,15 @@ export function buildDemoGuidanceMap(parsedMap: ParsedLhMap): ParsedLhMap {
   }
 
   if (!hasLostEcho) {
+    console.warn(
+      '[DEV] buildDemoGuidanceMap: no knowledge_combat_first trigger found in map — injecting synthetic fallback. Add the trigger in Tiled to remove this warning.',
+    );
     synthetic.push({
       tiled_object_id: LH_DEMO_LOST_ECHO_INTERACTABLE_OBJECT_ID,
-      tiled_name: 'lost_echo_demo',
+      tiled_name: 'knowledge_combat_first',
       layer_name: 'demo_synthetic_guidance',
       kind: 'combat_encounter',
       activation_mode: 'overlap_auto',
-      // Placed ~900px west of Maia — safely outside the Master Scribe interaction zone.
       bounds: { x: baseX - 900, y: baseY - 150, width: 128, height: 128 },
       interaction_label_active: 'Face the Lost Echo',
       interaction_label_complete: 'Lost Echo defeated',

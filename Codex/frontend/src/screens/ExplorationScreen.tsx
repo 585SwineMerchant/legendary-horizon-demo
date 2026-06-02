@@ -6,7 +6,6 @@ import { KnowledgeJrpgBattleOverlay } from '../components/KnowledgeJrpgBattleOve
 import { MapDebugPanel } from '../components/MapDebugPanel';
 import { QuestDebugPanel } from '../components/QuestDebugPanel';
 import type { LhNpcDialogueOverlayModel } from '../dialogue/npcDialogueOverlayModel';
-import type { DemoGuidanceStateV1 } from '../demo/demoGuidance';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { summarizeInventoryBrief } from '../lib/formatInventoryBrief';
 import type { ParsedLhMap } from '../maps/parseLhTiledMap';
@@ -51,7 +50,7 @@ type Props = {
   hotspots: ExplorationHotspot[];
   onActivateHotspot: (interactableId: string) => void;
   parsedMap: ParsedLhMap;
-  demoGuidance?: DemoGuidanceStateV1;
+  kcBeaten?: boolean;
   renderer?: 'hotspots' | 'phaser';
   saveFeedback: SaveFeedback | null;
   maiaHandoffActive?: boolean;
@@ -96,7 +95,7 @@ export function ExplorationScreen({
   hotspots,
   onActivateHotspot,
   parsedMap,
-  demoGuidance,
+  kcBeaten,
   renderer = 'hotspots',
   saveFeedback,
   maiaHandoffActive = false,
@@ -173,7 +172,7 @@ export function ExplorationScreen({
           key={phaserSessionRemountKey}
           realmId={phaserTriggerRealmId}
           parsedMap={parsedMap}
-          demoGuidance={demoGuidance}
+          kcBeaten={kcBeaten}
           dialogueNpcId={npcDialogue?.npcId}
           hotspots={hotspots}
           onActivateHotspot={onActivateHotspot}
@@ -389,7 +388,7 @@ export function ExplorationScreen({
             <MapDebugPanel parsedMap={mapDebug.parsed} loadErrors={mapDebug.loadErrors} />
           ) : null}
 
-          {questDebug ? <QuestDebugPanel quests={questDebug.quests} demoGuidance={demoGuidance} /> : null}
+          {questDebug ? <QuestDebugPanel quests={questDebug.quests} /> : null}
 
           {saveFeedback ? (
             <div

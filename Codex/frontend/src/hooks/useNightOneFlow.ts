@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+﻿﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { resolveRosterToPlayerSave } from '../runtime/rosterIdentity';
 import { loadLhRuntimeFixture } from '../runtime/loadLhRuntimeFixture';
@@ -110,17 +110,8 @@ import { applyResolveDamage, rollResolveDamage, restoreResolveToFull } from '../
 import { normalizeForetoldSignpostRealmIds, signpostLedgerMilestone } from '../exploration/foretoldSignposts';
 import {
   LH_NPC_ID_MASTER_SCRIBE,
-  advanceDemoGuidanceStage,
-  applyDemoObjectiveToPlayer,
-  applyDemoStaminaReward,
   buildDemoGuidanceMap,
-  canDiscoverGuildHqResearch,
-  canReenterChosenGuildHq,
-  ensureDemoGuidanceState,
-  isLostEchoDemoTrigger,
-  mergeDemoGuidanceState,
-  resolveMasterScribeDialogue,
-  resolveMasterScribeNextStage,
+  isFirstKnowledgeCombatTrigger,
 } from '../demo/demoGuidance';
 import {
   DEMO_LOAD_AUDIT,
@@ -268,15 +259,30 @@ if (SHOW_TRIGGER_PARSE_DEBUG && typeof console !== 'undefined') {
       bounds: t.bounds,
     })),
   );
-  const lostEcho = PARSED_PRIMARY_MAP.triggers.filter(isLostEchoDemoTrigger);
-  console.info('[LhDemo] lost_echo_demo triggers', lostEcho);
+  const lostEcho = PARSED_PRIMARY_MAP.triggers.filter(isFirstKnowledgeCombatTrigger);
+  console.info('[LhDemo] knowledge_combat_first triggers', lostEcho);
   const syntheticLost = lostEcho.filter((t) => t.layer_name === 'demo_synthetic_guidance');
-  console.info('[LhDemo] synthetic Lost Echo fallback present?', syntheticLost.length > 0, syntheticLost);
+  console.info('[LhDemo] synthetic knowledge_combat_first fallback present?', syntheticLost.length > 0, syntheticLost);
 }
 
-const LOST_ECHO_DEMO_INTERACTABLE_IDS = PARSED_PRIMARY_MAP.triggers
-  .filter(isLostEchoDemoTrigger)
+const LOST_ECHO_KC_INTERACTABLE_IDS = PARSED_PRIMARY_MAP.triggers
+  .filter(isFirstKnowledgeCombatTrigger)
   .map((t) => makeTriggerInteractableId(PRIMARY_WORLD_TRIGGER_REALM_ID, t.tiled_object_id));
+
+// ── Act I Master Scribe Dialogue ──────────────────────────────────────────
+// Replaces demo-stage-driven dialogue. Chooses a line based on real quest state.
+function resolveAct1MasterScribeDialogue(quests: readonly QuestDefinition[]): string {
+  const isComplete = (id: string) => {
+    const q = quests.find((q) => q.quest_id === id);
+    return q ? (q.status === 'completed' || q.status === 'turned_in') : false;
+  };
+  if (isComplete('mq-101')) {
+    return 'Your Manifest is sealed, Traveler. The guild roads are open — follow the Scroll of Destiny and choose your path with evidence.';
+  }
+  // Check if Mirror of Maia has been visited (any maia_portal trigger visited)
+  // For now, use quest status of mq-101 as primary signal.
+  return 'Ah, a Traveler wakes. Good. The map is dark, but not unkind. First, seek the Mirror of Maia — it will show the shape of your strengths.';
+}
 
 export function useNightOneFlow() {
   const maiaDebug =
@@ -366,18 +372,7 @@ export function useNightOneFlow() {
 
   const consumeRealmAtlasFogRevealIntent = useCallback(() => {
     setRealmAtlasEntryIntent((prev) => ({ ...prev, fogRevealRealmId: null }));
-    setExploration((e) => {
-      const prevStage = ensureDemoGuidanceState(e).stage_id;
-      const next = advanceDemoGuidanceStage(e, 'demo_fog_revealed');
-      const nextStage = ensureDemoGuidanceState(next).stage_id;
-      logDemoLoadAudit('demo_guidance advance (fog reveal atlas consumed)', {
-        condition: 'RealmAtlasOverlay completed fog lift → consumeRealmAtlasFogRevealIntent',
-        prev_stage_id: prevStage,
-        next_stage_id: nextStage,
-        note: 'Next slice step is usually Master Scribe dialogue at demo_fog_revealed; dismiss advances to demo_slice_complete.',
-      });
-      return next;
-    });
+    // Fog reveal atlas consumed — no demo stage to advance in Act I.
   }, []);
   const [worldMapOpen, setWorldMapOpen] = useState(false);
   /** Inline message when travel is blocked (shown inside World Map overlay). */
@@ -415,7 +410,6 @@ export function useNightOneFlow() {
   );
 
   const showQuestDebug = import.meta.env.DEV || import.meta.env.VITE_LH_QUEST_DEBUG === 'true';
-  const demoGuidance = useMemo(() => ensureDemoGuidanceState(exploration), [exploration.demo_guidance_v1]);
 
   useEffect(() => {
     if (screen === 'explore' && player) {
@@ -434,11 +428,6 @@ export function useNightOneFlow() {
     restedReadinessShownRef.current = true;
     setRestedReadinessOpen(true);
   }, [screen, player?.last_campfire_score]);
-
-  useEffect(() => {
-    if (!player || player.required_next_action === demoGuidance.current_objective) return;
-    setPlayer((p) => (p ? applyDemoObjectiveToPlayer(p, demoGuidance.current_objective) : p));
-  }, [demoGuidance.current_objective, player?.required_next_action]);
 
   // Lazy-load the stable map the first time the user selects it on the title screen.
   useEffect(() => {
@@ -492,7 +481,7 @@ export function useNightOneFlow() {
     maiaHandoffWindowRef.current = null;
     setMaiaHandoffActive(false);
     setMaiaHandoffPromptActive(false);
-    setExploration((e) => advanceDemoGuidanceStage(e, 'demo_returned_from_maia'));
+    // Act I: Maia return no longer advances demo stage state.
     window.dispatchEvent(new CustomEvent('lh:maia-handoff-closed'));
   }, []);
 
@@ -907,21 +896,10 @@ export function useNightOneFlow() {
   };
 
   const dismissNpcDialogue = useCallback(() => {
-    const current = npcDialogue;
     setNpcDialogue(null);
-    if (current?.npcId !== LH_NPC_ID_MASTER_SCRIBE) return;
-    const nextStage = resolveMasterScribeNextStage(demoGuidance.stage_id);
-    if (!nextStage) return;
-    logDemoLoadAudit('demo_guidance advance (Master Scribe dialogue dismissed)', {
-      condition: 'resolveMasterScribeNextStage(dismissNpcDialogue)',
-      prev_stage_id: demoGuidance.stage_id,
-      next_stage_id: nextStage,
-    });
-    setExploration((e) => {
-      // Stamina reward is now granted on Lost Echo victory (no required return-to-scribe busywork).
-      return advanceDemoGuidanceStage(e, nextStage);
-    });
-  }, [demoGuidance.stage_id, demoGuidance.stamina_upgrade_applied, npcDialogue]);
+    // Act I: Master Scribe dialogue dismissal no longer advances demo stage state.
+    // Quest progression is handled by the quest engine based on player actions.
+  }, [npcDialogue]);
 
   const handleEncounterRetreat = useCallback(() => {
     const cur = activeEncounterRef.current;
@@ -966,21 +944,8 @@ export function useNightOneFlow() {
         interactable_id: cur.interactableId,
         target_quest_id: cur.target_quest_id,
       });
-      const isDemoLostEcho = cur.kind === 'combat_encounter' && cur.presentation === 'jrpg_knowledge';
-      if (isDemoLostEcho) {
-        const stageBefore = ensureDemoGuidanceState(nextE).stage_id;
-        const guided = ensureDemoGuidanceState(nextE);
-        // Flow polish: after victory, continue directly to Aethelwood (no required return to Master Scribe).
-        nextE = guided.stamina_upgrade_applied
-          ? advanceDemoGuidanceStage(nextE, 'demo_seek_aethelwood_guild')
-          : advanceDemoGuidanceStage(applyDemoStaminaReward(nextE), 'demo_seek_aethelwood_guild');
-        logDemoLoadAudit('demo_guidance advance (Lost Echo encounter win)', {
-          condition: 'handleEncounterWin + isLostEchoDemoTrigger',
-          prev_stage_id: stageBefore,
-          next_stage_id: ensureDemoGuidanceState(nextE).stage_id,
-          stamina_upgrade_applied_after: ensureDemoGuidanceState(nextE).stamina_upgrade_applied,
-        });
-      }
+      // Act I: Lost Echo win no longer advances demo stage state.
+      // Quest engine handles progression via checkEncounterSideQuests below.
       // Side quest bridges: SQ-201 (first win), SQ-203 (10 wins), SQ-204 (20 wins).
       const sqEnc = checkEncounterSideQuests(qLink.nextQuests, nextE.encounter_log ?? []);
       const playerAfterEnc = sqEnc.xpAwarded > 0 && qLink.nextPlayer
@@ -995,11 +960,6 @@ export function useNightOneFlow() {
         setSaveFeedback({
           tone: 'success',
           text: `Encounter cleared — granted ${capAward.xpGranted} XP (session encounter cap reached).`,
-        });
-      } else if (isDemoLostEcho) {
-        setSaveFeedback({
-          tone: 'success',
-          text: "The Lost Echo dissolves. The Traveler’s Resolve deepens — continue to Aethelwood Farmsteads.",
         });
       } else if (cur.kind === 'combat_encounter') {
         setSaveFeedback({
@@ -1021,40 +981,23 @@ export function useNightOneFlow() {
       }
 
       const kind = normaliseLhTriggerKind(String(triggerMeta.kind ?? ''));
-      const lostEchoDemo = kind === 'combat_encounter' && isLostEchoDemoTrigger(triggerMeta);
+      const lostEchoDemo = kind === 'combat_encounter' && isFirstKnowledgeCombatTrigger(triggerMeta);
 
-      if (lostEchoDemo && demoGuidance.stage_id !== 'demo_combat_trial_available') {
+      if (lostEchoDemo && visitedInteractableIds.includes(interactableId)) {
         setSaveFeedback({
           tone: 'error',
-          text:
-            demoGuidance.stage_id === 'demo_combat_trial_complete'
-              ? 'The Lost Echo has already yielded. Return to the Master Scribe.'
-              : 'The road feels wrong. Return to the Master Scribe before facing the Lost Echo.',
+          text: 'The Lost Echo has already yielded. Press onward.',
         });
         return;
       }
       if (kind === 'maia_portal') {
-        if (demoGuidance.stage_id !== 'demo_seek_maia') {
-          setSaveFeedback({
-            tone: 'error',
-            text:
-              demoGuidance.stage_id === 'demo_awakened'
-                ? 'The Mirror is still. Speak with the Master Scribe first.'
-                : 'The Mirror of Maia has already answered. Return to the Master Scribe.',
-          });
-          return;
-        }
+        // Act I: Maia portal is always accessible — demo stage gate removed.
         // Manual "Return to game" must be able to fire each time.
         maiaHandoffClosedOnceRef.current = false;
         const nextVisited = visitedInteractableIds.includes(interactableId)
           ? visitedInteractableIds
           : [...visitedInteractableIds, interactableId];
-        const nextExploration = advanceDemoGuidanceStage(exploration, 'demo_seek_maia');
-        const nextDemoGuidance = ensureDemoGuidanceState(nextExploration);
-        const nextPlayer: PlayerSave = {
-          ...player,
-          required_next_action: nextDemoGuidance.current_objective,
-        };
+        const nextPlayer: PlayerSave = { ...player };
         const nextRealmProgress = setRealmLearnedNotes(
           realmProgress,
           player.current_realm_id,
@@ -1062,7 +1005,6 @@ export function useNightOneFlow() {
         );
 
         setPlayer(nextPlayer);
-        setExploration(nextExploration);
         setRealmProgress(nextRealmProgress);
         setVisitedInteractableIds(nextVisited);
         setMaiaHandoffPromptActive(true);
@@ -1074,7 +1016,7 @@ export function useNightOneFlow() {
             questsSnapshot: quests,
             realmId: realm.realm_id,
             visitedTriggerInteractableIds: nextVisited,
-            exploration_loop: nextExploration,
+            exploration_loop: exploration,
             realm_progress: nextRealmProgress,
             ritual_drafts: ritualDraftsFromLedgerDraft(ledgerDraft),
             save_kind: 'manual',
@@ -1108,8 +1050,10 @@ export function useNightOneFlow() {
         }
 
         // After first visit + atlas fog, physical doors close until the traveler commits to a True Path guild.
+        // Act I: re-entry allowed when a true path is chosen (endgame state), not demo stage.
+        const firstKcBeaten = LOST_ECHO_KC_INTERACTABLE_IDS.some((id) => visitedInteractableIds.includes(id));
         if (revealed.has(triggerRealm)) {
-          if (truePathRealm && truePathRealm === triggerRealm && canReenterChosenGuildHq(demoGuidance.stage_id)) {
+          if (truePathRealm && truePathRealm === triggerRealm && firstKcBeaten) {
             setRealmAtlasEntryIntent({ initialGuildRealmId: triggerRealm, fogRevealRealmId: null });
             phaserGuildResearchExitWhenAtlasClosedRef.current = interactableId;
             playLhSfx('door_open');
@@ -1129,10 +1073,11 @@ export function useNightOneFlow() {
           return;
         }
 
-        if (!canDiscoverGuildHqResearch(demoGuidance.stage_id)) {
+        // Act I: guild HQ discovery is gated on the first KC being beaten, not on demo stage.
+        if (!firstKcBeaten) {
           setSaveFeedback({
             tone: 'error',
-            text: 'The guild roads are not ready. Follow the Master Scribe’s guidance first.',
+            text: 'The guild roads are not ready. Face the challenge on the path before entering a guild hall.',
           });
           window.dispatchEvent(
             new CustomEvent(LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT, { detail: { interactableId, mode: 'blocked' } }),
@@ -1142,17 +1087,7 @@ export function useNightOneFlow() {
         // Shared overworld: physical trigger zone is authoritative — do not require `current_realm_id`
         // to match (that field tracks narrative/UI focus and may lag while exploring the big map).
 
-        setExploration((e) => {
-          const prev = ensureDemoGuidanceState(e).stage_id;
-          const next = advanceDemoGuidanceStage(mergeGuildHqAtlasRevealed(e, triggerRealm), 'demo_guild_research_complete');
-          logDemoLoadAudit('demo_guidance advance (guild HQ research trigger)', {
-            condition: 'guild_hq_research overlap → atlas + stage minimum demo_guild_research_complete',
-            prev_stage_id: prev,
-            next_stage_id: ensureDemoGuidanceState(next).stage_id,
-            trigger_realm: triggerRealm,
-          });
-          return next;
-        });
+        setExploration((e) => mergeGuildHqAtlasRevealed(e, triggerRealm));
         setRealmAtlasEntryIntent({
           initialGuildRealmId: triggerRealm,
           fogRevealRealmId: triggerRealm,
@@ -1180,7 +1115,7 @@ export function useNightOneFlow() {
         if (ge.true_path_realm_id !== triggerRealm) {
           setSaveFeedback({
             tone: 'error',
-            text: 'This summons bears another guild’s seal — you are at the wrong hall.',
+            text: "This summons bears another guild's seal — you are at the wrong hall.",
           });
           return;
         }
@@ -1206,7 +1141,7 @@ export function useNightOneFlow() {
         if (!ge.application_sealed || ge.phase !== 'breather') {
           setSaveFeedback({
             tone: 'error',
-            text: 'The porter has no interview scroll for you yet — finish and seal your application first, then await the Guild’s review.',
+            text: "The porter has no interview scroll for you yet — finish and seal your application first, then await the Guild's review.",
           });
           return;
         }
@@ -1363,12 +1298,9 @@ export function useNightOneFlow() {
         return;
       }
 
-      if (
-        visitedInteractableIds.includes(interactableId) &&
-        !(lostEchoDemo && demoGuidance.stage_id === 'demo_combat_trial_available')
-      ) {
+      if (visitedInteractableIds.includes(interactableId)) {
         if (SHOW_TRIGGER_PARSE_DEBUG && typeof console !== 'undefined') {
-          console.info('[LhDemo] trigger skipped (visited)', { interactableId, lostEchoDemo, stage: demoGuidance.stage_id });
+          console.info('[LhDemo] trigger skipped (visited)', { interactableId });
         }
         return;
       }
@@ -1388,7 +1320,7 @@ export function useNightOneFlow() {
 
       if (result.openEncounter) {
         const jrpgLostEcho =
-          result.openEncounter.kind === 'combat_encounter' && isLostEchoDemoTrigger(triggerMeta);
+          result.openEncounter.kind === 'combat_encounter' && isFirstKnowledgeCombatTrigger(triggerMeta);
         if (jrpgLostEcho) {
           getLhAudioDirector().primeBattleMusicFromUserGesture();
         }
@@ -1405,11 +1337,12 @@ export function useNightOneFlow() {
       if (result.openNpcDialogue) {
         const npc = findNpcEntry(BLUEPRINT.npc_registry, result.openNpcDialogue.npcId);
         const isMasterScribe = result.openNpcDialogue.npcId === LH_NPC_ID_MASTER_SCRIBE;
-        const resolved = isMasterScribe
-          ? resolveMasterScribeDialogue(demoGuidance.stage_id)
+        // Act I: Master Scribe uses static quest-aware dialogue, not demo stage state.
+        const masterScribeBody = isMasterScribe
+          ? resolveAct1MasterScribeDialogue(result.nextQuests ?? quests)
           : null;
         const body =
-          resolved?.body ??
+          masterScribeBody ??
           resolveNpcDialogueBody(
             result.openNpcDialogue.npcId,
             BLUEPRINT.dialogue_catalog,
@@ -1426,13 +1359,6 @@ export function useNightOneFlow() {
           ).body;
         const aid = npc?.portrait_asset_id;
         const portraitUrl = aid ? resolveAssetDeliveryUrl(aid, BLUEPRINT.media_assets) : '';
-        if (isMasterScribe) {
-          setExploration((e) =>
-            mergeDemoGuidanceState(e, {
-              last_npc_interaction_id: resolved?.lineId ?? 'demo_master_scribe_unknown',
-            }),
-          );
-        }
         setNpcDialogue({
           npcId: result.openNpcDialogue.npcId,
           title: npc?.card_title ?? 'A moment together',
@@ -1446,7 +1372,7 @@ export function useNightOneFlow() {
         setVisitedInteractableIds((curr) => (curr.includes(interactableId) ? curr : [...curr, interactableId]));
       }
     },
-    [player, quests, visitedInteractableIds, realm, exploration, realmProgress, ledgerDraft, launchMaiaHandoffWindow, demoGuidance.stage_id],
+    [player, quests, visitedInteractableIds, realm, exploration, realmProgress, ledgerDraft, launchMaiaHandoffWindow],
   );
 
   const explorationHotspots: ExplorationHotspot[] = useMemo(() => {
@@ -1520,9 +1446,8 @@ export function useNightOneFlow() {
         if (DEMO_LOAD_AUDIT && typeof console !== 'undefined') {
           console.info('[LhDemoLoadAudit] auto-save firing (debounced ~3.5s after last explore dependency change)', {
             save_kind: 'auto',
-            demo_guidance_stage_id: exploration.demo_guidance_v1?.stage_id,
             visited_trigger_count: visitedInteractableIds.length,
-            note: 'Persists current in-memory exploration_loop (including demo_guidance_v1) to Apps Script or simulated sink.',
+            note: 'Persists current in-memory exploration_loop to Apps Script or simulated sink.',
           });
         }
         const envelope = buildManualSaveEnvelope({
@@ -1976,7 +1901,7 @@ export function useNightOneFlow() {
       });
     }
 
-    // SQ-202 “Echoes of Experience” — career interview submitted.
+    // SQ-202 "Echoes of Experience" — career interview submitted.
     // Transitions the quest to `turned_in` (awaiting teacher review), NOT `completed`.
     // XP is held until the teacher confirms the assignment via the dashboard.
     if (payload.module_id === 'mod_sq202_career_interview' && payload.status === 'submitted') {
@@ -1993,7 +1918,7 @@ export function useNightOneFlow() {
       return;
     }
 
-    // GT-100 “Face the Guardian” — boss encounter complete.
+    // GT-100 "Face the Guardian" — boss encounter complete.
     // Falls through to generic completeQuestWithXp below (which auto-reconciles prerequisites,
     // unlocking GT-101). We just add a custom victory feedback here first.
     if (payload.module_id === 'mod_gt100_guardian_boss' && payload.status === 'submitted') {
@@ -2004,7 +1929,7 @@ export function useNightOneFlow() {
       // Fall through to completeQuestWithXp below — GT-101 unlocks automatically via prerequisite reconciliation.
     }
 
-    // Mark the owning quest completed + award XP if the module finished in a terminal “success” state.
+    // Mark the owning quest completed + award XP if the module finished in a terminal "success" state.
     // (SQ-202 is excluded above via early return — it uses turned_in, not completed.)
     if (payload.quest_id && (payload.status === 'submitted' || payload.status === 'completed' || payload.status === 'passed')) {
       completeQuestWithXp(payload.quest_id);
@@ -2198,18 +2123,18 @@ export function useNightOneFlow() {
     await applyCanonicalDemoSessionToRuntime({ allowLocalCache: false, clearCacheFirst: true });
   }, [applyCanonicalDemoSessionToRuntime]);
 
+  // DEV-only: clear KC visited IDs so the Lost Echo trigger can fire again.
   const devResetToLostEchoCombatStep = useCallback(() => {
-    setVisitedInteractableIds((ids) => ids.filter((id) => !LOST_ECHO_DEMO_INTERACTABLE_IDS.includes(id)));
+    setVisitedInteractableIds((ids) => ids.filter((id) => !LOST_ECHO_KC_INTERACTABLE_IDS.includes(id)));
     setExploration((e) => {
       const clearedLog = (e.encounter_log ?? []).filter(
-        (row) => !LOST_ECHO_DEMO_INTERACTABLE_IDS.includes(row.interactable_id),
+        (row) => !LOST_ECHO_KC_INTERACTABLE_IDS.includes(row.interactable_id),
       );
-      return mergeDemoGuidanceState({ ...e, encounter_log: clearedLog }, { stage_id: 'demo_combat_trial_available' });
+      return { ...e, encounter_log: clearedLog };
     });
     setPhaserExplorationRemountKey((k) => k + 1);
-    logDemoLoadAudit('dev reset → Lost Echo combat step', {
-      cleared_interactable_ids: [...LOST_ECHO_DEMO_INTERACTABLE_IDS],
-      target_stage_id: 'demo_combat_trial_available',
+    logDemoLoadAudit('dev reset → Lost Echo combat step (KC IDs cleared)', {
+      cleared_interactable_ids: [...LOST_ECHO_KC_INTERACTABLE_IDS],
     });
   }, []);
 
@@ -2475,10 +2400,11 @@ export function useNightOneFlow() {
     openPause: () => setPauseOpen(true),
     closePause: () => setPauseOpen(false),
     openQuestLog: () => setQuestLogOpen(true),
+    // Close quest log returns to pause hub if pause was open, otherwise closes fully.
     closeQuestLog: () => setQuestLogOpen(false),
     dismissSaveFeedback,
     openRealmAtlas: () => {
-      setPauseOpen(false);
+      // Keep pauseOpen=true so closing the atlas returns to the Scroll of Destiny hub.
       phaserGuildResearchExitWhenAtlasClosedRef.current = null;
       setRealmAtlasEntryIntent({ initialGuildRealmId: null, fogRevealRealmId: null });
       setRealmAtlasOpen(true);
@@ -2486,11 +2412,9 @@ export function useNightOneFlow() {
     closeRealmAtlas: () => {
       const phaserGuildExitId = phaserGuildResearchExitWhenAtlasClosedRef.current;
       phaserGuildResearchExitWhenAtlasClosedRef.current = null;
-      // When leaving via a physical guild HQ visit, play door-close SFX (atlas-only closes use scroll-close).
+      // When leaving via a physical guild HQ visit, play door-close SFX; atlas-only closes are silent.
       if (phaserGuildExitId) {
         playLhSfx('door_close');
-      } else {
-        playLhSfx('atlas_scroll_close');
       }
       if (phaserGuildExitId) {
         window.dispatchEvent(
@@ -2503,23 +2427,23 @@ export function useNightOneFlow() {
       setRealmAtlasEntryIntent({ initialGuildRealmId: null, fogRevealRealmId: null });
     },
     openWorldMap: () => {
-      setPauseOpen(false);
+      // Keep pauseOpen so closing the map returns to the Scroll hub.
       setRealmTravelNotice(null);
       setWorldMapOpen(true);
     },
     closeWorldMap: () => setWorldMapOpen(false),
     openResearchWorksheets: () => {
-      setPauseOpen(false);
+      // Keep pauseOpen so closing worksheets returns to the Scroll hub.
       setAcademicWorksheetsOpen(true);
     },
     closeResearchWorksheets: () => setAcademicWorksheetsOpen(false),
     openInventory: () => {
-      setPauseOpen(false);
+      // Keep pauseOpen so closing inventory returns to the Scroll hub.
       setInventoryOpen(true);
     },
     closeInventory: () => setInventoryOpen(false),
     openSatchel: () => {
-      setPauseOpen(false);
+      // Keep pauseOpen so closing satchel returns to the Scroll hub.
       setSatchelOpen(true);
     },
     closeSatchel: () => setSatchelOpen(false),
@@ -2561,7 +2485,7 @@ export function useNightOneFlow() {
           setPauseOpen(false);
           setSaveFeedback({
             tone: 'error',
-            text: 'You have not been handed the Guild’s interview summons yet — visit your guild hall on the map after your papers are in review.',
+            text: "You have not been handed the Guild's interview summons yet — visit your guild hall on the map after your papers are in review.",
           });
           return;
         }
@@ -2622,7 +2546,6 @@ export function useNightOneFlow() {
     classroomTools,
     resumeDialogBody,
     npcDialogue,
-    demoGuidance,
     dismissNpcDialogue,
     activeEncounter,
     onEncounterWin: handleEncounterWin,
@@ -2669,6 +2592,8 @@ export function useNightOneFlow() {
     mediaAssets: BLUEPRINT.media_assets,
     parsedMap: activeMap,
     tileMapUrl: activeTileMapUrl,
+    /** True once the first knowledge-combat trigger has been activated (acts as gate for repeat kc). */
+    firstKcBeaten: LOST_ECHO_KC_INTERACTABLE_IDS.some((id) => visitedInteractableIds.includes(id)),
     mapVariant,
     setMapVariant,
     stableMapLoading: stableMapState.loading,

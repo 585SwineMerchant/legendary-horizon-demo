@@ -563,11 +563,17 @@ function normaliseCollisionRegions(objects: TiledObject[], layerName: string): P
     const kind = tileProperty(props, 'lh_kind');
     const isCollision = kind === 'collision' || obj.type === 'lh_collision';
     if (!isCollision) return;
+    const collisionKind = tileProperty(props, 'lh_collision_kind');
+    if (!collisionKind) {
+      console.warn(
+        `[parseLhTiledMap] collision object id=${obj.id} name="${obj.name}" in layer "${layerName}" is missing lh_collision_kind property. Add lh_collision_kind=building (or the appropriate value) in Tiled.`,
+      );
+    }
     out.push({
       tiled_object_id: obj.id,
       name: obj.name,
       layer_name: layerName,
-      collision_kind: tileProperty(props, 'lh_collision_kind'),
+      collision_kind: collisionKind,
       realm_id: tileProperty(props, 'lh_realm_id'),
       bounds: objectBounds(obj),
     });

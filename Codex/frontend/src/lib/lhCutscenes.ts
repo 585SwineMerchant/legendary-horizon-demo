@@ -1,4 +1,4 @@
-import { resolveLhAssetUrl, resolveLhCutsceneVideoUrl } from './lhMediaBase';
+import { getLhDevVitePublicBaseUrl, getLhMediaBaseUrl, resolveLhAssetUrl, resolveLhCutsceneVideoUrl } from './lhMediaBase';
 
 /** One stamped caption line (matches intro-player / caption-stamper export). */
 export type LhCutsceneCaption = {
@@ -45,7 +45,10 @@ export function buildCutscenePlayerUrl(
   def: Pick<LhCutsceneDef, 'player' | 'video' | 'cacheTag'>,
   options?: { videoOverride?: string; autostart?: boolean },
 ): string {
-  const playerUrl = new URL(resolveLhAssetUrl(def.player));
+  // In dev, serve the player HTML from local Vite so the HTTP video URL doesn't trigger
+  // mixed-content blocking inside a GitHub Pages (HTTPS) iframe.
+  const playerBase = import.meta.env.DEV ? getLhDevVitePublicBaseUrl() : getLhMediaBaseUrl();
+  const playerUrl = new URL(`${playerBase}${def.player.replace(/^\/+/, '')}`);
   const videoPath = options?.videoOverride?.trim() || def.video;
   playerUrl.searchParams.set('video', resolveLhCutsceneVideoUrl(videoPath));
   if (options?.autostart) playerUrl.searchParams.set('autostart', '1');

@@ -50,7 +50,6 @@ export function App() {
     activeQuestDefinition,
     showQuestDebug,
     npcDialogue,
-    demoGuidance,
     dismissNpcDialogue,
     activeEncounter,
     onEncounterWin,
@@ -90,6 +89,7 @@ export function App() {
     setMapVariant,
     stableMapLoading,
     stableMapError,
+    firstKcBeaten,
     act3,
     enterRealmFromWorldMap,
     primaryWorldTriggerRealmId,
@@ -356,7 +356,7 @@ export function App() {
           onActivateHotspot={hotspotControls.activate}
           parsedMap={parsedMap}
           tileMapUrl={tileMapUrl}
-          demoGuidance={demoGuidance}
+          kcBeaten={firstKcBeaten}
           renderer="phaser"
           saveFeedback={null}
           maiaHandoffActive={maiaHandoffActive}
@@ -426,23 +426,14 @@ export function App() {
         riasecScores={surveyRiasecScores}
         onSave={handleManualSave}
         onEndSession={navigate.openCampfireSave}
-        onOpenQuestLog={() => {
-          navigate.closePause();
-          navigate.openQuestLog();
-        }}
+        onOpenQuestLog={navigate.openQuestLog}
         onOpenRealmAtlas={navigate.openRealmAtlas}
-        onOpenInventory={() => {
-          navigate.closePause();
-          navigate.openSatchel();
-        }}
+        onOpenInventory={navigate.openSatchel}
         onReviewProphecy={() => {
           const url = exploration.module_drafts?.mod_oracle_of_fate?.prophecy_research_url;
           if (url) window.open(url, '_blank');
         }}
-        onOpenQuestOfFateWorksheet={() => {
-          navigate.closePause();
-          navigate.openModule('mod_quest_of_fate_worksheet');
-        }}
+        onOpenQuestOfFateWorksheet={() => navigate.openModule('mod_quest_of_fate_worksheet')}
       /> : null}
 
       {!teacherDashboardOpen ? (

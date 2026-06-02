@@ -13,7 +13,6 @@ import {
   syncGuildTruePathFromPlayerIfUnset,
   type ExplorationLoopState,
 } from '../exploration/explorationTypes';
-import { ensureDemoGuidanceState, mergeDemoGuidanceState, applyDemoObjectiveToPlayer } from './demoGuidance';
 import {
   isDemoRemoteSavePreferred,
   loadCanonicalDemoPersistedSession,
@@ -181,26 +180,21 @@ export type FinalizeDemoBootstrapArgs = {
 };
 
 /**
- * Matches `beginDemo` post-load transforms: strip Aethelwood atlas prefetch, seed academics,
- * sync guild true path, merge atlas pins from realm progress, merge demo guidance defaults.
+ * Post-load transforms for Act I: seed academics, sync guild true path.
+ * Demo guidance state is intentionally NOT applied here — Act I builds ignore demo_guidance_v1.
+ * Migration: old saves that have demo_guidance_v1 load cleanly but game logic skips it.
  */
 export function finalizeDemoBootstrapExploration(args: FinalizeDemoBootstrapArgs): {
   exploration: ExplorationLoopState;
   realmProgress: RealmProgressMap;
   nextPlayer: PlayerSave;
 } {
-  // Preserve remote persistence exactly as saved. Fresh-run behavior is handled by `Start` (client-side reset),
-  // not by stripping realms during normalization. Stripping would make Aethelwood fog/research appear to work
-  // visually but fail to persist across Resume/Load.
   const realmProgress = mergeRealmProgressMaps({}, args.realmProgressInit);
   let exploration: ExplorationLoopState = { ...args.explorationAfterCoerce };
 
   exploration = ensureAcademicTasksSeeded([...args.academicTaskDefs], exploration);
   exploration = syncGuildTruePathFromPlayerIfUnset(exploration, args.nextPlayer.current_realm_id);
   // Do not pre-reveal guild HQ from `realm_progress.entered` — only the first physical HQ visit should chart the atlas.
-  const initialDemoGuidance = ensureDemoGuidanceState(exploration);
-  exploration = mergeDemoGuidanceState(exploration, initialDemoGuidance);
-  const nextPlayer = applyDemoObjectiveToPlayer(args.nextPlayer, initialDemoGuidance.current_objective);
 
-  return { exploration, realmProgress, nextPlayer };
+  return { exploration, realmProgress, nextPlayer: args.nextPlayer };
 }

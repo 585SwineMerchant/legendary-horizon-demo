@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 
 import Phaser from 'phaser';
 
-import type { DemoGuidanceStateV1 } from '../demo/demoGuidance';
 import type { ExplorationHotspot } from '../screens/ExplorationScreen';
 import type { ParsedLhMap, ParsedLhRoamingLostEchoSpawn } from '../maps/parseLhTiledMap';
 import { PRIMARY_WORLD_TRIGGER_REALM_ID } from '../runtime/primaryWorldMap';
@@ -76,7 +75,8 @@ const JRPG_BATTLE_VP = {
 type Props = {
   realmId: string;
   parsedMap: ParsedLhMap;
-  demoGuidance?: DemoGuidanceStateV1;
+  /** True once the first knowledge-combat trigger has been beaten; gates Lost Echo re-activation. */
+  kcBeaten?: boolean;
   dialogueNpcId?: string;
   hotspots: ExplorationHotspot[];
   onActivateHotspot: (interactableId: string) => void;
@@ -149,6 +149,13 @@ type ReactiveGrassDecor = {
   homeScaleY: number;
   lastRustleAt: number;
 };
+
+/**
+ * Depth for tile layers tagged with lh_above_player=true in Tiled.
+ * Must exceed the maximum player y in world-pixel space (map is 400×300 tiles × 16px = 6400×4800px).
+ * Used to ensure foreground structures (windmill upper, building rooftops) render above all y-sorted sprites.
+ */
+const ABOVE_PLAYER_LAYER_DEPTH = 50000;
 
 /** Baked windmill on the Aethelwood map (`Windmill_baked_anim` tileset). */
 const WINDMILL_BAKED_TILESET_NAME = 'Windmill_baked_anim';
@@ -474,7 +481,7 @@ const SHOW_DEMO_DEBUG_HUD = import.meta.env.DEV || import.meta.env.VITE_LH_QUEST
 /** Temporary Lost Echo pipeline diagnostics (DEV or `VITE_LH_QUEST_DEBUG`). */
 const LOST_ECHO_DEEP_DIAG = import.meta.env.DEV || import.meta.env.VITE_LH_QUEST_DEBUG === 'true';
 const MASTER_SCRIBE_NPC_ID = 'master_scribe';
-const LOST_ECHO_TRIGGER_NAME = 'lost_echo_demo';
+const LOST_ECHO_TRIGGER_NAME = 'knowledge_combat_first';
 const MASTER_SCRIBE_IDLE_KEY = 'lh_master_scribe_idle';
 const MASTER_SCRIBE_TALK_KEY = 'lh_master_scribe_talk';
 const LOST_ECHO_IDLE_KEY = 'lh_lost_echo_idle';
@@ -888,8 +895,6 @@ function registerLostEchoAnimsIfNeeded(scene: Phaser.Scene): void {
   }
 }
 
-const DEMO_CHARACTER_TRIGGER_PADDING_PX = 64;
-
 /** Dev-only escape hatch: hold R to sprint without fuel drain or cooldown. */
 const DEMO_UNLIMITED_SPRINT = import.meta.env.VITE_LH_DEMO_UNLIMITED_SPRINT === 'true';
 
@@ -1039,7 +1044,7 @@ function travelerAttackSafetyFinishMs(kind: TravelerStrikeAnimKind | 'cast' | 'h
 export function PhaserExplorationView({
   realmId,
   parsedMap,
-  demoGuidance,
+  kcBeaten = false,
   dialogueNpcId,
   hotspots,
   onActivateHotspot,
@@ -1057,7 +1062,7 @@ export function PhaserExplorationView({
   const onActivateHotspotRef = useRef(onActivateHotspot);
   const onPauseRef = useRef<() => void>(() => undefined);
   const parsedMapRef = useRef(parsedMap);
-  const demoGuidanceRef = useRef<DemoGuidanceStateV1 | undefined>(demoGuidance);
+  const kcBeatenRef = useRef<boolean>(kcBeaten);
   const dialogueNpcIdRef = useRef<string | undefined>(dialogueNpcId);
   const completionByIdRef = useRef<Map<string, boolean>>(new Map());
   const lostEchoDiagVisitedRef = useRef<readonly string[]>(lostEchoDiagVisitedTriggerIds ?? []);
@@ -1082,8 +1087,8 @@ export function PhaserExplorationView({
   }, [parsedMap]);
 
   useEffect(() => {
-    demoGuidanceRef.current = demoGuidance;
-  }, [demoGuidance]);
+    kcBeatenRef.current = kcBeaten;
+  }, [kcBeaten]);
 
   useEffect(() => {
     resolveShakenRef.current = resolveShaken;
@@ -1123,7 +1128,7 @@ export function PhaserExplorationView({
       // Capture refs for use inside the scene class
       const _parsedMap = parsedMapRef.current;
       const _completionById = completionByIdRef;
-      const _demoGuidance = demoGuidanceRef;
+      const _kcBeaten = kcBeatenRef;
       const _resolveShaken = resolveShakenRef;
       const _restedReadinessMultiplier = restedReadinessMultiplierRef;
       const _hasAmberFlame = hasAmberFlameRef;
@@ -1335,19 +1340,8 @@ export function PhaserExplorationView({
           return out.setTo(m.x, m.y, m.w, m.h);
         }
 
-        private isDemoCharacterTrigger(m: TriggerRect): boolean {
-          return (
-            (m.kind === 'npc_dialogue' && m.npc_id === MASTER_SCRIBE_NPC_ID) ||
-            (m.kind === 'combat_encounter' && m.tiled_name === LOST_ECHO_TRIGGER_NAME)
-          );
-        }
-
         private interactionGeomForMeta(m: TriggerRect, out: Phaser.Geom.Rectangle): Phaser.Geom.Rectangle {
-          this.triggerMetaToGeom(m, out);
-          if (this.isDemoCharacterTrigger(m)) {
-            Phaser.Geom.Rectangle.Inflate(out, DEMO_CHARACTER_TRIGGER_PADDING_PX, DEMO_CHARACTER_TRIGGER_PADDING_PX);
-          }
-          return out;
+          return this.triggerMetaToGeom(m, out);
         }
 
         private playTravelerAnimation(
@@ -2563,7 +2557,7 @@ export function PhaserExplorationView({
             .setOrigin(0.5)
             .setDepth(hit.y + hit.h / 2);
           marker.setStroke('#111827', 3);
-          marker.setVisible(_demoGuidance.current?.stage_id === 'demo_combat_trial_available');
+          marker.setVisible(!_kcBeaten.current);
           this.lostEchoFallbackMarkers.set(hit.interactable_id, marker);
           if (LOST_ECHO_DEEP_DIAG && typeof console !== 'undefined') {
             console.info('[LhLostEchoDiag] Fallback marker created (idle sheet missing or load failed)', {
@@ -2625,16 +2619,15 @@ export function PhaserExplorationView({
           if (this.anims.exists(LOST_ECHO_IDLE_ANIM_KEY)) {
             sprite.play(LOST_ECHO_IDLE_ANIM_KEY);
           }
-          sprite.setVisible(_demoGuidance.current?.stage_id === 'demo_combat_trial_available');
+          sprite.setVisible(!_completionById.current.get(hit.interactable_id));
           this.lostEchoSprites.set(hit.interactable_id, sprite);
           if (import.meta.env.DEV || import.meta.env.VITE_LH_QUEST_DEBUG === 'true') {
             console.info('[LhScene] Lost Echo visual sprite created', {
               source,
               interactable_id: hit.interactable_id,
               bounds: { x: hit.x, y: hit.y, w: hit.w, h: hit.h },
-              stage_id: _demoGuidance.current?.stage_id,
+              kc_beaten: _kcBeaten.current,
               hotspot_completed: Boolean(_completionById.current.get(hit.interactable_id)),
-              stamina_upgrade_applied: Boolean(_demoGuidance.current?.stamina_upgrade_applied),
             });
           }
           if (LOST_ECHO_DEEP_DIAG && typeof console !== 'undefined') {
@@ -2846,7 +2839,12 @@ export function PhaserExplorationView({
           layers: Phaser.Tilemaps.TilemapLayer[],
         ): void {
           const baked = map.getTileset(WINDMILL_BAKED_TILESET_NAME);
-          if (!baked) return;
+          if (!baked) {
+            console.warn(
+              `[LhScene] Windmill animation skipped: tileset "${WINDMILL_BAKED_TILESET_NAME}" not found in map. Ensure the tileset is embedded or externally referenced in the Tiled .tmx file.`,
+            );
+            return;
+          }
 
           const spec = inferWindmillAnimSpec(baked);
           const groupMap = new Map<string, WindmillAnimGroup>();
@@ -3485,15 +3483,20 @@ export function PhaserExplorationView({
           const solidLayers: Array<Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer> = [];
           // Prefer dynamic creation (tolerates changes in the Tiled file).
           for (const layerData of map.layers ?? []) {
-            const layerName = (layerData as unknown as { name?: string; type?: string })?.name;
-            const layerType = (layerData as unknown as { name?: string; type?: string })?.type;
+            const ld = layerData as unknown as { name?: string; type?: string; properties?: Array<{ name: string; value: unknown }> };
+            const layerName = ld?.name;
+            const layerType = ld?.type;
             if (!layerName) continue;
             if (layerType && layerType !== 'tilelayer') continue;
+            const abovePlayer = ld?.properties?.some((p) => p.name === 'lh_above_player' && p.value === true) ?? false;
             try {
               const layer = map.createLayer(layerName, tilesets, 0, 0);
               if (!layer) {
                 console.warn(`[LhScene] Layer "${layerName}" returned null`);
                 continue;
+              }
+              if (abovePlayer) {
+                layer.setDepth(ABOVE_PLAYER_LAYER_DEPTH);
               }
               this.jrpgExplorationDimTargets.push(layer);
               if (layer instanceof Phaser.Tilemaps.TilemapLayer) allTileLayers.push(layer);
@@ -4553,7 +4556,7 @@ export function PhaserExplorationView({
         }
 
         private emitLostEchoDeepPipeline(
-          guidance: DemoGuidanceStateV1 | undefined,
+          kcBeaten: boolean,
           lostEchoFightStage: boolean,
           autoHitInteractableId: string | null,
         ): void {
@@ -4576,8 +4579,7 @@ export function PhaserExplorationView({
           const completedHotspot = meta ? Boolean(_completionById.current.get(meta.interactable_id)) : false;
 
           console.info('[LhLostEchoDiag] 4–6. Pipeline snapshot', {
-            demo_guidance_stage_id: guidance?.stage_id ?? '(undefined)',
-            current_objective: guidance?.current_objective,
+            kc_beaten: kcBeaten,
             lost_echo_world_gate: lostEchoFightStage,
             trial_victory_hide_ids: [...this.lostEchoTrialVictoryHideIds],
             knowledge_battle_paused: this.knowledgeBattlePaused,
@@ -4635,10 +4637,11 @@ export function PhaserExplorationView({
           const isGuildResearchPortal = hit.kind === 'guild_hq_research';
           const isRepeatableNpc = hit.kind === 'npc_dialogue';
           const completed = Boolean(_completionById.current.get(hit.interactable_id));
+          // Lost Echo recovery: allow re-entering the trigger zone if KC not yet beaten.
           const lostEchoRecover =
             hit.kind === 'combat_encounter' &&
             hit.tiled_name === LOST_ECHO_TRIGGER_NAME &&
-            _demoGuidance.current?.stage_id === 'demo_combat_trial_available';
+            !_kcBeaten.current;
           if (
             hit.kind === 'combat_encounter' &&
             (hit.activation_mode ?? 'interaction') === 'overlap_auto' &&
@@ -4650,19 +4653,7 @@ export function PhaserExplorationView({
             return;
           }
 
-          // Vertical-slice order guard: never let the Maia portal animation run until
-          // the Master Scribe has advanced the objective to "Enter the Mirror of Maia".
-          if (isPortal) {
-            const stage = _demoGuidance.current?.stage_id;
-            if (stage !== 'demo_seek_maia') {
-              this.lostEchoDiagActivateGate(hit, 'maia_portal_stage_gate', { stage_id: stage });
-              _onActivate(hit.interactable_id);
-              // Lock briefly so the gate toast fires only once and the player can't walk through.
-              this.triggerTransitionLocked = true;
-              this.time.delayedCall(2500, () => { this.triggerTransitionLocked = false; });
-              return;
-            }
-          }
+          // Act I: Maia portal is always accessible — demo stage gate removed.
           const blockedBySession =
             !isPortal && !isGuildResearchPortal && !isRepeatableNpc && this.activatedInteractableIds.has(hit.interactable_id);
           if ((!isPortal && !isGuildResearchPortal && !isRepeatableNpc && completed && !lostEchoRecover) || blockedBySession) {
@@ -4722,9 +4713,10 @@ export function PhaserExplorationView({
               this.activatedInteractableIds.add(hit.interactable_id);
             }
             if (hit.kind === 'combat_encounter') {
+              // Lost Echo specifically requires KC not yet beaten; all other combat triggers are always ok.
               const combatStageOk =
                 hit.tiled_name !== LOST_ECHO_TRIGGER_NAME ||
-                _demoGuidance.current?.stage_id === 'demo_combat_trial_available';
+                !_kcBeaten.current;
               if (combatStageOk) {
                 playLhTravelerSwingSfx();
                 this.playTravelerOneShot(this.takeAlternateTravelerStrike(), 620);
@@ -4800,14 +4792,13 @@ export function PhaserExplorationView({
             this.keyLostEchoDiagForce &&
             Phaser.Input.Keyboard.JustDown(this.keyLostEchoDiagForce)
           ) {
-            const g = _demoGuidance.current;
             const id = this.lostEchoDemoInteractableId;
-            if (g?.stage_id === 'demo_combat_trial_available' && id) {
+            if (!_kcBeaten.current && id) {
               console.info('[LhLostEchoDiag] L key → force React onActivateHotspot (Phaser overlap gates bypassed)', id);
               _onActivate(id);
             } else if (typeof console !== 'undefined') {
-              console.warn('[LhLostEchoDiag] L key ignored', {
-                stage_id: g?.stage_id,
+              console.warn('[LhLostEchoDiag] L key ignored — kc already beaten or no id', {
+                kc_beaten: _kcBeaten.current,
                 lost_echo_interactable_id: id,
               });
             }
@@ -4845,25 +4836,25 @@ export function PhaserExplorationView({
 
           const body = this.player?.body as Phaser.Physics.Arcade.Body | undefined;
           if (!body) return;
-          const guidance = _demoGuidance.current;
           // Rested Readiness scales sprint stamina capacity and recovery amount.
           // Multiplier is 1.0 for score 0 (Restless) — no change from base.
           const restedMult = _restedReadinessMultiplier.current;
-          const staminaMaxMs = Math.max(guidance?.max_stamina_ms ?? SPRINT_FUEL_MAX_MS, SPRINT_FUEL_MAX_MS) * restedMult;
+          const staminaMaxMs = SPRINT_FUEL_MAX_MS * restedMult;
           if (this.sprintFuelMs > staminaMaxMs) this.sprintFuelMs = staminaMaxMs;
           this.playMasterScribeByDialogueState();
-          const lostEchoFightStage = guidance?.stage_id === 'demo_combat_trial_available';
+          const lostEchoFightStage = Boolean(
+            this.lostEchoDemoInteractableId &&
+              !_completionById.current.get(this.lostEchoDemoInteractableId),
+          );
           if (!lostEchoFightStage) {
             this.lostEchoTrialVictoryHideIds.clear();
           }
           if (LOST_ECHO_DEEP_DIAG && typeof console !== 'undefined') {
-            const sid = guidance?.stage_id ?? '(missing demo_guidance.stage_id)';
-            if (this.lastLostEchoStageLogged !== sid) {
-              this.lastLostEchoStageLogged = sid;
-              console.info('[LhLostEchoDiag] 1. demo_guidance (save / exploration slice)', {
-                stage_id: sid,
-                current_objective: guidance?.current_objective ?? '(missing)',
-                stamina_upgrade_applied: guidance?.stamina_upgrade_applied ?? false,
+            const kcKey = _kcBeaten.current ? 'kc_beaten' : 'kc_pending';
+            if (this.lastLostEchoStageLogged !== kcKey) {
+              this.lastLostEchoStageLogged = kcKey;
+              console.info('[LhLostEchoDiag] 1. act1_kc_state', {
+                kc_beaten: _kcBeaten.current,
                 lost_echo_world_gate_active: lostEchoFightStage,
                 trial_victory_hide_ids: [...this.lostEchoTrialVictoryHideIds],
               });
@@ -4883,7 +4874,7 @@ export function PhaserExplorationView({
           this.lostEchoSprites.forEach((sprite, decorId) => applyLostEchoWorldDecor(sprite, decorId));
           this.lostEchoFallbackMarkers.forEach((marker, decorId) => applyLostEchoWorldDecor(marker, decorId));
           this.syncLostEchoDebugWorldMarker(lostEchoFightStage);
-          this.objectiveText?.setText(`Objective: ${guidance?.current_objective ?? 'Follow the amber path'}`);
+          this.objectiveText?.setText('Objective: Follow the amber path');
           if (SHOW_DEMO_DEBUG_HUD) {
             const lostDbg = [...this.lostEchoSprites.entries()]
               .map(([id, sp]) => {
@@ -4893,9 +4884,8 @@ export function PhaserExplorationView({
               .join(' | ');
             this.demoDebugText?.setText(
               [
-                `Stage: ${guidance?.stage_id ?? 'unknown'}`,
+                `KC: ${_kcBeaten.current ? 'beaten' : 'pending'}`,
                 `Stamina: ${Math.ceil(this.sprintFuelMs / 1000)}s / ${Math.ceil(staminaMaxMs / 1000)}s`,
-                `Upgrade: ${guidance?.stamina_upgrade_applied ? 'applied' : 'pending'}`,
                 lostDbg ? `LostEcho: ${lostDbg}` : 'LostEcho: (none)',
                 `lostIdleTex=${this.textures.exists(LOST_ECHO_IDLE_KEY)} failed=${this.lostEchoIdleLoadFailed}`,
               ].join(' · '),
@@ -5108,7 +5098,7 @@ export function PhaserExplorationView({
               });
           const autoHit = autoHitRow?.meta ?? guildResearchNearRow?.meta;
 
-          this.emitLostEchoDeepPipeline(guidance, lostEchoFightStage, autoHit?.interactable_id ?? null);
+          this.emitLostEchoDeepPipeline(_kcBeaten.current, lostEchoFightStage, autoHit?.interactable_id ?? null);
 
           if (autoHit) {
             this.activateTrigger(autoHit);
@@ -5125,7 +5115,7 @@ export function PhaserExplorationView({
               Boolean(ih) &&
               ih.kind === 'combat_encounter' &&
               ih.tiled_name === LOST_ECHO_TRIGGER_NAME &&
-              _demoGuidance.current?.stage_id === 'demo_combat_trial_available';
+              !_kcBeaten.current;
             if (ih && (!interactDone || lostEchoVisitedRecover)) {
               if (ih.kind === 'npc_dialogue') {
                 this.playTravelerOneShot('cast', 520);
