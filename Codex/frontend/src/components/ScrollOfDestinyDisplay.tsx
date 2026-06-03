@@ -7,6 +7,11 @@ import { getGuildById } from '../data/guildData';
 import type { RiasecScores } from '../modules/act1/signpostAlgorithm';
 import { ResolveBar } from './ResolveBar';
 import { parseSatchelInventory, getTitleLabel, CAMPFIRE_STREAK_MILESTONES } from '../data/itemCatalog';
+import { ScrollSubMenuShell } from './ScrollSubMenuShell';
+import { ScrollFrameStage } from './scrollUI/ScrollFrameStage';
+import { ScrollSideNav, ScrollSideNavButton } from './scrollUI/ScrollSideNav';
+import { SCROLL_ASSETS } from './scrollUI/scrollAssets';
+import { ScrollLayoutCalibrator } from './scrollUI/ScrollLayoutCalibrator';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -61,18 +66,15 @@ type Props = {
 const SCROLL_REF = { w: 1280, h: 720 } as const;
 
 const SCROLL_LAYOUT = {
-  // ── Left column — player identity, directive, quest status ─────────────
-  playerName:  { left: 172, top:  92, width: 318, height: 38 },
-  actRealm:    { left: 172, top: 134, width: 318, height: 24 },
-  directive:   { left: 172, top: 168, width: 318, height: 88 },
-  xpLevel:     { left: 172, top: 268, width: 318, height: 28 },
-  activeQuest: { left: 172, top: 304, width: 318, height: 112 },
-  restedBuff:  { left: 172, top: 428, width: 318, height: 36 },
-  lastSave:    { left: 172, top: 470, width: 318, height: 26 },
-  // ── Right column — inventory / artifact summary ─────────────────────────
-  inventory:   { left: 794, top:  92, width: 294, height: 224 },
-  // ── Navigation button row ───────────────────────────────────────────────
-  navRow:      { left: 172, top: 572, width: 936, height: 52 },
+  // ── Calibrated 2026-06-02 via ?lh_scroll_layout_debug=1 (pass 3) ───────
+  portrait:  { left: 567, top: 129, width: 149, height: 132 },
+  name:      { left: 548, top: 238, width: 188, height:  21 },
+  leftCol:   { left: 252, top: 246, width: 147, height: 268 },
+  center:    { left: 430, top: 296, width: 423, height: 241 },
+  rightCol:  { left: 881, top: 247, width: 144, height: 265 },
+  sigil1:    { left: 374, top: 539, width: 142, height: 112 },
+  sigil2:    { left: 570, top: 541, width: 142, height: 112 },
+  sigil3:    { left: 757, top: 548, width: 142, height: 112 },
 } as const;
 
 /** Convert a SCROLL_LAYOUT region to absolute-% CSS within the scroll container. */
@@ -95,58 +97,39 @@ const INK_DIM = 'rgba(28,15,0,0.6)';
 const INK_LABEL = 'rgba(28,15,0,0.45)';
 const GOLD_INK = '#7a4e00';
 
-// ── Scroll Hub Nav Button ─────────────────────────────────────────────────
+// ── Scroll Hub View ────────────────────────────────────────────────────────
+// Uses ScrollFrameStage for the vignette + scroll image, and ScrollSideNav for
+// the left/right parchment-tab button rails. The character-sheet content uses
+// the three-column zone layout defined in SCROLL_LAYOUT above.
 
-function HubNavBtn({
-  label,
-  icon,
-  onClick,
-  primary,
-}: {
-  label: string;
-  icon?: string;
-  onClick?: () => void;
-  primary?: boolean;
-}) {
-  if (!onClick) return null;
+function RiasecScrollRow({ code, score }: { code: keyof RiasecScores; score: number }) {
+  const meta = RIASEC_LABELS[code];
+  const pct  = Math.min(100, Math.round((score / 20) * 100));
+  const isTop = score >= 14;
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        padding: '0 14px',
-        height: 44,
-        fontSize: 12,
-        fontFamily: 'serif',
-        letterSpacing: '0.04em',
-        background: primary
-          ? 'linear-gradient(135deg, rgba(180,120,20,0.85), rgba(140,90,10,0.85))'
-          : 'rgba(250,235,200,0.55)',
-        color: primary ? '#fff8e8' : INK,
-        border: primary
-          ? '1px solid rgba(120,80,10,0.7)'
-          : '1px solid rgba(100,60,10,0.35)',
-        borderRadius: 3,
-        cursor: 'pointer',
-        fontWeight: primary ? 700 : 400,
-        whiteSpace: 'nowrap',
-        backdropFilter: 'blur(2px)',
-        boxShadow: primary
-          ? '0 2px 6px rgba(0,0,0,0.25)'
-          : '0 1px 3px rgba(0,0,0,0.12)',
-      }}
-    >
-      {icon ? <span style={{ marginRight: 5 }} aria-hidden>{icon}</span> : null}
-      {label}
-    </button>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+      <span style={{ width: 12, fontSize: '0.62em', fontWeight: 700, color: isTop ? GOLD_INK : INK_LABEL, textAlign: 'center', flexShrink: 0, letterSpacing: '0.04em' }}>
+        {meta.short}
+      </span>
+      <span style={{ width: 68, fontSize: '0.58em', color: isTop ? INK : INK_DIM, letterSpacing: '0.01em', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {meta.full}
+      </span>
+      <div style={{ flex: 1, height: 4, background: 'rgba(28,15,0,0.08)', borderRadius: 2, overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: isTop ? '#7a4e00' : 'rgba(28,15,0,0.30)', borderRadius: 2, transition: 'width 0.3s ease' }} />
+      </div>
+      <span style={{ width: 16, fontSize: '0.62em', fontWeight: isTop ? 700 : 400, color: isTop ? GOLD_INK : INK_LABEL, textAlign: 'right', flexShrink: 0 }}>
+        {score}
+      </span>
+    </div>
   );
 }
-
-// ── Scroll Hub View ────────────────────────────────────────────────────────
 
 function ScrollHubView({
   player,
   quests,
+  foretoldSignpostRealmIds,
+  allRealms,
+  riasecScores,
   onClose,
   onOpenQuestLog,
   onOpenRealmAtlas,
@@ -156,223 +139,220 @@ function ScrollHubView({
 }: {
   player: PlayerSave | null;
   quests: readonly QuestDefinition[];
+  foretoldSignpostRealmIds: readonly string[];
+  allRealms: readonly RealmDefinition[];
+  riasecScores?: RiasecScores | null;
   onClose: () => void;
   onOpenQuestLog?: () => void;
   onOpenRealmAtlas?: () => void;
   onOpenInventory?: () => void;
-  /** Opens the fireside reflection ceremony (campfire save screen). */
   onEndSession?: () => void;
   onOpenJournal: () => void;
 }) {
-  const activeQuests = quests.filter(
-    (q) => q.status === 'active' || q.status === 'available',
-  ).slice(0, 3);
+  const activeQuests = quests
+    .filter((q) => q.status === 'active' || q.status === 'available')
+    .slice(0, 3);
 
-  const inventory = player ? parseSatchelInventory(player.satchel_inventory_json) : null;
-  const streak    = player?.campfire_streak ?? 0;
-  const tier      = player?.rested_readiness_tier;
-  const lastSaveDate = player?.last_campfire_iso
-    ? new Date(player.last_campfire_iso).toLocaleDateString([], { month: 'short', day: 'numeric' })
-    : null;
+  const streak = player?.campfire_streak ?? 0;
+  const tier   = player?.rested_readiness_tier;
 
-  const restedLabel = tier ? tier.replace(/_/g, ' ') : null;
-  const xpDisplay   = player ? `${player.xp_total} XP  ·  Level ${player.level_cached}` : '—';
-
-  const topItems = inventory?.consumables.filter((c) => c.qty > 0).slice(0, 6) ?? [];
-  const activeTitle = player?.active_title ?? inventory?.cosmetics.active_title;
+  // Build exactly 3 signpost slots — empty slots show "not yet revealed"
+  const signposts = [
+    foretoldSignpostRealmIds[0] ?? null,
+    foretoldSignpostRealmIds[1] ?? null,
+    foretoldSignpostRealmIds[2] ?? null,
+  ] as const;
+  const sigilRegions = [SCROLL_LAYOUT.sigil1, SCROLL_LAYOUT.sigil2, SCROLL_LAYOUT.sigil3] as const;
 
   return (
-    // Outer: dark vignette behind the scroll
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 8500,
-        background: 'radial-gradient(ellipse at center, rgba(6,4,2,0.88) 0%, rgba(2,1,0,0.97) 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontFamily: 'serif',
-      }}
-    >
-      {/* 16:9 scroll container */}
+    <ScrollFrameStage zIndex={8500} variant="hub">
+
+      {/* ── LEFT SIDE NAV ── Field Journal · Quest Log · Satchel ─── */}
+      <ScrollSideNav side="left">
+        <ScrollSideNavButton label="Field Journal" icon="📜" onClick={onOpenJournal} />
+        <ScrollSideNavButton label="Quest Log"     icon="◈"  onClick={onOpenQuestLog} />
+        <ScrollSideNavButton label="Satchel"       icon="⚗"  onClick={onOpenInventory} />
+      </ScrollSideNav>
+
+      {/* ── TRAVELER PORTRAIT — fills the scroll oval, clipped to ellipse ── */}
+      {/* Zone is 149×132 px — border-radius:50% creates the oval clip.        */}
+      {/* objectPosition:center top keeps the character's face/torso visible.  */}
       <div
         style={{
-          position: 'relative',
-          // Fit within viewport while maintaining 16:9
-          width:  'min(100vw, calc(100vh * 16 / 9))',
-          height: 'min(100vh, calc(100vw * 9 / 16))',
-          maxWidth:  '100vw',
-          maxHeight: '100vh',
+          ...toOverlayCss(SCROLL_LAYOUT.portrait),
+          borderRadius: '50%',
+          overflow: 'hidden',
+          border: '3px solid rgba(212,168,28,0.65)',
+          boxShadow: '0 0 16px rgba(180,120,0,0.40), 0 0 4px rgba(0,0,0,0.55)',
         }}
       >
-        {/* Scroll image — fills the 16:9 box */}
         <img
-          src="/assets/scroll/Scroll_Of_Destiny_ready.png"
-          alt="Scroll of Destiny"
+          src={SCROLL_ASSETS.portrait}
+          alt="Traveler"
           draggable={false}
           style={{
-            position: 'absolute',
-            inset: 0,
             width: '100%',
             height: '100%',
-            objectFit: 'fill',
+            objectFit: 'cover',
+            objectPosition: 'center top',
             userSelect: 'none',
-            pointerEvents: 'none', // never intercept clicks — overlays and buttons sit above
+            display: 'block',
           }}
         />
-
-        {/* ── PLAYER NAME ─────────────────────────────────────────── */}
-        <div style={toOverlayCss(SCROLL_LAYOUT.playerName)}>
-          <p style={{ margin: 0, fontSize: '1.1em', fontWeight: 700, color: INK, lineHeight: 1.1 }}>
-            {player?.display_name ?? '—'}
-          </p>
-          {activeTitle ? (
-            <p style={{ margin: '2px 0 0', fontSize: '0.65em', color: GOLD_INK, letterSpacing: '0.06em' }}>
-              {getTitleLabel(activeTitle)}
-            </p>
-          ) : null}
-        </div>
-
-        {/* ── ACT & REALM ─────────────────────────────────────────── */}
-        <div style={toOverlayCss(SCROLL_LAYOUT.actRealm)}>
-          <p style={{ margin: 0, fontSize: '0.68em', color: INK_DIM, letterSpacing: '0.06em' }}>
-            Act {player?.current_act ?? 1} Traveler
-            {player?.current_realm_id ? ` · ${player.current_realm_id.replace(/_/g, ' ')}` : ''}
-          </p>
-        </div>
-
-        {/* ── CURRENT DIRECTIVE ───────────────────────────────────── */}
-        <div style={{ ...toOverlayCss(SCROLL_LAYOUT.directive), display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <p style={{ margin: 0, fontSize: '0.6em', textTransform: 'uppercase', letterSpacing: '0.1em', color: INK_LABEL }}>
-            Current Directive
-          </p>
-          <p style={{
-            margin: 0,
-            fontSize: '0.78em',
-            fontWeight: 700,
-            color: INK,
-            lineHeight: 1.35,
-          }}>
-            {player?.required_next_action || 'Speak with the Master Scribe'}
-          </p>
-          {player && <div style={{ marginTop: 6 }}><ResolveBar player={player} /></div>}
-        </div>
-
-        {/* ── XP & LEVEL ──────────────────────────────────────────── */}
-        <div style={toOverlayCss(SCROLL_LAYOUT.xpLevel)}>
-          <p style={{ margin: 0, fontSize: '0.68em', color: INK_DIM, letterSpacing: '0.04em' }}>
-            {xpDisplay}
-          </p>
-        </div>
-
-        {/* ── ACTIVE QUEST LIST ────────────────────────────────────── */}
-        <div style={{ ...toOverlayCss(SCROLL_LAYOUT.activeQuest), display: 'flex', flexDirection: 'column', gap: 5 }}>
-          <p style={{ margin: '0 0 2px', fontSize: '0.6em', textTransform: 'uppercase', letterSpacing: '0.1em', color: INK_LABEL }}>
-            Active Quests
-          </p>
-          {activeQuests.length > 0 ? (
-            activeQuests.map((q) => (
-              <div key={q.quest_id} style={{ padding: '3px 0', borderBottom: '1px solid rgba(28,15,0,0.1)' }}>
-                <p style={{ margin: 0, fontSize: '0.72em', fontWeight: 700, color: INK, lineHeight: 1.2 }}>{q.title}</p>
-                <p style={{ margin: 0, fontSize: '0.62em', color: INK_DIM, lineHeight: 1.2 }}>{q.objective_short}</p>
-              </div>
-            ))
-          ) : (
-            <p style={{ margin: 0, fontSize: '0.7em', color: INK_DIM, fontStyle: 'italic' }}>
-              No active quests.
-            </p>
-          )}
-        </div>
-
-        {/* ── RESTED READINESS / BUFF ─────────────────────────────── */}
-        {(restedLabel || streak > 0) && (
-          <div style={{ ...toOverlayCss(SCROLL_LAYOUT.restedBuff), display: 'flex', alignItems: 'center', gap: 8 }}>
-            {streak > 0 && (
-              <span style={{ fontSize: '0.75em', color: '#b45309' }}>🔥 {streak}</span>
-            )}
-            {restedLabel && (
-              <span style={{ fontSize: '0.68em', color: GOLD_INK, letterSpacing: '0.04em', textTransform: 'capitalize' }}>
-                {restedLabel}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* ── LAST SAVE ────────────────────────────────────────────── */}
-        {lastSaveDate && (
-          <div style={toOverlayCss(SCROLL_LAYOUT.lastSave)}>
-            <p style={{ margin: 0, fontSize: '0.62em', color: INK_LABEL }}>
-              Last campfire: {lastSaveDate}
-            </p>
-          </div>
-        )}
-
-        {/* ── INVENTORY / ARTIFACT SUMMARY ────────────────────────── */}
-        <div style={{ ...toOverlayCss(SCROLL_LAYOUT.inventory), display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <p style={{ margin: '0 0 4px', fontSize: '0.6em', textTransform: 'uppercase', letterSpacing: '0.1em', color: INK_LABEL }}>
-            Satchel
-          </p>
-          {topItems.length > 0 ? (
-            topItems.map((item) => (
-              <div key={item.item_id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7em', color: INK_DIM, padding: '1px 0' }}>
-                <span>{item.label}</span>
-                <span style={{ fontWeight: 700, color: INK }}>×{item.qty}</span>
-              </div>
-            ))
-          ) : (
-            <p style={{ margin: 0, fontSize: '0.68em', color: INK_DIM, fontStyle: 'italic' }}>
-              Satchel empty.
-            </p>
-          )}
-          {inventory && inventory.mementos.length > 0 && (
-            <p style={{ margin: '6px 0 0', fontSize: '0.62em', color: GOLD_INK }}>
-              {inventory.mementos.length} memento{inventory.mementos.length !== 1 ? 's' : ''} collected
-            </p>
-          )}
-        </div>
-
-        {/* ── NAVIGATION ROW ──────────────────────────────────────── */}
-        <div
-          style={{
-            ...toOverlayCss(SCROLL_LAYOUT.navRow),
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            flexWrap: 'wrap',
-          }}
-        >
-          <HubNavBtn label="Quest Log"   icon="◈" onClick={onOpenQuestLog} />
-          <HubNavBtn label="World Atlas" icon="⚑" onClick={onOpenRealmAtlas} />
-          <HubNavBtn label="Satchel"     icon="⚗" onClick={onOpenInventory} />
-          <HubNavBtn label="Field Journal" icon="📜" onClick={onOpenJournal} />
-          {/* Make Camp opens the fireside reflection ceremony, not a quick-save */}
-          <HubNavBtn label="Make Camp"   icon="🔥" onClick={onEndSession} primary />
-          {/* Spacer */}
-          <div style={{ flex: 1 }} />
-          <HubNavBtn label="Return to Game" onClick={onClose} primary />
-        </div>
       </div>
 
-      {/* Branding label outside the scroll, at bottom */}
-      <p
+      {/* ── NAME — player name only in the banner below the portrait ── */}
+      <div
         style={{
-          position: 'absolute',
-          bottom: 8,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          margin: 0,
-          fontSize: 10,
-          letterSpacing: '0.15em',
-          textTransform: 'uppercase',
-          color: 'rgba(212,160,23,0.35)',
-          whiteSpace: 'nowrap',
-          pointerEvents: 'none',
+          ...toOverlayCss(SCROLL_LAYOUT.name),
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}
       >
-        Legendary Horizon · Scroll of Destiny
-      </p>
-    </div>
+        <p style={{ margin: 0, fontSize: '0.95em', fontWeight: 700, color: INK, lineHeight: 1, textAlign: 'center', letterSpacing: '0.03em' }}>
+          {player?.display_name ?? '—'}
+        </p>
+      </div>
+
+      {/* ── LEFT COLUMN — Active quests + current directive ─────── */}
+      <div
+        style={{
+          ...toOverlayCss(SCROLL_LAYOUT.leftCol),
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
+        }}
+      >
+        <p style={{ margin: '0 0 4px', fontSize: '0.57em', textTransform: 'uppercase', letterSpacing: '0.12em', color: INK_LABEL }}>
+          Active Quests
+        </p>
+        {activeQuests.length > 0 ? (
+          activeQuests.map((q) => (
+            <div key={q.quest_id} style={{ padding: '3px 0', borderBottom: '1px solid rgba(28,15,0,0.09)' }}>
+              <p style={{ margin: 0, fontSize: '0.72em', fontWeight: 700, color: INK, lineHeight: 1.2 }}>{q.title}</p>
+              <p style={{ margin: 0, fontSize: '0.61em', color: INK_DIM, lineHeight: 1.2 }}>{q.objective_short}</p>
+            </div>
+          ))
+        ) : (
+          <p style={{ margin: 0, fontSize: '0.68em', color: INK_DIM, fontStyle: 'italic' }}>No active quests.</p>
+        )}
+        <div style={{ margin: '8px 0 5px', height: 1, background: 'rgba(28,15,0,0.11)' }} />
+        <p style={{ margin: '0 0 3px', fontSize: '0.57em', textTransform: 'uppercase', letterSpacing: '0.12em', color: INK_LABEL }}>
+          Current Directive
+        </p>
+        <p style={{ margin: 0, fontSize: '0.75em', fontWeight: 700, color: INK, lineHeight: 1.35 }}>
+          {player?.required_next_action || 'Speak with the Master Scribe'}
+        </p>
+        {player ? <div style={{ marginTop: 6 }}><ResolveBar player={player} /></div> : null}
+      </div>
+
+      {/* ── CENTER BLOCK — Base Stats (Mirror of Maia / RIASEC) ─── */}
+      <div
+        style={{
+          ...toOverlayCss(SCROLL_LAYOUT.center),
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
+          padding: '5px 10px',
+        }}
+      >
+        <p style={{ margin: '0 0 4px', fontSize: '0.57em', textTransform: 'uppercase', letterSpacing: '0.12em', color: INK_LABEL }}>
+          Mirror of Maia · Base Stats
+        </p>
+        {riasecScores && Object.values(riasecScores).some((v) => v > 0) ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {RIASEC_ORDER.map((code) => (
+              <RiasecScrollRow key={code} code={code} score={riasecScores[code]} />
+            ))}
+          </div>
+        ) : (
+          <p style={{ margin: 0, fontSize: '0.65em', color: INK_DIM, fontStyle: 'italic', lineHeight: 1.45 }}>
+            Base Stats unrevealed — complete the Master Scribe survey to inscribe your profile.
+          </p>
+        )}
+      </div>
+
+      {/* ── RIGHT COLUMN — Traveler Record, Resolve, Campfire, Rested Readiness ── */}
+      <div
+        style={{
+          ...toOverlayCss(SCROLL_LAYOUT.rightCol),
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 5,
+        }}
+      >
+        <p style={{ margin: '0 0 2px', fontSize: '0.57em', textTransform: 'uppercase', letterSpacing: '0.12em', color: INK_LABEL }}>
+          Traveler Record
+        </p>
+        {[
+          { label: 'Experience', value: player ? `${player.xp_total} XP` : '—' },
+          { label: 'Rank', value: player ? `Level ${player.level_cached}` : '—' },
+        ].map(({ label, value }) => (
+          <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <p style={{ margin: 0, fontSize: '0.63em', color: INK_DIM }}>{label}</p>
+            <p style={{ margin: 0, fontSize: '0.70em', fontWeight: 700, color: INK }}>{value}</p>
+          </div>
+        ))}
+        <div style={{ height: 1, background: 'rgba(28,15,0,0.10)', margin: '2px 0' }} />
+        {streak > 0 ? (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <p style={{ margin: 0, fontSize: '0.63em', color: INK_DIM }}>Campfire</p>
+            <p style={{ margin: 0, fontSize: '0.70em', fontWeight: 700, color: '#b45309' }}>🔥 {streak}</p>
+          </div>
+        ) : null}
+        {tier ? (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <p style={{ margin: 0, fontSize: '0.63em', color: INK_DIM }}>Rest</p>
+            <p style={{ margin: 0, fontSize: '0.63em', fontWeight: 600, color: GOLD_INK, textTransform: 'capitalize' }}>
+              {tier.replace(/_/g, ' ')}
+            </p>
+          </div>
+        ) : null}
+      </div>
+
+      {/* ── BOTTOM CIRCLES — Foretold Signposts ─────────────────── */}
+      {signposts.map((realmId, i) => {
+        const realm = realmId ? allRealms.find((r) => r.realm_id === realmId) : null;
+        return (
+          <div
+            key={i}
+            style={{
+              ...toOverlayCss(sigilRegions[i]),
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 2,
+            }}
+          >
+            {realmId ? (
+              <>
+                <RuneGlyph guildId={realmId} />
+                <p style={{ margin: 0, fontSize: '0.57em', fontWeight: 700, color: INK, lineHeight: 1.2, textAlign: 'center' }}>
+                  {realm?.display_name ?? realmId}
+                </p>
+              </>
+            ) : (
+              <p style={{ margin: 0, fontSize: '0.58em', color: INK_LABEL, fontStyle: 'italic', textAlign: 'center' }}>
+                Signpost {i + 1}
+              </p>
+            )}
+          </div>
+        );
+      })}
+
+      {/* ── RIGHT SIDE NAV ── World Atlas · Make Camp · Return ───── */}
+      <ScrollSideNav side="right">
+        <ScrollSideNavButton label="World Atlas"     icon="⚑" onClick={onOpenRealmAtlas} />
+        <ScrollSideNavButton label="Make Camp"       icon="🔥" onClick={onEndSession} primary />
+        <ScrollSideNavButton label="Return to Game"           onClick={onClose} primary />
+      </ScrollSideNav>
+
+      {/* DEV ONLY — layout calibration overlay. Activate with ?lh_scroll_layout_debug=1 */}
+      <ScrollLayoutCalibrator scrollLayout={SCROLL_LAYOUT} scrollRef={SCROLL_REF} />
+
+    </ScrollFrameStage>
   );
 }
 
@@ -812,50 +792,69 @@ function JournalShell({
     { id: 'reflection_archive', label: 'Reflection Archive' },
   ];
 
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Field Journal"
-      style={{
-        position: 'fixed', inset: 0, zIndex: 8500,
-        display: 'flex', flexDirection: 'column',
-        background: 'rgba(12,9,4,0.96)',
-        color: '#e8dcc8',
-        fontFamily: 'serif',
-      }}
-    >
-      {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid rgba(212,160,23,0.2)', flexShrink: 0 }}>
-        <div>
-          <p style={{ margin: 0, fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.7)' }}>Legendary Horizon</p>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#f0dfa0', letterSpacing: '0.04em' }}>Field Journal</h1>
-        </div>
+  const journalTabs = (
+    <div className="lh-field-journal-tabs">
+      {TABS.map(({ id, label }) => (
         <button
+          key={id}
           type="button"
-          onClick={onBackToScroll}
-          style={{ padding: '6px 16px', background: 'rgba(212,160,23,0.1)', border: '1px solid rgba(212,160,23,0.3)', borderRadius: 3, color: '#d4a017', fontSize: 13, cursor: 'pointer', fontFamily: 'serif' }}
+          className={`lh-field-journal-tab${activeTab === id ? ' lh-field-journal-tab--active' : ''}`}
+          onClick={() => setActiveTab(id)}
         >
-          ← Back to Scroll
+          {label}
         </button>
-      </div>
+      ))}
+    </div>
+  );
 
-      {/* Tabs */}
-      <div className="lh-field-journal-tabs">
-        {TABS.map(({ id, label }) => (
+  const journalFooter = (
+    <div style={{ display: 'flex', gap: 8, padding: '8px 20px', flexWrap: 'wrap' }}>
+      {[
+        { label: 'Quest Log',   handler: onOpenQuestLog,   highlight: false, dim: false },
+        { label: 'World Atlas', handler: onOpenRealmAtlas,  highlight: false, dim: false },
+        { label: 'Satchel',     handler: onOpenInventory,   highlight: false, dim: false },
+        { label: 'Make Camp',   handler: onSave,            highlight: true,  dim: false },
+        { label: 'End Session', handler: onEndSession,      highlight: false, dim: true  },
+      ].map(({ label, handler, highlight, dim }) =>
+        handler ? (
           <button
-            key={id}
+            key={label}
             type="button"
-            className={`lh-field-journal-tab${activeTab === id ? ' lh-field-journal-tab--active' : ''}`}
-            onClick={() => setActiveTab(id)}
+            onClick={handler}
+            style={{
+              padding: '7px 16px',
+              fontSize: 12,
+              fontFamily: 'serif',
+              letterSpacing: '0.04em',
+              background: highlight ? 'linear-gradient(135deg,#d4a017,#b8912a)' : 'rgba(255,255,255,0.06)',
+              color: highlight ? '#1a0e00' : dim ? 'rgba(220,180,130,0.6)' : '#e8dcc8',
+              border: highlight ? '1px solid #8a6a1a' : dim ? '1px solid rgba(180,120,40,0.25)' : '1px solid rgba(255,255,255,0.12)',
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontWeight: highlight ? 700 : 400,
+              opacity: dim ? 0.85 : 1,
+            }}
           >
             {label}
           </button>
-        ))}
-      </div>
+        ) : null,
+      )}
+    </div>
+  );
 
+  return (
+    <ScrollSubMenuShell
+      title="Field Journal"
+      subtitle="Legendary Horizon"
+      onBack={onBackToScroll}
+      backLabel="← Back to Scroll"
+      ariaLabel="Field Journal"
+      zIndex={8500}
+      tabs={journalTabs}
+      footer={journalFooter}
+    >
       {/* Tab content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {activeTab === 'work_files' ? (
           <WorkFilesTab
             player={player} quests={quests} allRealms={allRealms}
@@ -865,47 +864,13 @@ function JournalShell({
             onOpenQuestOfFateWorksheet={onOpenQuestOfFateWorksheet}
           />
         ) : null}
-        {activeTab === 'journey_review'    ? <JourneyReviewTab player={player} exploration={exploration} /> : null}
-        {activeTab === 'enemy_records'     ? <EnemyRecordsTab  exploration={exploration} /> : null}
-        {activeTab === 'realm_notes'       ? <RealmNotesTab    allRealms={allRealms} realmProgress={realmProgress} /> : null}
-        {activeTab === 'mementos'          ? <MementosTab      player={player} /> : null}
+        {activeTab === 'journey_review'     ? <JourneyReviewTab player={player} exploration={exploration} /> : null}
+        {activeTab === 'enemy_records'      ? <EnemyRecordsTab  exploration={exploration} /> : null}
+        {activeTab === 'realm_notes'        ? <RealmNotesTab    allRealms={allRealms} realmProgress={realmProgress} /> : null}
+        {activeTab === 'mementos'           ? <MementosTab      player={player} /> : null}
         {activeTab === 'reflection_archive' ? <ReflectionArchiveTab player={player} /> : null}
       </div>
-
-      {/* Action bar */}
-      <div style={{ display: 'flex', gap: 8, padding: '10px 20px', borderTop: '1px solid rgba(212,160,23,0.2)', flexShrink: 0, flexWrap: 'wrap' }}>
-        {[
-          { label: 'Quest Log',  handler: onOpenQuestLog,  highlight: false, dim: false },
-          { label: 'World Atlas', handler: onOpenRealmAtlas, highlight: false, dim: false },
-          { label: 'Satchel',    handler: onOpenInventory,  highlight: false, dim: false },
-          { label: 'Make Camp',  handler: onSave,           highlight: true,  dim: false },
-          { label: 'End Session', handler: onEndSession,    highlight: false, dim: true  },
-        ].map(({ label, handler, highlight, dim }) =>
-          handler ? (
-            <button
-              key={label}
-              type="button"
-              onClick={handler}
-              style={{
-                padding: '7px 16px',
-                fontSize: 12,
-                fontFamily: 'serif',
-                letterSpacing: '0.04em',
-                background: highlight ? 'linear-gradient(135deg,#d4a017,#b8912a)' : 'rgba(255,255,255,0.06)',
-                color: highlight ? '#1a0e00' : dim ? 'rgba(220,180,130,0.6)' : '#e8dcc8',
-                border: highlight ? '1px solid #8a6a1a' : dim ? '1px solid rgba(180,120,40,0.25)' : '1px solid rgba(255,255,255,0.12)',
-                borderRadius: 3,
-                cursor: 'pointer',
-                fontWeight: highlight ? 700 : 400,
-                opacity: dim ? 0.85 : 1,
-              }}
-            >
-              {label}
-            </button>
-          ) : null,
-        )}
-      </div>
-    </div>
+    </ScrollSubMenuShell>
   );
 }
 
@@ -929,6 +894,9 @@ export function ScrollOfDestinyDisplay(props: Props) {
     <ScrollHubView
       player={props.player}
       quests={props.quests}
+      foretoldSignpostRealmIds={props.foretoldSignpostRealmIds}
+      allRealms={props.allRealms}
+      riasecScores={props.riasecScores}
       onClose={props.onClose}
       onOpenQuestLog={props.onOpenQuestLog}
       onOpenRealmAtlas={props.onOpenRealmAtlas}

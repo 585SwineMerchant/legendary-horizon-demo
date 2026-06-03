@@ -1,51 +1,105 @@
 {
   "schema_version": 1,
-  "saved_at_iso": "2026-05-17T12:00:00.000Z",
+  "saved_at_iso": "2026-06-02T08:30:00.000Z",
   "save_kind": "manual",
-  "realm_id": "realm_aethelwood",
+  "realm_id": "realm_chroniclers_spire",
   "player_snapshot": {
     "player_id": "stu_0417_kevin_demo",
     "display_name": "Aria Thornwell",
     "roster_email_hint": "aria.thornwell.students.demo@district.example.org",
     "email_hash": "",
     "current_act": 3,
-    "current_realm_id": "realm_aethelwood",
-    "required_next_action": "Speak with the Master Scribe",
-    "active_main_quest_id": "mq-301",
-    "active_main_quest_title": "Enter the Great Clearing",
-    "last_completed_event_id": "evt_demo_slice_bootstrap",
-    "last_completed_summary": "The demo journey begins at the crossroads — Maia, trial, guild research, and the atlas await.",
-    "xp_total": 420,
-    "level_cached": 3,
+    "current_realm_id": "realm_chroniclers_spire",
+    "required_next_action": "Travel to your second Foretold Signpost realm — the Etheric Nexus awaits your ledger entry.",
+    "active_main_quest_id": "mq-305",
+    "active_main_quest_title": "Travel to the Second Signpost Realm",
+    "last_completed_event_id": "evt_ledger_entry_1",
+    "last_completed_summary": "You recorded the Chronicler's Spire in the Comparison Ledger — one signpost realm charted.",
+    "xp_total": 1840,
+    "level_cached": 6,
     "inventory_summary": {
-      "coins": 8,
+      "coins": 24,
       "items": [
-        {
-          "item_id": "mentor_echo_vial",
-          "qty": 1,
-          "label": "Echo vial — mentor guidance"
-        }
+        { "item_id": "ledger_fragment_green", "qty": 2, "label": "Emerald Ledger fragment" },
+        { "item_id": "mentor_echo_vial", "qty": 2, "label": "Echo vial — mentor guidance" },
+        { "item_id": "map_fragment_1", "qty": 1, "label": "Map Fragment I" }
       ],
-      "notes_for_teacher_preview": "Demo vertical slice — canonical bundled save."
+      "notes_for_teacher_preview": "Demo canonical save — Act 3 mid-exploration, Signpost 1 recorded."
     },
-    "revision_token": "demo-canonical-v1",
-    "last_manual_save_iso": "",
-    "exit_ticket_state": "none"
+    "revision_token": "demo-canonical-v2",
+    "last_manual_save_iso": "2026-06-02T08:30:00.000Z",
+    "exit_ticket_state": "none",
+
+    "resolve_current": 18,
+    "resolve_max": 20,
+    "resolve_shaken": false,
+
+    "campfire_streak": 5,
+    "last_campfire_iso": "2026-06-02T07:45:00.000Z",
+    "last_campfire_score": 4,
+    "rested_readiness_tier": "strong_rest",
+    "rested_readiness_multiplier": 1.25,
+    "rested_readiness_wake_index": 2,
+
+    "active_title": "TITLE_THOUGHTFUL_TRAVELER",
+
+    "satchel_inventory_json": "{\"consumables\":[{\"item_id\":\"SAT-REM-001\",\"label\":\"Remedy Herb\",\"qty\":2,\"max_qty\":3},{\"item_id\":\"SAT-REM-002\",\"label\":\"Greater Remedy\",\"qty\":1,\"max_qty\":1},{\"item_id\":\"SAT-FOC-001\",\"label\":\"Focus Tea\",\"qty\":2,\"max_qty\":2},{\"item_id\":\"SAT-WPN-001\",\"label\":\"Sharpening Stone\",\"qty\":1,\"max_qty\":2},{\"item_id\":\"SAT-MAG-001\",\"label\":\"Rune Oil\",\"qty\":2,\"max_qty\":2}],\"field_kit\":[{\"item_id\":\"FK-COM-001\",\"label\":\"Compass\",\"owned\":true},{\"item_id\":\"FK-LAN-001\",\"label\":\"Lantern\",\"owned\":true},{\"item_id\":\"FK-MAR-001\",\"label\":\"Trail Markers\",\"owned\":true},{\"item_id\":\"FK-CAM-001\",\"label\":\"Campfire Kit\",\"owned\":true},{\"item_id\":\"FK-JOU-001\",\"label\":\"Field Journal\",\"owned\":true}],\"mementos\":[{\"item_id\":\"mem_grove_token\",\"label\":\"Aethelwood Grove Token\",\"description\":\"A leaf pressed in resin from the sentinel oak.\",\"icon_emoji\":\"🌿\",\"acquired_at_iso\":\"2026-05-10T10:00:00.000Z\"},{\"item_id\":\"mem_scribe_seal\",\"label\":\"Scribe's Seal\",\"description\":\"A wax impression from the Master Scribe's career map ceremony.\",\"icon_emoji\":\"📜\",\"acquired_at_iso\":\"2026-05-12T14:30:00.000Z\"},{\"item_id\":\"mem_ember_charm\",\"label\":\"Ember Keeper Charm\",\"description\":\"Earned for maintaining a three-day campfire reflection streak.\",\"icon_emoji\":\"🔥\",\"acquired_at_iso\":\"2026-05-15T18:00:00.000Z\"},{\"item_id\":\"mem_oracle_token\",\"label\":\"Oracle Token\",\"description\":\"Proof of consultation with the Oracle of Opportunity.\",\"icon_emoji\":\"🔮\",\"acquired_at_iso\":\"2026-05-20T11:00:00.000Z\"},{\"item_id\":\"mem_signpost_1\",\"label\":\"Chronicler's Mark\",\"description\":\"A seal from your first foretold signpost realm.\",\"icon_emoji\":\"⚡\",\"acquired_at_iso\":\"2026-05-28T15:00:00.000Z\"}],\"cosmetics\":{\"unlocked_titles\":[\"TITLE_THOUGHTFUL_TRAVELER\"],\"active_title\":\"TITLE_THOUGHTFUL_TRAVELER\",\"unlocked_badges\":[\"VISUAL_AMBER_FLAME\"]}}"
   },
   "progression_flags": {
-    "visited_trigger_object_ids": []
+    "visited_trigger_object_ids": [
+      "trigger_master_scribe_intro",
+      "trigger_maia_launch",
+      "trigger_oracle_intro",
+      "trigger_world_map_grant",
+      "trigger_realm_aethelwood_enter",
+      "trigger_realm_chroniclers_hq"
+    ]
   },
   "exploration_loop": {
-    "fog_keys_cleared": [],
-    "waypoint_keys_visited": [],
-    "ledger_entries": [],
+    "fog_keys_cleared": [
+      "fog_aethelwood_1",
+      "fog_chroniclers_1"
+    ],
+    "waypoint_keys_visited": [
+      "wp_master_scribe",
+      "wp_oracle",
+      "wp_realm_entrance"
+    ],
+    "ledger_entries": [
+      {
+        "id": "ledger_001",
+        "career_a": "Communications Specialist",
+        "career_b": "Journalist",
+        "note": "Both require strong written communication; Journalism emphasizes investigation and deadlines.",
+        "at_iso": "2026-05-28T15:30:00.000Z"
+      }
+    ],
     "academic_tasks": {},
-    "module_drafts": {},
-    "session_encounter_xp_awarded": 0,
-    "encounter_log": [],
+    "module_drafts": {
+      "mod_master_scribe_survey": {
+        "riasec_r": "6",
+        "riasec_i": "16",
+        "riasec_a": "14",
+        "riasec_s": "12",
+        "riasec_e": "7",
+        "riasec_c": "5"
+      },
+      "mod_manifest_sod": {
+        "foretold_signpost_realm_1": "realm_chroniclers_spire",
+        "foretold_signpost_realm_2": "realm_etheric_nexus",
+        "foretold_signpost_realm_3": "realm_alchemical_observatory"
+      }
+    },
+    "session_encounter_xp_awarded": 280,
+    "encounter_log": [
+      { "id": "enc_001", "kind": "combat_encounter", "outcome": "win", "xp_awarded": 80, "target_quest_id": "sq-201", "at_iso": "2026-05-25T10:00:00.000Z" },
+      { "id": "enc_002", "kind": "combat_encounter", "outcome": "win", "xp_awarded": 80, "target_quest_id": "sq-201", "at_iso": "2026-05-27T14:00:00.000Z" },
+      { "id": "enc_003", "kind": "combat_encounter", "outcome": "retreat", "xp_awarded": 0, "target_quest_id": null, "at_iso": "2026-05-30T09:00:00.000Z" },
+      { "id": "enc_004", "kind": "combat_encounter", "outcome": "win", "xp_awarded": 120, "target_quest_id": "sq-203", "at_iso": "2026-06-01T11:00:00.000Z" }
+    ],
     "demo_guidance_v1": {
-      "stage_id": "demo_awakened",
-      "current_objective": "Speak with the Master Scribe",
+      "stage_id": "act3_exploration",
+      "current_objective": "Travel to the Etheric Nexus — your second Foretold Signpost.",
       "max_stamina_ms": 2400
     },
     "guild_endgame_v1": {
@@ -57,20 +111,42 @@
       "interview_deadline_iso": null,
       "last_interview_outcome": "none"
     },
-    "guild_hq_atlas_revealed_realm_ids": [],
-    "foretold_signpost_realm_ids": []
+    "guild_hq_atlas_revealed_realm_ids": [
+      "realm_aethelwood",
+      "realm_chroniclers_spire",
+      "realm_aurora_apothecary"
+    ],
+    "foretold_signpost_realm_ids": [
+      "realm_chroniclers_spire",
+      "realm_etheric_nexus",
+      "realm_alchemical_observatory"
+    ]
   },
   "realm_progress": {
     "realm_aethelwood": {
       "entered": true,
-      "last_entered_iso": "2026-05-17T12:00:00.000Z"
+      "last_entered_iso": "2026-05-10T10:00:00.000Z",
+      "research_complete": true,
+      "learned_notes": "Agriculture & Food Science — cycles of renewal, hands-on stewardship of living systems."
+    },
+    "realm_chroniclers_spire": {
+      "entered": true,
+      "last_entered_iso": "2026-05-28T14:00:00.000Z",
+      "research_complete": true,
+      "learned_notes": "Arts & Communications — convergence of voice and vision; storytelling shapes the world."
+    },
+    "realm_aurora_apothecary": {
+      "entered": true,
+      "last_entered_iso": "2026-06-01T13:00:00.000Z",
+      "research_complete": false,
+      "learned_notes": "Health Science — the emanation of wholeness; care given and received."
     }
   },
   "ritual_drafts": {
     "comparison_ledger": {
-      "career_a": "",
-      "career_b": "",
-      "note": ""
+      "career_a": "Communications Specialist",
+      "career_b": "Journalist",
+      "note": "Both require strong writing; Journalism involves investigation and public accountability."
     }
   }
 }

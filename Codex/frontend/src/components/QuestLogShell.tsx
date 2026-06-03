@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { groupQuestsForQuestLog, type QuestLogGroupKey } from '../quests/questEngine';
 import type { QuestDefinition } from '../types';
+import { ScrollSubMenuShell } from './ScrollSubMenuShell';
 
 type Props = {
   open: boolean;
@@ -124,128 +125,82 @@ export function QuestLogShell({
   const sectionOrder: QuestLogGroupKey[] = ['main', 'side', 'guild', 'system', 'completed'];
 
   return (
-    <div
-      className="lh-overlay lh-overlay--pause-submenu"
-      role="presentation"
-      style={{ background: 'rgba(6,4,2,0.95)', display: 'flex', flexDirection: 'column', alignItems: 'stretch', justifyContent: 'stretch' }}
+    <ScrollSubMenuShell
+      title="Quest Log"
+      subtitle="Legendary Horizon"
+      onBack={onClose}
+      backLabel="← Back to Scroll"
+      ariaLabel="Quest log"
+      zIndex={9000}
     >
-      <div
-        role="dialog"
-        aria-label="Quest log"
-        style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          color: '#e8dcc8',
-          fontFamily: 'serif',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Header */}
-        <header style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '16px 24px',
-          borderBottom: '1px solid rgba(212,160,23,0.2)',
+      {/* Current directive strip */}
+      {currentRequiredNextAction ? (
+        <div style={{
+          padding: '10px 24px',
+          borderBottom: '1px solid rgba(212,160,23,0.12)',
+          background: 'rgba(245,158,11,0.06)',
           flexShrink: 0,
         }}>
-          <div>
-            <p style={{ margin: 0, fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.6)' }}>
-              Legendary Horizon
-            </p>
-            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: '#f0dfa0', letterSpacing: '0.04em' }}>
-              Quest Log
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close quest log"
-            style={{
-              padding: '8px 20px',
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              borderRadius: 3,
-              color: '#e8dcc8',
-              fontSize: 13,
-              cursor: 'pointer',
-              fontFamily: 'serif',
-            }}
-          >
-            ← Back
-          </button>
-        </header>
+          <p style={{ margin: 0, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(212,160,23,0.6)' }}>
+            Current directive
+          </p>
+          <p style={{ margin: '2px 0 0', fontSize: 14, color: '#f0dfa0', fontWeight: 700, lineHeight: 1.3 }}>
+            {currentRequiredNextAction}
+          </p>
+        </div>
+      ) : null}
 
-        {/* Next action strip */}
-        {currentRequiredNextAction ? (
-          <div style={{
-            padding: '10px 24px',
-            borderBottom: '1px solid rgba(212,160,23,0.12)',
-            background: 'rgba(245,158,11,0.06)',
-            flexShrink: 0,
-          }}>
-            <p style={{ margin: 0, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(212,160,23,0.6)' }}>
-              Current directive
-            </p>
-            <p style={{ margin: '2px 0 0', fontSize: 14, color: '#f0dfa0', fontWeight: 700, lineHeight: 1.3 }}>
-              {currentRequiredNextAction}
-            </p>
-          </div>
+      {/* Quest sections */}
+      <div style={{ padding: '0 24px 24px', display: 'flex', flexDirection: 'column', gap: 28 }}>
+        <div style={{ height: 16 }} aria-hidden />
+        {sectionOrder.map((key) => {
+          const list = groups[key];
+          if (!list.length) return null;
+          return (
+            <section key={key} aria-label={GROUP_LABEL[key]}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <span style={{ fontSize: 14, color: 'rgba(212,160,23,0.7)' }} aria-hidden>
+                  {GROUP_ICON[key]}
+                </span>
+                <h3 style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.7)' }}>
+                  {GROUP_LABEL[key]}
+                </h3>
+                <div style={{ flex: 1, height: 1, background: 'rgba(212,160,23,0.12)' }} aria-hidden />
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', minWidth: 16, textAlign: 'right' }}>{list.length}</span>
+              </div>
+              {list.length ? (
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {list.map((q) => (
+                    <QuestCard key={q.quest_id} q={q} onMarkQuestTurnedIn={onMarkQuestTurnedIn} />
+                  ))}
+                </ul>
+              ) : (
+                <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.28)', fontStyle: 'italic', paddingLeft: 4 }}>
+                  No quests in this category yet.
+                </p>
+              )}
+            </section>
+          );
+        })}
+
+        {guildPathBreatherNote ? (
+          <aside style={{ padding: '12px 16px', background: 'rgba(212,160,23,0.06)', border: '1px solid rgba(212,160,23,0.18)', borderRadius: 4 }}>
+            <p style={{ margin: 0, fontSize: 13, color: '#e8dcc8', lineHeight: 1.5 }}>{guildPathBreatherNote}</p>
+          </aside>
         ) : null}
 
-        {/* Sections */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px 24px', display: 'flex', flexDirection: 'column', gap: 28 }}>
-          <div style={{ height: 20 }} aria-hidden />
-          {sectionOrder.map((key) => {
-            const list = groups[key];
-            if (!list.length) return null;
-            return (
-              <section key={key} aria-label={GROUP_LABEL[key]}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                  <span style={{ fontSize: 14, color: 'rgba(212,160,23,0.7)' }} aria-hidden>
-                    {GROUP_ICON[key]}
-                  </span>
-                  <h3 style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.7)' }}>
-                    {GROUP_LABEL[key]}
-                  </h3>
-                  <div style={{ flex: 1, height: 1, background: 'rgba(212,160,23,0.12)' }} aria-hidden />
-                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', minWidth: 16, textAlign: 'right' }}>{list.length}</span>
-                </div>
-                {list.length ? (
-                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {list.map((q) => (
-                      <QuestCard key={q.quest_id} q={q} onMarkQuestTurnedIn={onMarkQuestTurnedIn} />
-                    ))}
-                  </ul>
-                ) : (
-                  <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.28)', fontStyle: 'italic', paddingLeft: 4 }}>
-                    No quests in this category yet.
-                  </p>
-                )}
-              </section>
-            );
-          })}
-
-          {guildPathBreatherNote ? (
-            <aside style={{ padding: '12px 16px', background: 'rgba(212,160,23,0.06)', border: '1px solid rgba(212,160,23,0.18)', borderRadius: 4 }}>
-              <p style={{ margin: 0, fontSize: 13, color: '#e8dcc8', lineHeight: 1.5 }}>{guildPathBreatherNote}</p>
-            </aside>
-          ) : null}
-
-          <footer style={{ paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.3)', lineHeight: 1.6 }}>
-              Use <strong style={{ color: 'rgba(255,255,255,0.5)' }}>World Atlas</strong> from the Field Journal to explore realms.
-              Your directive on the HUD is always the next in-world step.
+        <footer style={{ paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.3)', lineHeight: 1.6 }}>
+            Use <strong style={{ color: 'rgba(255,255,255,0.5)' }}>World Atlas</strong> from the Scroll hub to explore realms.
+            Your directive on the HUD is always the next in-world step.
+          </p>
+          {import.meta.env.DEV && lockedCount ? (
+            <p style={{ margin: '4px 0 0', fontSize: 11, color: 'rgba(255,100,100,0.6)' }}>
+              DEV: {lockedCount} locked quest row(s) hidden from student view.
             </p>
-            {import.meta.env.DEV && lockedCount ? (
-              <p style={{ margin: '4px 0 0', fontSize: 11, color: 'rgba(255,100,100,0.6)' }}>
-                DEV: {lockedCount} locked quest row(s) hidden from student view.
-              </p>
-            ) : null}
-          </footer>
-        </div>
+          ) : null}
+        </footer>
       </div>
-    </div>
+    </ScrollSubMenuShell>
   );
 }

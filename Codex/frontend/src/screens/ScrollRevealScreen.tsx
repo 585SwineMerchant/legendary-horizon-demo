@@ -7,7 +7,7 @@ type Props = {
 
 const STAT_LABELS: Record<keyof typeof coreyLeadershipProfile.baseStatProfile, string> = {
   insight: 'Insight',
-  resolve: 'Resolve',
+  willpower: 'Willpower',
   creativity: 'Creativity',
   collaboration: 'Collaboration',
 };

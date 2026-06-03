@@ -6,7 +6,7 @@ export type CoreyLeadershipProfile = {
   suggestedClusters: string[];
   baseStatProfile: {
     insight: number;
-    resolve: number;
+    willpower: number;
     creativity: number;
     collaboration: number;
   };
@@ -23,7 +23,7 @@ export const coreyLeadershipProfile: CoreyLeadershipProfile = {
   suggestedClusters: ['Health Science', 'Arts, A/V Technology & Communications', 'Education & Training'],
   baseStatProfile: {
     insight: 8,
-    resolve: 6,
+    willpower: 6,
     creativity: 7,
     collaboration: 7,
   },

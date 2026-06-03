@@ -1,732 +1,972 @@
-[
-  {
-    "quest_id": "mq-101",
-    "title": "Meet the Master Scribe",
-    "tier": "main",
-    "act": 1,
-    "status": "active",
-    "objective_short": "Complete opening dialogue with the Master Scribe",
-    "realm_ids": [],
-    "xp_reward": 100,
-    "item_reward": "main weapon"
-  },
-  {
-    "quest_id": "mq-102",
-    "title": "Enter the Mirror of Maia",
-    "tier": "main",
-    "act": 1,
-    "status": "locked",
-    "objective_short": "Launch the Maia assessment sequence",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-101"],
-    "xp_reward": 100,
-    "item_reward": null
-  },
-  {
-    "quest_id": "mq-103",
-    "title": "Complete the Ritual of Reflection",
-    "tier": "main",
-    "act": 1,
-    "status": "locked",
-    "objective_short": "Complete all four required Maia assessments and return to the Master Scribe",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-102"],
-    "xp_reward": 400,
-    "item_reward": "1 Rune for Each Assessment"
-  },
-  {
-    "quest_id": "mq-104",
-    "title": "Complete the Scribe's Survey",
-    "tier": "main",
-    "act": 1,
-    "status": "locked",
-    "objective_short": "Complete the Scribe's stat-builder survey to finalize your Scroll of Destiny",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-103"],
-    "xp_reward": 200,
-    "item_reward": null
-  },
-  {
-    "quest_id": "mq-105",
-    "title": "Generate the Scroll of Destiny",
-    "tier": "main",
-    "act": 1,
-    "status": "locked",
-    "objective_short": "Generate the Scroll of Destiny with base stats, rune slots, and foretold signposts",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-104"],
-    "xp_reward": 0,
-    "item_reward": "Scroll of Destiny"
-  },
-  {
-    "quest_id": "mq-202",
-    "title": "Reveal the Three Foretold Signposts",
-    "tier": "main",
-    "act": 1,
-    "status": "locked",
-    "objective_short": "Review the 3 foretold signpost guilds in your Scroll of Destiny at the Altar of Reflection",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-105"],
-    "xp_reward": 50,
-    "item_reward": "Signpost Reveal"
-  },
-  {
-    "quest_id": "mq-201",
-    "title": "Visit the Oracle of Opportunity",
-    "tier": "main",
-    "act": 2,
-    "status": "locked",
-    "objective_short": "Seek out the Oracle and reflect on your Scroll of Destiny",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-202"],
-    "xp_reward": 100,
-    "item_reward": null
-  },
-  {
-    "quest_id": "mq-203",
-    "title": "Receive the Prophecy",
-    "tier": "main",
-    "act": 2,
-    "status": "locked",
-    "objective_short": "Receive a gamified career prophecy from the Oracle drawn from your foretold signposts",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-201"],
-    "xp_reward": 100,
-    "item_reward": "Oracle Token"
-  },
-  {
-    "quest_id": "mq-204",
-    "title": "Vision Of Fate",
-    "tier": "main",
-    "act": 2,
-    "status": "locked",
-    "objective_short": "Open the linked research source for the prophecy career and record findings in the Quest of Fate Worksheet",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-203"],
-    "xp_reward": 100,
-    "item_reward": "Completed Quest of Fate Worksheet"
-  },
-  {
-    "quest_id": "mq-205",
-    "title": "Return to the Oracle",
-    "tier": "main",
-    "act": 2,
-    "status": "locked",
-    "objective_short": "Return to the Oracle after finishing the worksheet",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-204"],
-    "xp_reward": 100,
-    "item_reward": null
-  },
-  {
-    "quest_id": "mq-206",
-    "title": "Receive the World Map",
-    "tier": "main",
-    "act": 2,
-    "status": "locked",
-    "objective_short": "Receive the World Atlas and exploration access from the Master Scribe",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-205"],
-    "xp_reward": 100,
-    "item_reward": "World Atlas"
-  },
-  {
-    "quest_id": "mq-207",
-    "title": "Receive the Comparison Ledger",
-    "tier": "main",
-    "act": 2,
-    "status": "locked",
-    "objective_short": "Receive the Comparison Ledger for realm exploration",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-206"],
-    "xp_reward": 50,
-    "item_reward": "Comparison Ledger"
-  },
-  {
-    "quest_id": "mq-301",
-    "title": "Enter the Realms",
-    "tier": "main",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Enter the world exploration area for the first time",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-207"],
-    "xp_reward": 50,
-    "item_reward": null
-  },
-  {
-    "quest_id": "mq-302",
-    "title": "Travel to the First Signpost Realm",
-    "tier": "main",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Reach one of the three foretold signpost realms",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-301"],
-    "xp_reward": 50,
-    "item_reward": null
-  },
-  {
-    "quest_id": "mq-303",
-    "title": "Fog of the Unknown",
-    "tier": "main",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Clear the fog at the first required waypoint",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-302"],
-    "xp_reward": 50,
-    "item_reward": "Map Fragment"
-  },
-  {
-    "quest_id": "mq-304",
-    "title": "Record the First Realm in the Ledger",
-    "tier": "main",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Research the realm and record findings in the Comparison Ledger",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-303"],
-    "xp_reward": 200,
-    "item_reward": "Realm Entry I"
-  },
-  {
-    "quest_id": "mq-305",
-    "title": "Travel to the Second Signpost Realm",
-    "tier": "main",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Reach the second foretold signpost realm",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-304"],
-    "xp_reward": 50,
-    "item_reward": null
-  },
-  {
-    "quest_id": "mq-306",
-    "title": "Shatter the Second Fog",
-    "tier": "main",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Clear the fog at the second required waypoint",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-305"],
-    "xp_reward": 50,
-    "item_reward": "Map Fragment"
-  },
-  {
-    "quest_id": "mq-307",
-    "title": "Record the Second Realm in the Ledger",
-    "tier": "main",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Record the second required cluster in the Comparison Ledger",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-306"],
-    "xp_reward": 200,
-    "item_reward": "Realm Entry II"
-  },
-  {
-    "quest_id": "mq-308",
-    "title": "Travel to the Third Signpost Realm",
-    "tier": "main",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Reach the third foretold signpost realm",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-307"],
-    "xp_reward": 50,
-    "item_reward": null
-  },
-  {
-    "quest_id": "mq-309",
-    "title": "Shatter the Third Fog",
-    "tier": "main",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Clear the fog at the third required waypoint",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-308"],
-    "xp_reward": 50,
-    "item_reward": "Map Fragment"
-  },
-  {
-    "quest_id": "mq-310",
-    "title": "Record the Third Realm in the Ledger",
-    "tier": "main",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Record the third required cluster in the Comparison Ledger",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-309"],
-    "xp_reward": 200,
-    "item_reward": "Realm Entry III"
-  },
-  {
-    "quest_id": "mq-311",
-    "title": "Compare the Three Foretold Paths",
-    "tier": "main",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Complete the minimum comparison set using ledger entries",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-310"],
-    "xp_reward": 200,
-    "item_reward": "Comparison Insight"
-  },
-  {
-    "quest_id": "mq-401",
-    "title": "Choose the True Path",
-    "tier": "main",
-    "act": 4,
-    "status": "locked",
-    "objective_short": "Select one specific career as your True Path",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-311"],
-    "xp_reward": 400,
-    "item_reward": "True Path Sigil"
-  },
-  {
-    "quest_id": "mq-402",
-    "title": "Travel to the Chosen Guild HQ",
-    "tier": "main",
-    "act": 4,
-    "status": "locked",
-    "objective_short": "Reach the Guild HQ of your chosen path",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-401"],
-    "xp_reward": 100,
-    "item_reward": null
-  },
-  {
-    "quest_id": "mq-403",
-    "title": "Meet the Guild Manager",
-    "tier": "main",
-    "act": 4,
-    "status": "locked",
-    "objective_short": "Complete your first Guild Manager dialogue",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-402"],
-    "xp_reward": 100,
-    "item_reward": "Guild Access Granted"
-  },
-  {
-    "quest_id": "gt-101",
-    "title": "Complete the Rite of Enrollment",
-    "tier": "guild",
-    "act": 4,
-    "status": "locked",
-    "objective_short": "Complete the job application form",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-403"],
-    "xp_reward": 400,
-    "item_reward": "Enrollment Rune"
-  },
-  {
-    "quest_id": "gt-102",
-    "title": "Pass the Trial of Tongues",
-    "tier": "guild",
-    "act": 4,
-    "status": "locked",
-    "objective_short": "Return when summoned and complete the AI interview encounter",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["gt-101"],
-    "xp_reward": 400,
-    "item_reward": "Trial of Tongues Seal"
-  },
-  {
-    "quest_id": "gt-103",
-    "title": "Complete the Artificer's Ethics Trial",
-    "tier": "guild",
-    "act": 4,
-    "status": "locked",
-    "objective_short": "Complete the professionalism and soft-skill encounter",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["gt-102"],
-    "xp_reward": 400,
-    "item_reward": "Ethics Crest"
-  },
-  {
-    "quest_id": "gt-104",
-    "title": "Quest of Choice",
-    "tier": "guild",
-    "act": 4,
-    "status": "locked",
-    "objective_short": "Complete deep-dive research on your True Path career using the Quest of Choice Worksheet",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["gt-103"],
-    "xp_reward": 400,
-    "item_reward": "Completed Quest of Choice Worksheet"
-  },
-  {
-    "quest_id": "mq-404",
-    "title": "Finalize the Traveler Manifest",
-    "tier": "main",
-    "act": 4,
-    "status": "locked",
-    "objective_short": "Complete the Guild Manager's survey to generate the NYS Career Plan data",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["gt-104"],
-    "xp_reward": 200,
-    "item_reward": "Final Manifest"
-  },
-  {
-    "quest_id": "mq-405",
-    "title": "Great Transcription",
-    "tier": "main",
-    "act": 4,
-    "status": "locked",
-    "objective_short": "Travel to the Mirror of Maia and transcribe finalized data into the official NYS Career Plan",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-404"],
-    "xp_reward": 400,
-    "item_reward": "Great Transcription Seal"
-  },
-  {
-    "quest_id": "fa-101",
-    "title": "Begin the Chronicle of the Horizon",
-    "tier": "main",
-    "act": 5,
-    "status": "locked",
-    "objective_short": "Open or create your final presentation project",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-405"],
-    "xp_reward": 50,
-    "item_reward": "Chronicle Frame"
-  },
-  {
-    "quest_id": "fa-104",
-    "title": "Present at the Grand Council",
-    "tier": "main",
-    "act": 5,
-    "status": "locked",
-    "objective_short": "Deliver your final career fair presentation",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["fa-101"],
-    "xp_reward": 600,
-    "item_reward": "Grand Council Crest"
-  },
-  {
-    "quest_id": "ep-101",
-    "title": "Enter the Epilogue",
-    "tier": "main",
-    "act": 6,
-    "status": "locked",
-    "objective_short": "Enter the post-game reflection and next-stage sequence",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["fa-104"],
-    "xp_reward": 100,
-    "item_reward": null
-  },
-  {
-    "quest_id": "ep-102",
-    "title": "Complete the Course Selection Ritual",
-    "tier": "main",
-    "act": 6,
-    "status": "locked",
-    "objective_short": "Interact with the course selection guide",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["ep-101"],
-    "xp_reward": 100,
-    "item_reward": "Course Selection Rune"
-  },
-  {
-    "quest_id": "sq-201",
-    "title": "Knowledge Combat",
-    "tier": "side",
-    "act": 2,
-    "status": "locked",
-    "objective_short": "Win the first vocabulary-linked battle",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-207"],
-    "xp_reward": 100,
-    "item_reward": "Vocabulary Rune"
-  },
-  {
-    "quest_id": "sq-202",
-    "title": "Echoes of Experience",
-    "tier": "side",
-    "act": 2,
-    "status": "locked",
-    "objective_short": "Interview a trusted adult about their career journey and return with their wisdom",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-207"],
-    "xp_reward": 500,
-    "item_reward": "Legacy Lore Note"
-  },
-  {
-    "quest_id": "sq-203",
-    "title": "Knowledge Combat Trial Veteran",
-    "tier": "side",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Win 10 Knowledge Combat encounters",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-301"],
-    "xp_reward": 200,
-    "item_reward": "Vocabulary Rune"
-  },
-  {
-    "quest_id": "sq-204",
-    "title": "Knowledge Combat Trial Master",
-    "tier": "side",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Win 20 Knowledge Combat encounters",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-301"],
-    "xp_reward": 300,
-    "item_reward": "Reflection Sigil"
-  },
-  {
-    "quest_id": "sq-205",
-    "title": "Ethics Crest Bonus",
-    "tier": "side",
-    "act": 4,
-    "status": "locked",
-    "objective_short": "Exceed expectations in the professionalism and soft-skill challenge",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["gt-103"],
-    "xp_reward": 100,
-    "item_reward": "Enhanced Ethics Crest"
-  },
-  {
-    "quest_id": "sq-206",
-    "title": "Guild Research 4",
-    "tier": "side",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Visit a fourth Guild HQ for research-only exploration",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-301"],
-    "xp_reward": 100,
-    "item_reward": "Signpost Token"
-  },
-  {
-    "quest_id": "sq-207",
-    "title": "Guild Research 5",
-    "tier": "side",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Visit a fifth Guild HQ for research-only exploration",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-301"],
-    "xp_reward": 100,
-    "item_reward": "Signpost Token"
-  },
-  {
-    "quest_id": "sq-208",
-    "title": "Guild Research 6",
-    "tier": "side",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Visit a sixth Guild HQ for research-only exploration",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-301"],
-    "xp_reward": 100,
-    "item_reward": "Signpost Token"
-  },
-  {
-    "quest_id": "sq-209",
-    "title": "Guild Research 7",
-    "tier": "side",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Visit a seventh Guild HQ for research-only exploration",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-301"],
-    "xp_reward": 100,
-    "item_reward": "Signpost Token"
-  },
-  {
-    "quest_id": "sq-210",
-    "title": "Guild Research 8",
-    "tier": "side",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Visit an eighth Guild HQ for research-only exploration",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-301"],
-    "xp_reward": 100,
-    "item_reward": "Signpost Token"
-  },
-  {
-    "quest_id": "sq-211",
-    "title": "Guild Research 9",
-    "tier": "side",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Visit a ninth Guild HQ for research-only exploration",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-301"],
-    "xp_reward": 100,
-    "item_reward": "Signpost Token"
-  },
-  {
-    "quest_id": "sq-212",
-    "title": "Guild Research 10",
-    "tier": "side",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Visit a tenth Guild HQ for research-only exploration",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-301"],
-    "xp_reward": 100,
-    "item_reward": "Signpost Token"
-  },
-  {
-    "quest_id": "sq-213",
-    "title": "Guild Research 11",
-    "tier": "side",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Visit an eleventh Guild HQ for research-only exploration",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-301"],
-    "xp_reward": 100,
-    "item_reward": "Signpost Token"
-  },
-  {
-    "quest_id": "sq-214",
-    "title": "Guild Research 12",
-    "tier": "side",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Visit a twelfth Guild HQ for research-only exploration",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-301"],
-    "xp_reward": 100,
-    "item_reward": "Signpost Token"
-  },
-  {
-    "quest_id": "sq-215",
-    "title": "Guild Research 13",
-    "tier": "side",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Visit a thirteenth Guild HQ for research-only exploration",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-301"],
-    "xp_reward": 100,
-    "item_reward": "Signpost Token"
-  },
-  {
-    "quest_id": "sq-216",
-    "title": "Guild Research 14",
-    "tier": "side",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Visit a fourteenth Guild HQ for research-only exploration",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-301"],
-    "xp_reward": 100,
-    "item_reward": "Signpost Token"
-  },
-  {
-    "quest_id": "sq-217",
-    "title": "Guild Research 15",
-    "tier": "side",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Visit a fifteenth Guild HQ for research-only exploration",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-301"],
-    "xp_reward": 100,
-    "item_reward": "Signpost Token"
-  },
-  {
-    "quest_id": "sq-218",
-    "title": "Guild Research 16",
-    "tier": "side",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Visit a sixteenth Guild HQ for research-only exploration",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-301"],
-    "xp_reward": 100,
-    "item_reward": "Signpost Token"
-  },
-  {
-    "quest_id": "sq-219",
-    "title": "Clear all Fog of the Unknown",
-    "tier": "side",
-    "act": 3,
-    "status": "locked",
-    "objective_short": "Visit all Guilds and clear the entire map of the Fog of the Unknown",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-301"],
-    "xp_reward": 500,
-    "item_reward": null
-  },
-  {
-    "quest_id": "sys-001",
-    "title": "Open the Pause Menu",
-    "tier": "side",
-    "act": 1,
-    "status": "locked",
-    "objective_short": "Open the pause menu once",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-101"],
-    "xp_reward": 25,
-    "item_reward": null
-  },
-  {
-    "quest_id": "sys-002",
-    "title": "Review the Traveler's Map",
-    "tier": "side",
-    "act": 2,
-    "status": "locked",
-    "objective_short": "Open the map from the pause menu",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["mq-206"],
-    "xp_reward": 25,
-    "item_reward": null
-  },
-  {
-    "quest_id": "sys-003",
-    "title": "Review the Quest Log",
-    "tier": "side",
-    "act": 1,
-    "status": "locked",
-    "objective_short": "Open the quest log from the pause menu",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["sys-001"],
-    "xp_reward": 25,
-    "item_reward": null
-  },
-  {
-    "quest_id": "sys-004",
-    "title": "Create a Manual Save",
-    "tier": "side",
-    "act": 1,
-    "status": "locked",
-    "objective_short": "Manually save through the save menu",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["sys-001"],
-    "xp_reward": 25,
-    "item_reward": null
-  },
-  {
-    "quest_id": "sys-005",
-    "title": "Campfire Reflection",
-    "tier": "side",
-    "act": 1,
-    "status": "locked",
-    "objective_short": "Complete the exit ticket flow that sends info to teacher's back-end app",
-    "realm_ids": [],
-    "prerequisite_quest_ids": ["sys-001"],
-    "xp_reward": 50,
-    "item_reward": "Exit Ticket Mark"
-  },
-  {
-    "quest_id": "sys-006",
-    "title": "Load the Journey",
-    "tier": "side",
-    "act": 1,
-    "status": "locked",
-    "objective_short": "Use the load button to resume your saved game",
-    "realm_ids": [],
-    "xp_reward": 25,
-    "item_reward": null
-  }
+﻿[
+    {
+        "quest_id":  "mq-101",
+        "title":  "Meet the Master Scribe",
+        "tier":  "main",
+        "act":  1,
+        "status":  "turned_in",
+        "objective_short":  "Complete opening dialogue with the Master Scribe",
+        "realm_ids":  [
+
+                      ],
+        "xp_reward":  100,
+        "item_reward":  "main weapon"
+    },
+    {
+        "quest_id":  "mq-102",
+        "title":  "Enter the Mirror of Maia",
+        "tier":  "main",
+        "act":  1,
+        "status":  "turned_in",
+        "objective_short":  "Launch the Maia assessment sequence",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-101"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  null
+    },
+    {
+        "quest_id":  "mq-103",
+        "title":  "Complete the Ritual of Reflection",
+        "tier":  "main",
+        "act":  1,
+        "status":  "turned_in",
+        "objective_short":  "Complete all four required Maia assessments and return to the Master Scribe",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-102"
+                                   ],
+        "xp_reward":  400,
+        "item_reward":  "1 Rune for Each Assessment"
+    },
+    {
+        "quest_id":  "mq-104",
+        "title":  "Complete the Scribe\u0027s Survey",
+        "tier":  "main",
+        "act":  1,
+        "status":  "turned_in",
+        "objective_short":  "Complete the Scribe\u0027s stat-builder survey to finalize your Scroll of Destiny",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-103"
+                                   ],
+        "xp_reward":  200,
+        "item_reward":  null
+    },
+    {
+        "quest_id":  "mq-105",
+        "title":  "Generate the Scroll of Destiny",
+        "tier":  "main",
+        "act":  1,
+        "status":  "turned_in",
+        "objective_short":  "Generate the Scroll of Destiny with base stats, rune slots, and foretold signposts",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-104"
+                                   ],
+        "xp_reward":  0,
+        "item_reward":  "Scroll of Destiny"
+    },
+    {
+        "quest_id":  "mq-202",
+        "title":  "Reveal the Three Foretold Signposts",
+        "tier":  "main",
+        "act":  1,
+        "status":  "turned_in",
+        "objective_short":  "Review the 3 foretold signpost guilds in your Scroll of Destiny at the Altar of Reflection",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-105"
+                                   ],
+        "xp_reward":  50,
+        "item_reward":  "Signpost Reveal"
+    },
+    {
+        "quest_id":  "mq-201",
+        "title":  "Visit the Oracle of Opportunity",
+        "tier":  "main",
+        "act":  2,
+        "status":  "turned_in",
+        "objective_short":  "Seek out the Oracle and reflect on your Scroll of Destiny",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-202"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  null
+    },
+    {
+        "quest_id":  "mq-203",
+        "title":  "Receive the Prophecy",
+        "tier":  "main",
+        "act":  2,
+        "status":  "turned_in",
+        "objective_short":  "Receive a gamified career prophecy from the Oracle drawn from your foretold signposts",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-201"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Oracle Token"
+    },
+    {
+        "quest_id":  "mq-204",
+        "title":  "Vision Of Fate",
+        "tier":  "main",
+        "act":  2,
+        "status":  "turned_in",
+        "objective_short":  "Open the linked research source for the prophecy career and record findings in the Quest of Fate Worksheet",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-203"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Completed Quest of Fate Worksheet"
+    },
+    {
+        "quest_id":  "mq-205",
+        "title":  "Return to the Oracle",
+        "tier":  "main",
+        "act":  2,
+        "status":  "turned_in",
+        "objective_short":  "Return to the Oracle after finishing the worksheet",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-204"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  null
+    },
+    {
+        "quest_id":  "mq-206",
+        "title":  "Receive the World Map",
+        "tier":  "main",
+        "act":  2,
+        "status":  "turned_in",
+        "objective_short":  "Receive the World Atlas and exploration access from the Master Scribe",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-205"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "World Atlas"
+    },
+    {
+        "quest_id":  "mq-207",
+        "title":  "Receive the Comparison Ledger",
+        "tier":  "main",
+        "act":  2,
+        "status":  "turned_in",
+        "objective_short":  "Receive the Comparison Ledger for realm exploration",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-206"
+                                   ],
+        "xp_reward":  50,
+        "item_reward":  "Comparison Ledger"
+    },
+    {
+        "quest_id":  "mq-301",
+        "title":  "Enter the Realms",
+        "tier":  "main",
+        "act":  3,
+        "status":  "turned_in",
+        "objective_short":  "Enter the world exploration area for the first time",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-207"
+                                   ],
+        "xp_reward":  50,
+        "item_reward":  null
+    },
+    {
+        "quest_id":  "mq-302",
+        "title":  "Travel to the First Signpost Realm",
+        "tier":  "main",
+        "act":  3,
+        "status":  "turned_in",
+        "objective_short":  "Reach one of the three foretold signpost realms",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-301"
+                                   ],
+        "xp_reward":  50,
+        "item_reward":  null
+    },
+    {
+        "quest_id":  "mq-303",
+        "title":  "Fog of the Unknown",
+        "tier":  "main",
+        "act":  3,
+        "status":  "turned_in",
+        "objective_short":  "Clear the fog at the first required waypoint",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-302"
+                                   ],
+        "xp_reward":  50,
+        "item_reward":  "Map Fragment"
+    },
+    {
+        "quest_id":  "mq-304",
+        "title":  "Record the First Realm in the Ledger",
+        "tier":  "main",
+        "act":  3,
+        "status":  "turned_in",
+        "objective_short":  "Research the realm and record findings in the Comparison Ledger",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-303"
+                                   ],
+        "xp_reward":  200,
+        "item_reward":  "Realm Entry I"
+    },
+    {
+        "quest_id":  "mq-305",
+        "title":  "Travel to the Second Signpost Realm",
+        "tier":  "main",
+        "act":  3,
+        "status":  "active",
+        "objective_short":  "Reach the second foretold signpost realm",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-304"
+                                   ],
+        "xp_reward":  50,
+        "item_reward":  null
+    },
+    {
+        "quest_id":  "mq-306",
+        "title":  "Shatter the Second Fog",
+        "tier":  "main",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Clear the fog at the second required waypoint",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-305"
+                                   ],
+        "xp_reward":  50,
+        "item_reward":  "Map Fragment"
+    },
+    {
+        "quest_id":  "mq-307",
+        "title":  "Record the Second Realm in the Ledger",
+        "tier":  "main",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Record the second required cluster in the Comparison Ledger",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-306"
+                                   ],
+        "xp_reward":  200,
+        "item_reward":  "Realm Entry II"
+    },
+    {
+        "quest_id":  "mq-308",
+        "title":  "Travel to the Third Signpost Realm",
+        "tier":  "main",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Reach the third foretold signpost realm",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-307"
+                                   ],
+        "xp_reward":  50,
+        "item_reward":  null
+    },
+    {
+        "quest_id":  "mq-309",
+        "title":  "Shatter the Third Fog",
+        "tier":  "main",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Clear the fog at the third required waypoint",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-308"
+                                   ],
+        "xp_reward":  50,
+        "item_reward":  "Map Fragment"
+    },
+    {
+        "quest_id":  "mq-310",
+        "title":  "Record the Third Realm in the Ledger",
+        "tier":  "main",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Record the third required cluster in the Comparison Ledger",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-309"
+                                   ],
+        "xp_reward":  200,
+        "item_reward":  "Realm Entry III"
+    },
+    {
+        "quest_id":  "mq-311",
+        "title":  "Compare the Three Foretold Paths",
+        "tier":  "main",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Complete the minimum comparison set using ledger entries",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-310"
+                                   ],
+        "xp_reward":  200,
+        "item_reward":  "Comparison Insight"
+    },
+    {
+        "quest_id":  "mq-401",
+        "title":  "Choose the True Path",
+        "tier":  "main",
+        "act":  4,
+        "status":  "locked",
+        "objective_short":  "Select one specific career as your True Path",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-311"
+                                   ],
+        "xp_reward":  400,
+        "item_reward":  "True Path Sigil"
+    },
+    {
+        "quest_id":  "mq-402",
+        "title":  "Travel to the Chosen Guild HQ",
+        "tier":  "main",
+        "act":  4,
+        "status":  "locked",
+        "objective_short":  "Reach the Guild HQ of your chosen path",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-401"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  null
+    },
+    {
+        "quest_id":  "mq-403",
+        "title":  "Meet the Guild Manager",
+        "tier":  "main",
+        "act":  4,
+        "status":  "locked",
+        "objective_short":  "Complete your first Guild Manager dialogue",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-402"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Guild Access Granted"
+    },
+    {
+        "quest_id":  "gt-101",
+        "title":  "Complete the Rite of Enrollment",
+        "tier":  "guild",
+        "act":  4,
+        "status":  "locked",
+        "objective_short":  "Complete the job application form",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-403"
+                                   ],
+        "xp_reward":  400,
+        "item_reward":  "Enrollment Rune"
+    },
+    {
+        "quest_id":  "gt-102",
+        "title":  "Pass the Trial of Tongues",
+        "tier":  "guild",
+        "act":  4,
+        "status":  "locked",
+        "objective_short":  "Return when summoned and complete the AI interview encounter",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "gt-101"
+                                   ],
+        "xp_reward":  400,
+        "item_reward":  "Trial of Tongues Seal"
+    },
+    {
+        "quest_id":  "gt-103",
+        "title":  "Complete the Artificer\u0027s Ethics Trial",
+        "tier":  "guild",
+        "act":  4,
+        "status":  "locked",
+        "objective_short":  "Complete the professionalism and soft-skill encounter",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "gt-102"
+                                   ],
+        "xp_reward":  400,
+        "item_reward":  "Ethics Crest"
+    },
+    {
+        "quest_id":  "gt-104",
+        "title":  "Quest of Choice",
+        "tier":  "guild",
+        "act":  4,
+        "status":  "locked",
+        "objective_short":  "Complete deep-dive research on your True Path career using the Quest of Choice Worksheet",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "gt-103"
+                                   ],
+        "xp_reward":  400,
+        "item_reward":  "Completed Quest of Choice Worksheet"
+    },
+    {
+        "quest_id":  "mq-404",
+        "title":  "Finalize the Traveler Manifest",
+        "tier":  "main",
+        "act":  4,
+        "status":  "locked",
+        "objective_short":  "Complete the Guild Manager\u0027s survey to generate the NYS Career Plan data",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "gt-104"
+                                   ],
+        "xp_reward":  200,
+        "item_reward":  "Final Manifest"
+    },
+    {
+        "quest_id":  "mq-405",
+        "title":  "Great Transcription",
+        "tier":  "main",
+        "act":  4,
+        "status":  "locked",
+        "objective_short":  "Travel to the Mirror of Maia and transcribe finalized data into the official NYS Career Plan",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-404"
+                                   ],
+        "xp_reward":  400,
+        "item_reward":  "Great Transcription Seal"
+    },
+    {
+        "quest_id":  "fa-101",
+        "title":  "Begin the Chronicle of the Horizon",
+        "tier":  "main",
+        "act":  5,
+        "status":  "locked",
+        "objective_short":  "Open or create your final presentation project",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-405"
+                                   ],
+        "xp_reward":  50,
+        "item_reward":  "Chronicle Frame"
+    },
+    {
+        "quest_id":  "fa-104",
+        "title":  "Present at the Grand Council",
+        "tier":  "main",
+        "act":  5,
+        "status":  "locked",
+        "objective_short":  "Deliver your final career fair presentation",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "fa-101"
+                                   ],
+        "xp_reward":  600,
+        "item_reward":  "Grand Council Crest"
+    },
+    {
+        "quest_id":  "ep-101",
+        "title":  "Enter the Epilogue",
+        "tier":  "main",
+        "act":  6,
+        "status":  "locked",
+        "objective_short":  "Enter the post-game reflection and next-stage sequence",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "fa-104"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  null
+    },
+    {
+        "quest_id":  "ep-102",
+        "title":  "Complete the Course Selection Ritual",
+        "tier":  "main",
+        "act":  6,
+        "status":  "locked",
+        "objective_short":  "Interact with the course selection guide",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "ep-101"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Course Selection Rune"
+    },
+    {
+        "quest_id":  "sq-201",
+        "title":  "Knowledge Combat",
+        "tier":  "side",
+        "act":  2,
+        "status":  "turned_in",
+        "objective_short":  "Win the first vocabulary-linked battle",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-207"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Vocabulary Rune"
+    },
+    {
+        "quest_id":  "sq-202",
+        "title":  "Echoes of Experience",
+        "tier":  "side",
+        "act":  2,
+        "status":  "locked",
+        "objective_short":  "Interview a trusted adult about their career journey and return with their wisdom",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-207"
+                                   ],
+        "xp_reward":  500,
+        "item_reward":  "Legacy Lore Note"
+    },
+    {
+        "quest_id":  "sq-203",
+        "title":  "Knowledge Combat Trial Veteran",
+        "tier":  "side",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Win 10 Knowledge Combat encounters",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-301"
+                                   ],
+        "xp_reward":  200,
+        "item_reward":  "Vocabulary Rune"
+    },
+    {
+        "quest_id":  "sq-204",
+        "title":  "Knowledge Combat Trial Master",
+        "tier":  "side",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Win 20 Knowledge Combat encounters",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-301"
+                                   ],
+        "xp_reward":  300,
+        "item_reward":  "Reflection Sigil"
+    },
+    {
+        "quest_id":  "sq-205",
+        "title":  "Ethics Crest Bonus",
+        "tier":  "side",
+        "act":  4,
+        "status":  "locked",
+        "objective_short":  "Exceed expectations in the professionalism and soft-skill challenge",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "gt-103"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Enhanced Ethics Crest"
+    },
+    {
+        "quest_id":  "sq-206",
+        "title":  "Guild Research 4",
+        "tier":  "side",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Visit a fourth Guild HQ for research-only exploration",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-301"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Signpost Token"
+    },
+    {
+        "quest_id":  "sq-207",
+        "title":  "Guild Research 5",
+        "tier":  "side",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Visit a fifth Guild HQ for research-only exploration",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-301"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Signpost Token"
+    },
+    {
+        "quest_id":  "sq-208",
+        "title":  "Guild Research 6",
+        "tier":  "side",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Visit a sixth Guild HQ for research-only exploration",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-301"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Signpost Token"
+    },
+    {
+        "quest_id":  "sq-209",
+        "title":  "Guild Research 7",
+        "tier":  "side",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Visit a seventh Guild HQ for research-only exploration",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-301"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Signpost Token"
+    },
+    {
+        "quest_id":  "sq-210",
+        "title":  "Guild Research 8",
+        "tier":  "side",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Visit an eighth Guild HQ for research-only exploration",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-301"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Signpost Token"
+    },
+    {
+        "quest_id":  "sq-211",
+        "title":  "Guild Research 9",
+        "tier":  "side",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Visit a ninth Guild HQ for research-only exploration",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-301"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Signpost Token"
+    },
+    {
+        "quest_id":  "sq-212",
+        "title":  "Guild Research 10",
+        "tier":  "side",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Visit a tenth Guild HQ for research-only exploration",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-301"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Signpost Token"
+    },
+    {
+        "quest_id":  "sq-213",
+        "title":  "Guild Research 11",
+        "tier":  "side",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Visit an eleventh Guild HQ for research-only exploration",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-301"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Signpost Token"
+    },
+    {
+        "quest_id":  "sq-214",
+        "title":  "Guild Research 12",
+        "tier":  "side",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Visit a twelfth Guild HQ for research-only exploration",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-301"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Signpost Token"
+    },
+    {
+        "quest_id":  "sq-215",
+        "title":  "Guild Research 13",
+        "tier":  "side",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Visit a thirteenth Guild HQ for research-only exploration",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-301"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Signpost Token"
+    },
+    {
+        "quest_id":  "sq-216",
+        "title":  "Guild Research 14",
+        "tier":  "side",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Visit a fourteenth Guild HQ for research-only exploration",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-301"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Signpost Token"
+    },
+    {
+        "quest_id":  "sq-217",
+        "title":  "Guild Research 15",
+        "tier":  "side",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Visit a fifteenth Guild HQ for research-only exploration",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-301"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Signpost Token"
+    },
+    {
+        "quest_id":  "sq-218",
+        "title":  "Guild Research 16",
+        "tier":  "side",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Visit a sixteenth Guild HQ for research-only exploration",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-301"
+                                   ],
+        "xp_reward":  100,
+        "item_reward":  "Signpost Token"
+    },
+    {
+        "quest_id":  "sq-219",
+        "title":  "Clear all Fog of the Unknown",
+        "tier":  "side",
+        "act":  3,
+        "status":  "locked",
+        "objective_short":  "Visit all Guilds and clear the entire map of the Fog of the Unknown",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-301"
+                                   ],
+        "xp_reward":  500,
+        "item_reward":  null
+    },
+    {
+        "quest_id":  "sys-001",
+        "title":  "Open the Pause Menu",
+        "tier":  "side",
+        "act":  1,
+        "status":  "turned_in",
+        "objective_short":  "Open the pause menu once",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-101"
+                                   ],
+        "xp_reward":  25,
+        "item_reward":  null
+    },
+    {
+        "quest_id":  "sys-002",
+        "title":  "Review the Traveler\u0027s Map",
+        "tier":  "side",
+        "act":  2,
+        "status":  "locked",
+        "objective_short":  "Open the map from the pause menu",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-206"
+                                   ],
+        "xp_reward":  25,
+        "item_reward":  null
+    },
+    {
+        "quest_id":  "sys-003",
+        "title":  "Review the Quest Log",
+        "tier":  "side",
+        "act":  1,
+        "status":  "turned_in",
+        "objective_short":  "Open the quest log from the pause menu",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "sys-001"
+                                   ],
+        "xp_reward":  25,
+        "item_reward":  null
+    },
+    {
+        "quest_id":  "sys-004",
+        "title":  "Create a Manual Save",
+        "tier":  "side",
+        "act":  1,
+        "status":  "turned_in",
+        "objective_short":  "Manually save through the save menu",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "sys-001"
+                                   ],
+        "xp_reward":  25,
+        "item_reward":  null
+    },
+    {
+        "quest_id":  "sys-005",
+        "title":  "Campfire Reflection",
+        "tier":  "side",
+        "act":  1,
+        "status":  "turned_in",
+        "objective_short":  "Complete the exit ticket flow that sends info to teacher\u0027s back-end app",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "sys-001"
+                                   ],
+        "xp_reward":  50,
+        "item_reward":  "Exit Ticket Mark"
+    },
+    {
+        "quest_id":  "sys-006",
+        "title":  "Load the Journey",
+        "tier":  "side",
+        "act":  1,
+        "status":  "locked",
+        "objective_short":  "Use the load button to resume your saved game",
+        "realm_ids":  [
+
+                      ],
+        "xp_reward":  25,
+        "item_reward":  null
+    }
 ]

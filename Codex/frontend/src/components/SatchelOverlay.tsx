@@ -12,12 +12,12 @@
 import { useState } from 'react';
 import type { PlayerSave, SatchelInventoryV1, MementoEntryV1 } from '../domain/lh-contract';
 import { publicAssetUrl } from '../lib/publicAssetUrl';
+import { ScrollSubMenuShell } from './ScrollSubMenuShell';
 import {
   parseSatchelInventory,
   SATCHEL_CONSUMABLE_DEFS,
   FIELD_KIT_DEFS,
   getTitleLabel,
-  hasAmberFlameVisual,
   CAMPFIRE_STREAK_MILESTONES,
 } from '../data/itemCatalog';
 
@@ -236,90 +236,29 @@ export function SatchelOverlay({ open, player, onClose, onUseConsumable, onDevGr
   if (!open) return null;
 
   const inventory: SatchelInventoryV1 = parseSatchelInventory(player.satchel_inventory_json);
-  const streak = player.campfire_streak ?? 0;
   const activeTitle = player.active_title ?? inventory.cosmetics.active_title ?? null;
-  const amberFlame = hasAmberFlameVisual(inventory.cosmetics);
   const isDev = import.meta.env.DEV;
 
+  const tabBar = (
+    <div style={{ display: 'flex', borderBottom: '1px solid rgba(212,160,23,0.12)' }}>
+      <TabButton active={tab === 'satchel'} label="Satchel" onClick={() => setTab('satchel')} />
+      <TabButton active={tab === 'field_kit'} label="Field Kit" onClick={() => setTab('field_kit')} />
+      <TabButton active={tab === 'mementos'} label="Mementos" onClick={() => setTab('mementos')} />
+    </div>
+  );
+
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Satchel"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9000,
-        background: 'rgba(10, 7, 3, 0.97)',
-        display: 'flex',
-        flexDirection: 'column',
-        color: '#e8dcc8',
-        fontFamily: 'serif',
-        overflowY: 'auto',
-      }}
+    <ScrollSubMenuShell
+      title="Satchel"
+      subtitle={activeTitle ? `Equipment · ${getTitleLabel(activeTitle)}` : 'Equipment'}
+      onBack={onClose}
+      backLabel="← Back to Scroll"
+      ariaLabel="Satchel"
+      zIndex={9000}
+      tabs={tabBar}
     >
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 20px',
-          borderBottom: '1px solid rgba(212,160,23,0.2)',
-          flexShrink: 0,
-        }}
-      >
-        <div>
-          <p style={{ margin: 0, fontSize: 10, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.7)' }}>
-            Equipment
-          </p>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#f0dfa0', letterSpacing: '0.04em' }}>
-            Satchel
-          </h2>
-          {activeTitle ? (
-            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#d4a017', letterSpacing: '0.06em' }}>
-              {getTitleLabel(activeTitle)}
-            </p>
-          ) : null}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {streak > 0 ? (
-            <div style={{ textAlign: 'right' }}>
-              <p style={{ margin: 0, fontSize: 10, color: 'rgba(212,160,23,0.6)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                {amberFlame ? '🔥 ' : ''}Campfire Streak
-              </p>
-              <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#f59e0b' }}>{streak}</p>
-            </div>
-          ) : null}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close Satchel"
-            style={{
-              padding: '6px 16px',
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.15)',
-              borderRadius: 3,
-              color: '#e8dcc8',
-              fontSize: 13,
-              cursor: 'pointer',
-              fontFamily: 'serif',
-            }}
-          >
-            Close
-          </button>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid rgba(212,160,23,0.1)', flexShrink: 0 }}>
-        <TabButton active={tab === 'satchel'} label="Satchel" onClick={() => setTab('satchel')} />
-        <TabButton active={tab === 'field_kit'} label="Field Kit" onClick={() => setTab('field_kit')} />
-        <TabButton active={tab === 'mementos'} label="Mementos" onClick={() => setTab('mementos')} />
-      </div>
-
       {/* Body */}
-      <div style={{ flex: 1, padding: '20px 24px', overflowY: 'auto' }}>
+      <div style={{ padding: '20px 24px' }}>
 
         {tab === 'satchel' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -480,6 +419,6 @@ export function SatchelOverlay({ open, player, onClose, onUseConsumable, onDevGr
           </div>
         ) : null}
       </div>
-    </div>
+    </ScrollSubMenuShell>
   );
 }
