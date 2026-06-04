@@ -35,7 +35,7 @@ const STATUS_COLOR: Record<string, string> = {
   available: '#86efac',
   completed: '#6ee7b7',
   turned_in: '#4ade80',
-  locked: 'rgba(255,255,255,0.25)',
+  locked: 'rgba(255,255,255,0.40)',
 };
 
 function QuestCard({
@@ -76,13 +76,13 @@ function QuestCard({
           fontSize: 10,
           letterSpacing: '0.06em',
           textTransform: 'uppercase',
-          color: 'rgba(212,160,23,0.55)',
+          color: 'rgba(212,160,23,0.75)',
           flexShrink: 0,
         }}>
           {q.tier}
         </span>
       </div>
-      <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>
+      <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.72)', lineHeight: 1.5 }}>
         {q.objective_short}
       </p>
       {q.status === 'completed' && onMarkQuestTurnedIn ? (
@@ -140,8 +140,9 @@ export function QuestLogShell({
           borderBottom: '1px solid rgba(212,160,23,0.12)',
           background: 'rgba(245,158,11,0.06)',
           flexShrink: 0,
+          textAlign: 'center',
         }}>
-          <p style={{ margin: 0, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(212,160,23,0.6)' }}>
+          <p style={{ margin: 0, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(212,160,23,0.80)' }}>
             Current directive
           </p>
           <p style={{ margin: '2px 0 0', fontSize: 14, color: '#f0dfa0', fontWeight: 700, lineHeight: 1.3 }}>
@@ -151,7 +152,7 @@ export function QuestLogShell({
       ) : null}
 
       {/* Quest sections */}
-      <div style={{ padding: '0 24px 24px', display: 'flex', flexDirection: 'column', gap: 28 }}>
+      <div style={{ padding: '0 24px 24px', maxWidth: 720, margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: 28 }}>
         <div style={{ height: 16 }} aria-hidden />
         {sectionOrder.map((key) => {
           const list = groups[key];
@@ -159,14 +160,14 @@ export function QuestLogShell({
           return (
             <section key={key} aria-label={GROUP_LABEL[key]}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                <span style={{ fontSize: 14, color: 'rgba(212,160,23,0.7)' }} aria-hidden>
+                <span style={{ fontSize: 14, color: 'rgba(212,160,23,0.88)' }} aria-hidden>
                   {GROUP_ICON[key]}
                 </span>
-                <h3 style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.7)' }}>
+                <h3 style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.88)' }}>
                   {GROUP_LABEL[key]}
                 </h3>
                 <div style={{ flex: 1, height: 1, background: 'rgba(212,160,23,0.12)' }} aria-hidden />
-                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', minWidth: 16, textAlign: 'right' }}>{list.length}</span>
+                <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', minWidth: 16, textAlign: 'right' }}>{list.length}</span>
               </div>
               {list.length ? (
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -175,7 +176,7 @@ export function QuestLogShell({
                   ))}
                 </ul>
               ) : (
-                <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.28)', fontStyle: 'italic', paddingLeft: 4 }}>
+                <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.50)', fontStyle: 'italic', paddingLeft: 4 }}>
                   No quests in this category yet.
                 </p>
               )}
@@ -189,17 +190,11 @@ export function QuestLogShell({
           </aside>
         ) : null}
 
-        <footer style={{ paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.3)', lineHeight: 1.6 }}>
-            Use <strong style={{ color: 'rgba(255,255,255,0.5)' }}>World Atlas</strong> from the Scroll hub to explore realms.
-            Your directive on the HUD is always the next in-world step.
+        {import.meta.env.DEV && lockedCount ? (
+          <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,100,100,0.6)' }}>
+            DEV: {lockedCount} locked quest row(s) hidden from student view.
           </p>
-          {import.meta.env.DEV && lockedCount ? (
-            <p style={{ margin: '4px 0 0', fontSize: 11, color: 'rgba(255,100,100,0.6)' }}>
-              DEV: {lockedCount} locked quest row(s) hidden from student view.
-            </p>
-          ) : null}
-        </footer>
+        ) : null}
       </div>
     </ScrollSubMenuShell>
   );

@@ -36,23 +36,48 @@ type Zone = {
 };
 
 type Props = {
-  /** The current SCROLL_LAYOUT object from ScrollOfDestinyDisplay. */
+  /** The current layout object (e.g. SCROLL_LAYOUT or SUBMENU_SCROLL_LAYOUT). */
   scrollLayout: Record<string, Rect>;
   /** SCROLL_REF { w, h } — the pixel reference grid (typically 1280×720). */
   scrollRef: { w: number; h: number };
+  /**
+   * Short label shown in the calibrator header badge.
+   * Defaults to "SCROLL HUB" when omitted.
+   * Examples: "SUBMENU SHELL"
+   */
+  layoutLabel?: string;
+  /**
+   * The constant name the copied JSON should be pasted into.
+   * Shown in the hint row. Defaults to "SCROLL_LAYOUT".
+   * Examples: "SUBMENU_SCROLL_LAYOUT"
+   */
+  jsonTarget?: string;
 };
 
 // ── Zone colour palette ───────────────────────────────────────────────────
 
 const ZONE_COLORS: Record<string, string> = {
-  portrait:   'rgba(168,85,247,0.45)',
-  name:       'rgba(239,68,68,0.45)',
-  leftCol:    'rgba(59,130,246,0.45)',
-  center:     'rgba(16,185,129,0.45)',
-  rightCol:   'rgba(245,158,11,0.45)',
-  sigil1:     'rgba(252,211,77,0.50)',
-  sigil2:     'rgba(252,211,77,0.50)',
-  sigil3:     'rgba(252,211,77,0.50)',
+  // Hub zones
+  portrait:           'rgba(168,85,247,0.45)',
+  name:               'rgba(239,68,68,0.45)',
+  leftCol:            'rgba(59,130,246,0.45)',
+  center:             'rgba(16,185,129,0.45)',
+  rightCol:           'rgba(245,158,11,0.45)',
+  sigil1:             'rgba(252,211,77,0.50)',
+  sigil2:             'rgba(252,211,77,0.50)',
+  sigil3:             'rgba(252,211,77,0.50)',
+  // Nav button zones (hub)
+  btnFieldJournal:    'rgba(59,130,246,0.50)',
+  btnQuestLog:        'rgba(16,185,129,0.50)',
+  btnSatchel:         'rgba(168,85,247,0.50)',
+  btnWorldAtlas:      'rgba(59,130,246,0.50)',
+  btnMakeCamp:        'rgba(239,68,68,0.50)',
+  btnReturnToGame:    'rgba(245,158,11,0.50)',
+  // Submenu zones
+  contentPanel:       'rgba(168,85,247,0.40)',
+  header:             'rgba(59,130,246,0.40)',
+  backButton:         'rgba(239,68,68,0.50)',
+  scrollableContent:  'rgba(245,158,11,0.35)',
 };
 const DEFAULT_COLOR = 'rgba(156,163,175,0.45)';
 
@@ -78,7 +103,7 @@ function roundRect(r: Rect): Rect {
 
 // ── Component ─────────────────────────────────────────────────────────────
 
-export function ScrollLayoutCalibrator({ scrollLayout, scrollRef }: Props) {
+export function ScrollLayoutCalibrator({ scrollLayout, scrollRef, layoutLabel, jsonTarget }: Props) {
   // Strip immediately in production — no tree overhead
   if (!import.meta.env.DEV) return null;
 
@@ -91,7 +116,14 @@ export function ScrollLayoutCalibrator({ scrollLayout, scrollRef }: Props) {
 
   // Safe to use hooks unconditionally from here — active is fixed for the session
   // eslint-disable-next-line react-hooks/rules-of-hooks
-  return <CalibratorInner scrollLayout={scrollLayout} scrollRef={scrollRef} />;
+  return (
+    <CalibratorInner
+      scrollLayout={scrollLayout}
+      scrollRef={scrollRef}
+      layoutLabel={layoutLabel ?? 'SCROLL HUB'}
+      jsonTarget={jsonTarget ?? 'SCROLL_LAYOUT'}
+    />
+  );
 }
 
 // ── Inner (only mounted when active) ─────────────────────────────────────
@@ -104,7 +136,7 @@ type DragState = {
   startRect: Rect;
 };
 
-function CalibratorInner({ scrollLayout, scrollRef }: Props) {
+function CalibratorInner({ scrollLayout, scrollRef, layoutLabel, jsonTarget }: Required<Props>) {
   const [zones, setZones] = useState<Zone[]>(() => zonesFromLayout(scrollLayout));
   const [drag, setDrag] = useState<DragState | null>(null);
   const [copied, setCopied] = useState(false);
@@ -298,7 +330,7 @@ function CalibratorInner({ scrollLayout, scrollRef }: Props) {
           color: 'rgba(252,211,77,0.9)',
           letterSpacing: '0.08em',
         }}>
-          SCROLL LAYOUT CALIBRATOR — DEV ONLY
+          LAYOUT CALIBRATOR [{layoutLabel}] — DEV ONLY
         </div>
 
         {/* Buttons */}
@@ -336,7 +368,7 @@ function CalibratorInner({ scrollLayout, scrollRef }: Props) {
           color: 'rgba(255,255,255,0.45)',
           lineHeight: 1.4,
         }}>
-          Drag box → move &nbsp;|&nbsp; Drag □ → resize &nbsp;|&nbsp; Copy JSON → paste into SCROLL_LAYOUT
+          Drag box → move &nbsp;|&nbsp; Drag □ → resize &nbsp;|&nbsp; Copy JSON → paste into {jsonTarget}
         </div>
       </div>
     </div>

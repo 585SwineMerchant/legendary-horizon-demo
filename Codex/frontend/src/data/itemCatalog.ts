@@ -41,7 +41,7 @@ export const SATCHEL_CONSUMABLE_DEFS: readonly ConsumableItemDef[] = [
     icon_emoji: '🌿',
     iconAssetPath: 'assets/maps/items-flowers3_0.png',
     max_qty: 3,
-    effect_description: 'Restore 8 HP.',
+    effect_description: 'Restores 8 Resolve.',
   },
   {
     item_id: 'SAT-REM-002',
@@ -50,7 +50,7 @@ export const SATCHEL_CONSUMABLE_DEFS: readonly ConsumableItemDef[] = [
     icon_emoji: '🧪',
     iconAssetPath: 'assets/maps/vendor - potion 2.png',
     max_qty: 1,
-    effect_description: 'Restore 15 HP.',
+    effect_description: 'Restores 15 Resolve.',
   },
   {
     item_id: 'SAT-FOC-001',

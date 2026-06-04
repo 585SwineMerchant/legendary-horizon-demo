@@ -53,7 +53,7 @@ function TabButton({
         letterSpacing: '0.06em',
         textTransform: 'uppercase',
         background: active ? 'rgba(212,160,23,0.15)' : 'transparent',
-        color: active ? '#f0dfa0' : 'rgba(212,160,23,0.55)',
+        color: active ? '#f0dfa0' : 'rgba(212,160,23,0.75)',
         border: 'none',
         borderBottom: active ? '2px solid #d4a017' : '2px solid transparent',
         cursor: 'pointer',
@@ -104,7 +104,7 @@ function ConsumableCard({
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#e8dcc8' }}>{label}</p>
-        <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.4 }}>
+        <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.65)', lineHeight: 1.4 }}>
           {def?.effect_description ?? ''}
         </p>
         <p style={{ margin: '4px 0 0', fontSize: 11, color: 'rgba(212,160,23,0.7)' }}>
@@ -177,7 +177,7 @@ function FieldKitCard({
             </span>
           ) : null}
         </p>
-        <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.4)', lineHeight: 1.4 }}>
+        <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.62)', lineHeight: 1.4 }}>
           {def?.effect_description ?? ''}
         </p>
       </div>
@@ -188,7 +188,7 @@ function FieldKitCard({
 function MementoGrid({ mementos }: { mementos: MementoEntryV1[] }) {
   if (mementos.length === 0) {
     return (
-      <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', margin: 0, lineHeight: 1.5 }}>
+      <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', margin: 0, lineHeight: 1.5 }}>
         No mementos collected yet. Complete quests and explore guild halls to discover them.
       </p>
     );
@@ -219,7 +219,7 @@ function MementoGrid({ mementos }: { mementos: MementoEntryV1[] }) {
         >
           <span style={{ fontSize: 32 }} aria-hidden>{m.icon_emoji ?? '🏅'}</span>
           <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#f0dfa0', lineHeight: 1.2 }}>{m.label}</p>
-          <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.35)' }}>
+          <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.55)' }}>
             {new Date(m.acquired_at_iso).toLocaleDateString()}
           </p>
         </div>
@@ -240,7 +240,7 @@ export function SatchelOverlay({ open, player, onClose, onUseConsumable, onDevGr
   const isDev = import.meta.env.DEV;
 
   const tabBar = (
-    <div style={{ display: 'flex', borderBottom: '1px solid rgba(212,160,23,0.12)' }}>
+    <div style={{ display: 'flex', justifyContent: 'center', borderBottom: '1px solid rgba(212,160,23,0.12)', width: '100%' }}>
       <TabButton active={tab === 'satchel'} label="Satchel" onClick={() => setTab('satchel')} />
       <TabButton active={tab === 'field_kit'} label="Field Kit" onClick={() => setTab('field_kit')} />
       <TabButton active={tab === 'mementos'} label="Mementos" onClick={() => setTab('mementos')} />
@@ -258,11 +258,11 @@ export function SatchelOverlay({ open, player, onClose, onUseConsumable, onDevGr
       tabs={tabBar}
     >
       {/* Body */}
-      <div style={{ padding: '20px 24px' }}>
+      <div style={{ padding: '20px 24px', maxWidth: 640, margin: '0 auto', width: '100%' }}>
 
         {tab === 'satchel' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <p style={{ margin: '0 0 10px', fontSize: 12, color: 'rgba(255,255,255,0.4)', lineHeight: 1.4 }}>
+            <p style={{ margin: '0 0 10px', fontSize: 12, color: 'rgba(255,255,255,0.62)', lineHeight: 1.4 }}>
               Consumables are used from the Satchel during exploration. Items are replenished
               by quest rewards and realm discoveries.
             </p>
@@ -274,14 +274,14 @@ export function SatchelOverlay({ open, player, onClose, onUseConsumable, onDevGr
               />
             ))}
             {inventory.consumables.length === 0 ? (
-              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 13 }}>No consumables available.</p>
+              <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13 }}>No consumables available.</p>
             ) : null}
           </div>
         ) : null}
 
         {tab === 'field_kit' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <p style={{ margin: '0 0 10px', fontSize: 12, color: 'rgba(255,255,255,0.4)', lineHeight: 1.4 }}>
+            <p style={{ margin: '0 0 10px', fontSize: 12, color: 'rgba(255,255,255,0.62)', lineHeight: 1.4 }}>
               Field Kit tools are permanent equipment. Once owned, they are always active.
             </p>
             {inventory.field_kit.map((t) => (
@@ -292,13 +292,13 @@ export function SatchelOverlay({ open, player, onClose, onUseConsumable, onDevGr
 
         {tab === 'mementos' ? (
           <div>
-            <p style={{ margin: '0 0 14px', fontSize: 12, color: 'rgba(255,255,255,0.4)', lineHeight: 1.4 }}>
+            <p style={{ margin: '0 0 14px', fontSize: 12, color: 'rgba(255,255,255,0.62)', lineHeight: 1.4 }}>
               Mementos are cosmetic collectibles earned through exploration and streak milestones.
             </p>
             {/* Streak milestone badges */}
             {inventory.cosmetics.unlocked_titles.length > 0 || inventory.cosmetics.unlocked_badges.length > 0 ? (
               <div style={{ marginBottom: 16 }}>
-                <p style={{ margin: '0 0 8px', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.6)' }}>
+                <p style={{ margin: '0 0 8px', fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.80)' }}>
                   Earned Honors
                 </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -360,7 +360,7 @@ export function SatchelOverlay({ open, player, onClose, onUseConsumable, onDevGr
             </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
               <div>
-                <label style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Item ID</label>
+                <label style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.62)', marginBottom: 4 }}>Item ID</label>
                 <input
                   type="text"
                   value={devItemId}
@@ -378,7 +378,7 @@ export function SatchelOverlay({ open, player, onClose, onUseConsumable, onDevGr
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Qty</label>
+                <label style={{ display: 'block', fontSize: 10, color: 'rgba(255,255,255,0.62)', marginBottom: 4 }}>Qty</label>
                 <input
                   type="number"
                   min={1}

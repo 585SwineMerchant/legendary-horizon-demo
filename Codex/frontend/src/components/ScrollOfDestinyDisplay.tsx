@@ -3,14 +3,13 @@ import type { PlayerSave, QuestDefinition, RealmDefinition } from '../types';
 import type { ExplorationLoopState, EncounterLogEntryV1 } from '../domain/lh-contract';
 import type { RealmProgressMap } from '../realm/realmProgress';
 import { GUILD_RUNES } from '../data/guildRunes';
-import { getGuildById } from '../data/guildData';
 import type { RiasecScores } from '../modules/act1/signpostAlgorithm';
 import { ResolveBar } from './ResolveBar';
 import { parseSatchelInventory, getTitleLabel, CAMPFIRE_STREAK_MILESTONES } from '../data/itemCatalog';
 import { ScrollSubMenuShell } from './ScrollSubMenuShell';
 import { ScrollFrameStage } from './scrollUI/ScrollFrameStage';
-import { ScrollSideNav, ScrollSideNavButton } from './scrollUI/ScrollSideNav';
-import { SCROLL_ASSETS } from './scrollUI/scrollAssets';
+import { ScrollSideNavButton } from './scrollUI/ScrollSideNav';
+import { SCROLL_ASSETS, RUNE_ASSETS } from './scrollUI/scrollAssets';
 import { ScrollLayoutCalibrator } from './scrollUI/ScrollLayoutCalibrator';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -66,15 +65,22 @@ type Props = {
 const SCROLL_REF = { w: 1280, h: 720 } as const;
 
 const SCROLL_LAYOUT = {
-  // ── Calibrated 2026-06-02 via ?lh_scroll_layout_debug=1 (pass 3) ───────
-  portrait:  { left: 567, top: 129, width: 149, height: 132 },
+  // ── Calibrated 2026-06-03 via ?lh_scroll_layout_debug=1 (pass 5) ───────
+  portrait:  { left: 578, top: 131, width: 130, height: 130 },
   name:      { left: 548, top: 238, width: 188, height:  21 },
   leftCol:   { left: 252, top: 246, width: 147, height: 268 },
   center:    { left: 430, top: 296, width: 423, height: 241 },
   rightCol:  { left: 881, top: 247, width: 144, height: 265 },
-  sigil1:    { left: 374, top: 539, width: 142, height: 112 },
-  sigil2:    { left: 570, top: 541, width: 142, height: 112 },
-  sigil3:    { left: 757, top: 548, width: 142, height: 112 },
+  sigil1:    { left: 374, top: 538, width: 142, height: 112 },
+  sigil2:    { left: 570, top: 537, width: 142, height: 112 },
+  sigil3:    { left: 757, top: 538, width: 142, height: 112 },
+  // ── Nav button zones — calibrated via dev tool ────────────────────────
+  btnFieldJournal:  { left: -30, top:  95, width: 132, height: 154 },
+  btnQuestLog:      { left: -30, top: 300, width: 132, height: 154 },
+  btnSatchel:       { left: -30, top: 505, width: 132, height: 154 },
+  btnWorldAtlas:    { left: 1180, top:  95, width: 132, height: 154 },
+  btnMakeCamp:      { left: 1180, top: 300, width: 132, height: 154 },
+  btnReturnToGame:  { left: 1180, top: 505, width: 132, height: 154 },
 } as const;
 
 /** Convert a SCROLL_LAYOUT region to absolute-% CSS within the scroll container. */
@@ -93,8 +99,8 @@ function toOverlayCss(
 
 // ── Ink-on-parchment text styles ──────────────────────────────────────────
 const INK = '#1c0f00';
-const INK_DIM = 'rgba(28,15,0,0.6)';
-const INK_LABEL = 'rgba(28,15,0,0.45)';
+const INK_DIM = 'rgba(28,15,0,0.72)';
+const INK_LABEL = 'rgba(28,15,0,0.60)';
 const GOLD_INK = '#7a4e00';
 
 // ── Scroll Hub View ────────────────────────────────────────────────────────
@@ -108,16 +114,16 @@ function RiasecScrollRow({ code, score }: { code: keyof RiasecScores; score: num
   const isTop = score >= 14;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-      <span style={{ width: 12, fontSize: '0.62em', fontWeight: 700, color: isTop ? GOLD_INK : INK_LABEL, textAlign: 'center', flexShrink: 0, letterSpacing: '0.04em' }}>
+      <span style={{ width: 13, fontSize: '0.70em', fontWeight: 700, color: isTop ? GOLD_INK : INK_LABEL, textAlign: 'center', flexShrink: 0, letterSpacing: '0.04em' }}>
         {meta.short}
       </span>
-      <span style={{ width: 68, fontSize: '0.58em', color: isTop ? INK : INK_DIM, letterSpacing: '0.01em', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <span style={{ width: 68, fontSize: '0.66em', color: isTop ? INK : INK_DIM, letterSpacing: '0.01em', flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {meta.full}
       </span>
       <div style={{ flex: 1, height: 4, background: 'rgba(28,15,0,0.08)', borderRadius: 2, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${pct}%`, background: isTop ? '#7a4e00' : 'rgba(28,15,0,0.30)', borderRadius: 2, transition: 'width 0.3s ease' }} />
       </div>
-      <span style={{ width: 16, fontSize: '0.62em', fontWeight: isTop ? 700 : 400, color: isTop ? GOLD_INK : INK_LABEL, textAlign: 'right', flexShrink: 0 }}>
+      <span style={{ width: 18, fontSize: '0.70em', fontWeight: isTop ? 700 : 400, color: isTop ? GOLD_INK : INK_LABEL, textAlign: 'right', flexShrink: 0 }}>
         {score}
       </span>
     </div>
@@ -154,7 +160,6 @@ function ScrollHubView({
     .slice(0, 3);
 
   const streak = player?.campfire_streak ?? 0;
-  const tier   = player?.rested_readiness_tier;
 
   // Build exactly 3 signpost slots — empty slots show "not yet revealed"
   const signposts = [
@@ -168,22 +173,31 @@ function ScrollHubView({
     <ScrollFrameStage zIndex={8500} variant="hub">
 
       {/* ── LEFT SIDE NAV ── Field Journal · Quest Log · Satchel ─── */}
-      <ScrollSideNav side="left">
-        <ScrollSideNavButton label="Field Journal" icon="📜" onClick={onOpenJournal} />
-        <ScrollSideNavButton label="Quest Log"     icon="◈"  onClick={onOpenQuestLog} />
-        <ScrollSideNavButton label="Satchel"       icon="⚗"  onClick={onOpenInventory} />
-      </ScrollSideNav>
+      {/* Positions driven by SCROLL_LAYOUT.btn* zones — calibrate with dev tool */}
+      <ScrollSideNavButton label="Field Journal" icon="📜" onClick={onOpenJournal}   layoutRect={SCROLL_LAYOUT.btnFieldJournal}  scrollRef={SCROLL_REF} />
+      <ScrollSideNavButton label="Quest Log"     icon="◈"  onClick={onOpenQuestLog}  layoutRect={SCROLL_LAYOUT.btnQuestLog}      scrollRef={SCROLL_REF} />
+      <ScrollSideNavButton label="Satchel"       icon="⚗"  onClick={onOpenInventory} layoutRect={SCROLL_LAYOUT.btnSatchel}       scrollRef={SCROLL_REF} />
 
-      {/* ── TRAVELER PORTRAIT — fills the scroll oval, clipped to ellipse ── */}
-      {/* Zone is 149×132 px — border-radius:50% creates the oval clip.        */}
-      {/* objectPosition:center top keeps the character's face/torso visible.  */}
+      {/* ── TRAVELER PORTRAIT — masked into the scroll's circular socket ──── */}
+      {/* Layer stack (bottom→top):                                            */}
+      {/*   z0  base scroll image (in ScrollFrameStage)                        */}
+      {/*   z1  Traveler portrait, clipped to a circle in the socket           */}
+      {/*   z2  occluder copies of the scroll art (banner top + nameplate)     */}
+      {/*   z3  player name text                                               */}
+      {/* The portrait sits BEHIND the occluders so the painted banner above   */}
+      {/* and the nameplate below tuck over it — the Traveler reads as embedded */}
+      {/* in the socket, not pasted on top.                                    */}
       <div
         style={{
           ...toOverlayCss(SCROLL_LAYOUT.portrait),
           borderRadius: '50%',
           overflow: 'hidden',
-          border: '3px solid rgba(212,168,28,0.65)',
-          boxShadow: '0 0 16px rgba(180,120,0,0.40), 0 0 4px rgba(0,0,0,0.55)',
+          // Warm parchment fill — multiply on the sprite dissolves any light
+          // background into this tone so no rectangular/white bounds show.
+          background: 'rgba(216,185,122,0.95)',
+          // Faint warm rim glow seats the medallion into the socket (outer only).
+          boxShadow: '0 0 9px rgba(196,134,28,0.32), 0 0 3px rgba(0,0,0,0.50)',
+          zIndex: 1,
         }}
       >
         <img
@@ -194,23 +208,86 @@ function ScrollHubView({
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            objectPosition: 'center top',
             userSelect: 'none',
             display: 'block',
+            mixBlendMode: 'multiply',
+            // Frame the hood/head + torso: scale the figure down slightly and
+            // nudge it up so the lower body falls into the nameplate-covered zone.
+            transform: 'scale(0.9) translateY(-9px)',
+            transformOrigin: 'center center',
+          }}
+        />
+        {/* Inner radial vignette + edge darkening — makes the portrait feel
+            recessed inside the medallion rather than flat. Sits above the sprite. */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            inset: 0,
+            borderRadius: '50%',
+            background:
+              'radial-gradient(circle at 50% 42%, rgba(0,0,0,0) 46%, rgba(34,18,2,0.30) 78%, rgba(24,12,0,0.52) 100%)',
+            pointerEvents: 'none',
           }}
         />
       </div>
 
-      {/* ── NAME — player name only in the banner below the portrait ── */}
+      {/* ── OCCLUDERS — clipped copies of the scroll art, layered OVER portrait ── */}
+      {/* The scroll background is one flat image, so we re-draw the banner (top)   */}
+      {/* and nameplate (bottom) regions on top of the portrait. Using the actual  */}
+      {/* art guarantees a pixel-perfect overlap (no colour guessing). Both fill    */}
+      {/* the 16:9 frame identically to the base image (objectFit:fill, inset:0).   */}
+
+      {/* Top banner occluder — reveals scroll art from y0 down to ~22% */}
+      <img
+        src={SCROLL_ASSETS.hub}
+        alt=""
+        aria-hidden
+        draggable={false}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'fill',
+          clipPath: 'inset(0 0 78% 0)',
+          pointerEvents: 'none',
+          userSelect: 'none',
+          zIndex: 2,
+        }}
+      />
+
+      {/* Bottom nameplate occluder — reveals scroll art y31.5–40%, x40–60%.
+          Top edge pulled up slightly so the nameplate covers more lower body. */}
+      <img
+        src={SCROLL_ASSETS.hub}
+        alt=""
+        aria-hidden
+        draggable={false}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'fill',
+          clipPath: 'inset(31.5% 40% 60% 40%)',
+          pointerEvents: 'none',
+          userSelect: 'none',
+          zIndex: 2,
+        }}
+      />
+
+      {/* ── NAME — rendered above the nameplate occluder (z-index:3) ─── */}
       <div
         style={{
           ...toOverlayCss(SCROLL_LAYOUT.name),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          zIndex: 3,
         }}
       >
-        <p style={{ margin: 0, fontSize: '0.95em', fontWeight: 700, color: INK, lineHeight: 1, textAlign: 'center', letterSpacing: '0.03em' }}>
+        <p style={{ margin: 0, fontSize: '1.05em', fontWeight: 700, color: INK, lineHeight: 1, textAlign: 'center', letterSpacing: '0.03em' }}>
           {player?.display_name ?? '—'}
         </p>
       </div>
@@ -224,24 +301,24 @@ function ScrollHubView({
           gap: 4,
         }}
       >
-        <p style={{ margin: '0 0 4px', fontSize: '0.57em', textTransform: 'uppercase', letterSpacing: '0.12em', color: INK_LABEL }}>
+        <p style={{ margin: '0 0 4px', fontSize: '0.64em', textTransform: 'uppercase', letterSpacing: '0.12em', color: INK_LABEL }}>
           Active Quests
         </p>
         {activeQuests.length > 0 ? (
           activeQuests.map((q) => (
             <div key={q.quest_id} style={{ padding: '3px 0', borderBottom: '1px solid rgba(28,15,0,0.09)' }}>
-              <p style={{ margin: 0, fontSize: '0.72em', fontWeight: 700, color: INK, lineHeight: 1.2 }}>{q.title}</p>
-              <p style={{ margin: 0, fontSize: '0.61em', color: INK_DIM, lineHeight: 1.2 }}>{q.objective_short}</p>
+              <p style={{ margin: 0, fontSize: '0.80em', fontWeight: 700, color: INK, lineHeight: 1.2 }}>{q.title}</p>
+              <p style={{ margin: 0, fontSize: '0.69em', color: INK_DIM, lineHeight: 1.2 }}>{q.objective_short}</p>
             </div>
           ))
         ) : (
-          <p style={{ margin: 0, fontSize: '0.68em', color: INK_DIM, fontStyle: 'italic' }}>No active quests.</p>
+          <p style={{ margin: 0, fontSize: '0.76em', color: INK_DIM, fontStyle: 'italic' }}>No active quests.</p>
         )}
         <div style={{ margin: '8px 0 5px', height: 1, background: 'rgba(28,15,0,0.11)' }} />
-        <p style={{ margin: '0 0 3px', fontSize: '0.57em', textTransform: 'uppercase', letterSpacing: '0.12em', color: INK_LABEL }}>
+        <p style={{ margin: '0 0 3px', fontSize: '0.64em', textTransform: 'uppercase', letterSpacing: '0.12em', color: INK_LABEL }}>
           Current Directive
         </p>
-        <p style={{ margin: 0, fontSize: '0.75em', fontWeight: 700, color: INK, lineHeight: 1.35 }}>
+        <p style={{ margin: 0, fontSize: '0.84em', fontWeight: 700, color: INK, lineHeight: 1.35 }}>
           {player?.required_next_action || 'Speak with the Master Scribe'}
         </p>
         {player ? <div style={{ marginTop: 6 }}><ResolveBar player={player} /></div> : null}
@@ -257,8 +334,8 @@ function ScrollHubView({
           padding: '5px 10px',
         }}
       >
-        <p style={{ margin: '0 0 4px', fontSize: '0.57em', textTransform: 'uppercase', letterSpacing: '0.12em', color: INK_LABEL }}>
-          Mirror of Maia · Base Stats
+        <p style={{ margin: '0 0 4px', fontSize: '0.64em', textTransform: 'uppercase', letterSpacing: '0.12em', color: INK_LABEL }}>
+          Maia · Base Stats
         </p>
         {riasecScores && Object.values(riasecScores).some((v) => v > 0) ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -267,7 +344,7 @@ function ScrollHubView({
             ))}
           </div>
         ) : (
-          <p style={{ margin: 0, fontSize: '0.65em', color: INK_DIM, fontStyle: 'italic', lineHeight: 1.45 }}>
+          <p style={{ margin: 0, fontSize: '0.73em', color: INK_DIM, fontStyle: 'italic', lineHeight: 1.45 }}>
             Base Stats unrevealed — complete the Master Scribe survey to inscribe your profile.
           </p>
         )}
@@ -282,7 +359,7 @@ function ScrollHubView({
           gap: 5,
         }}
       >
-        <p style={{ margin: '0 0 2px', fontSize: '0.57em', textTransform: 'uppercase', letterSpacing: '0.12em', color: INK_LABEL }}>
+        <p style={{ margin: '0 0 2px', fontSize: '0.64em', textTransform: 'uppercase', letterSpacing: '0.12em', color: INK_LABEL }}>
           Traveler Record
         </p>
         {[
@@ -290,25 +367,45 @@ function ScrollHubView({
           { label: 'Rank', value: player ? `Level ${player.level_cached}` : '—' },
         ].map(({ label, value }) => (
           <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <p style={{ margin: 0, fontSize: '0.63em', color: INK_DIM }}>{label}</p>
-            <p style={{ margin: 0, fontSize: '0.70em', fontWeight: 700, color: INK }}>{value}</p>
+            <p style={{ margin: 0, fontSize: '0.71em', color: INK_DIM }}>{label}</p>
+            <p style={{ margin: 0, fontSize: '0.78em', fontWeight: 700, color: INK }}>{value}</p>
           </div>
         ))}
         <div style={{ height: 1, background: 'rgba(28,15,0,0.10)', margin: '2px 0' }} />
         {streak > 0 ? (
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <p style={{ margin: 0, fontSize: '0.63em', color: INK_DIM }}>Campfire</p>
-            <p style={{ margin: 0, fontSize: '0.70em', fontWeight: 700, color: '#b45309' }}>🔥 {streak}</p>
+            <p style={{ margin: 0, fontSize: '0.71em', color: INK_DIM }}>Campfire</p>
+            <p style={{ margin: 0, fontSize: '0.78em', fontWeight: 700, color: '#b45309' }}>🔥 {streak}</p>
           </div>
         ) : null}
-        {tier ? (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <p style={{ margin: 0, fontSize: '0.63em', color: INK_DIM }}>Rest</p>
-            <p style={{ margin: 0, fontSize: '0.63em', fontWeight: 600, color: GOLD_INK, textTransform: 'capitalize' }}>
-              {tier.replace(/_/g, ' ')}
-            </p>
-          </div>
-        ) : null}
+      </div>
+
+      {/* ── ORACLE'S PROPHECY BANNER — major title, centered x+y ──────── */}
+      {/* Spans the decorative horizontal band between content and sigils.     */}
+      <div
+        style={{
+          position: 'absolute',
+          left:  `${(394  / SCROLL_REF.w) * 100}%`,
+          top:   `${(504  / SCROLL_REF.h) * 100}%`,
+          width: `${(492  / SCROLL_REF.w) * 100}%`,
+          height:`${(34   / SCROLL_REF.h) * 100}%`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+        }}
+      >
+        {/* Left decorative rule */}
+        <div aria-hidden style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, transparent, rgba(28,15,0,0.30))' }} />
+        <span aria-hidden style={{ width: 5, height: 5, background: GOLD_INK, transform: 'rotate(45deg)', flexShrink: 0, opacity: 0.7 }} />
+
+        <p style={{ margin: 0, fontSize: '0.84em', fontWeight: 700, fontFamily: 'var(--lh-guild-display, "Cinzel", serif)', textTransform: 'uppercase', letterSpacing: '0.20em', color: GOLD_INK, lineHeight: 1, whiteSpace: 'nowrap' }}>
+          Oracle's Prophecy
+        </p>
+
+        <span aria-hidden style={{ width: 5, height: 5, background: GOLD_INK, transform: 'rotate(45deg)', flexShrink: 0, opacity: 0.7 }} />
+        {/* Right decorative rule */}
+        <div aria-hidden style={{ flex: 1, height: 1, background: 'linear-gradient(270deg, transparent, rgba(28,15,0,0.30))' }} />
       </div>
 
       {/* ── BOTTOM CIRCLES — Foretold Signposts ─────────────────── */}
@@ -329,12 +426,12 @@ function ScrollHubView({
             {realmId ? (
               <>
                 <RuneGlyph guildId={realmId} />
-                <p style={{ margin: 0, fontSize: '0.57em', fontWeight: 700, color: INK, lineHeight: 1.2, textAlign: 'center' }}>
+                <p style={{ margin: 0, fontSize: '0.65em', fontWeight: 700, color: INK, lineHeight: 1.2, textAlign: 'center' }}>
                   {realm?.display_name ?? realmId}
                 </p>
               </>
             ) : (
-              <p style={{ margin: 0, fontSize: '0.58em', color: INK_LABEL, fontStyle: 'italic', textAlign: 'center' }}>
+              <p style={{ margin: 0, fontSize: '0.66em', color: INK_LABEL, fontStyle: 'italic', textAlign: 'center' }}>
                 Signpost {i + 1}
               </p>
             )}
@@ -343,11 +440,9 @@ function ScrollHubView({
       })}
 
       {/* ── RIGHT SIDE NAV ── World Atlas · Make Camp · Return ───── */}
-      <ScrollSideNav side="right">
-        <ScrollSideNavButton label="World Atlas"     icon="⚑" onClick={onOpenRealmAtlas} />
-        <ScrollSideNavButton label="Make Camp"       icon="🔥" onClick={onEndSession} primary />
-        <ScrollSideNavButton label="Return to Game"           onClick={onClose} primary />
-      </ScrollSideNav>
+      <ScrollSideNavButton label="World Atlas"     icon="⚑" onClick={onOpenRealmAtlas} layoutRect={SCROLL_LAYOUT.btnWorldAtlas}    scrollRef={SCROLL_REF} />
+      <ScrollSideNavButton label="Make Camp"       icon="🔥" onClick={onEndSession}     layoutRect={SCROLL_LAYOUT.btnMakeCamp}     scrollRef={SCROLL_REF} primary />
+      <ScrollSideNavButton label="Return to Game"            onClick={onClose}           layoutRect={SCROLL_LAYOUT.btnReturnToGame} scrollRef={SCROLL_REF} primary />
 
       {/* DEV ONLY — layout calibration overlay. Activate with ?lh_scroll_layout_debug=1 */}
       <ScrollLayoutCalibrator scrollLayout={SCROLL_LAYOUT} scrollRef={SCROLL_REF} />
@@ -356,23 +451,33 @@ function ScrollHubView({
   );
 }
 
-// ── Shared button style (journal mode) ────────────────────────────────────
-
-const btnStyle: React.CSSProperties = {
-  padding: '8px 18px',
-  background: 'rgba(212,160,23,0.1)',
-  border: '1px solid rgba(212,160,23,0.3)',
-  borderRadius: 3,
-  color: '#d4a017',
-  fontSize: 12,
-  cursor: 'pointer',
-  fontFamily: 'serif',
-  letterSpacing: '0.04em',
-};
-
 // ── Journal Tab Components ─────────────────────────────────────────────────
 
 function RuneGlyph({ guildId }: { guildId: string }) {
+  const runeAsset = RUNE_ASSETS[guildId];
+
+  // Prefer the PNG rune medallion asset when available
+  if (runeAsset) {
+    return (
+      <img
+        src={runeAsset}
+        alt=""
+        aria-hidden
+        draggable={false}
+        style={{
+          width: '85%',
+          height: '85%',
+          objectFit: 'contain',
+          display: 'block',
+          userSelect: 'none',
+          pointerEvents: 'none',
+          filter: 'drop-shadow(0 2px 6px rgba(180,100,0,0.45))',
+        }}
+      />
+    );
+  }
+
+  // Fallback: inline SVG rune from guildRunes.ts
   const rune = GUILD_RUNES[guildId];
   if (!rune) return null;
   return (
@@ -383,163 +488,179 @@ function RuneGlyph({ guildId }: { guildId: string }) {
   );
 }
 
-function HollandCodeTile({ code, score }: { code: keyof RiasecScores; score: number }) {
-  const meta = RIASEC_LABELS[code];
-  const pct  = Math.min(100, Math.round((score / 20) * 100));
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: 4, border: '1px solid rgba(255,255,255,0.08)' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: '#d4a017', letterSpacing: '0.06em' }}>{meta.short}</span>
-        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.04em' }}>{meta.full}</span>
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', minWidth: 24, textAlign: 'right' }}>{score}</span>
-      </div>
-      <div style={{ height: 5, background: 'rgba(255,255,255,0.1)', borderRadius: 3, overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: 'linear-gradient(90deg,#d4a017,#f59e0b)', borderRadius: 3 }} />
-      </div>
-    </div>
-  );
+// ── Work Files — document shelf data ─────────────────────────────────────
+
+type WorkFileStatus = 'available' | 'in_progress' | 'locked';
+
+interface WorkFileEntry {
+  id: string;
+  fantasyTitle: string;
+  realTitle: string;
+  loreDesc: string;
+  status: WorkFileStatus;
+  lockLabel: string | null;
+  btnLabel: string;
 }
 
-const EMPTY_RIASEC: RiasecScores = { r: 0, i: 0, a: 0, s: 0, e: 0, c: 0 };
+function buildWorkFiles(player: PlayerSave | null): WorkFileEntry[] {
+  const hasSave    = player !== null;
+  const hasStarted = hasSave && (player.xp_total > 0 || player.current_act > 1);
+  return [
+    {
+      id: 'scroll_of_destiny',
+      fantasyTitle: 'Scroll of Destiny',
+      realTitle: 'Career Plan',
+      loreDesc: "The Traveler's official save record — your NYS Career Development Plan.",
+      status: hasStarted ? 'in_progress' : 'available',
+      lockLabel: null,
+      btnLabel: hasStarted ? 'Review' : 'Open',
+    },
+    {
+      id: 'mirror_of_maia',
+      fantasyTitle: 'Mirror of Maia Findings',
+      realTitle: 'Maia Learning Results',
+      loreDesc: 'Base stats and signpost evidence revealed by the Mirror of Maia survey.',
+      status: 'locked',
+      lockLabel: 'Locked — Complete Mirror of Maia',
+      btnLabel: 'Locked',
+    },
+    {
+      id: 'quest_of_fate',
+      fantasyTitle: 'Quest of Fate Worksheet',
+      realTitle: 'Career Research Worksheet',
+      loreDesc: 'First guided career prophecy research — your initial path inquiry.',
+      status: 'locked',
+      lockLabel: 'Locked — Act II',
+      btnLabel: 'Coming Soon',
+    },
+    {
+      id: 'comparison_ledger',
+      fantasyTitle: 'Comparison Ledger',
+      realTitle: 'Career Comparison Notes',
+      loreDesc: 'Evidence from three foretold paths — side-by-side career analysis.',
+      status: 'locked',
+      lockLabel: 'Locked — Act II / III',
+      btnLabel: 'Coming Soon',
+    },
+    {
+      id: 'realm_recon',
+      fantasyTitle: 'Realm Reconnaissance Notes',
+      realTitle: 'Career Cluster Research',
+      loreDesc: 'Guild and career cluster research notes from your scouting missions.',
+      status: 'locked',
+      lockLabel: 'Locked — Act III',
+      btnLabel: 'Coming Soon',
+    },
+    {
+      id: 'campfire_reflections',
+      fantasyTitle: 'Campfire Reflections',
+      realTitle: 'Exit Tickets / Reflection Log',
+      loreDesc: 'Fireside reflection records — your session journals and exit tickets.',
+      status: hasSave ? 'available' : 'locked',
+      lockLabel: hasSave ? null : 'Available after first save',
+      btnLabel: hasSave ? 'Open' : 'Locked',
+    },
+    {
+      id: 'enrollment_rune',
+      fantasyTitle: 'Enrollment Rune',
+      realTitle: 'Job Application',
+      loreDesc: 'Guild application draft — your formal career pathway application.',
+      status: 'locked',
+      lockLabel: 'Locked — Act IV',
+      btnLabel: 'Coming Soon',
+    },
+    {
+      id: 'trial_of_tongues',
+      fantasyTitle: 'Trial of Tongues Record',
+      realTitle: 'Interview Practice',
+      loreDesc: 'Interview trial notes and transcript — practice session records.',
+      status: 'locked',
+      lockLabel: 'Locked — Act IV',
+      btnLabel: 'Coming Soon',
+    },
+    {
+      id: 'grand_chronicle',
+      fantasyTitle: 'Grand Chronicle',
+      realTitle: 'Final Slides / Presentation',
+      loreDesc: 'Final path presentation — your completed journey compiled.',
+      status: 'locked',
+      lockLabel: 'Locked — Act V',
+      btnLabel: 'Coming Soon',
+    },
+  ];
+}
 
-function WorkFilesTab({
-  player, quests, allRealms, foretoldSignpostRealmIds, oracleDraft, riasecScores,
-  onOpenScrollViewer, onReviewProphecy, onOpenQuestOfFateWorksheet,
-}: Pick<Props, 'player'|'quests'|'allRealms'|'foretoldSignpostRealmIds'|'oracleDraft'|'riasecScores'|'onOpenScrollViewer'|'onReviewProphecy'|'onOpenQuestOfFateWorksheet'>) {
-  const scores = riasecScores ?? EMPTY_RIASEC;
-  const hasScores = Object.values(scores).some((v) => v > 0);
-  const sortedCodes = [...RIASEC_ORDER].sort((a, b) => scores[b] - scores[a]);
-  const topCode = sortedCodes[0];
-  const prophecyId    = oracleDraft?.prophecy_id ? Number(oracleDraft.prophecy_id) : 0;
-  const prophecyTitle = oracleDraft?.prophecy_title ?? '';
-  const hasProphecy   = prophecyId > 0 && prophecyTitle.length > 0;
-  const activeQuests  = quests.filter((q) => q.status === 'active' || q.status === 'available');
-  const completedCount = quests.filter((q) => q.status === 'completed' || q.status === 'turned_in').length;
-
+function WorkFilesTab({ player }: { player: PlayerSave | null }) {
+  const files = buildWorkFiles(player);
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 220px', gap: 0, flex: 1, minHeight: 0 }}>
-      {/* Holland Codes */}
-      <aside style={{ borderRight: '1px solid rgba(212,160,23,0.15)', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto' }}>
-        <h2 style={{ margin: '0 0 12px', fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.7)' }}>Holland Codes</h2>
-        {hasScores ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {RIASEC_ORDER.map((code) => <HollandCodeTile key={code} code={code} score={scores[code]} />)}
-          </div>
-        ) : (
-          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5, margin: 0 }}>
-            Complete the Traveler's Survey to reveal your Holland Code profile.
-          </p>
-        )}
-        {hasScores && (
-          <div style={{ marginTop: 'auto', paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-            <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.4)', lineHeight: 1.4 }}>
-              Leading code:{' '}
-              <strong style={{ color: '#d4a017' }}>{topCode.toUpperCase()} — {RIASEC_LABELS[topCode].full}</strong>
-            </p>
-          </div>
-        )}
-      </aside>
+    <div style={{ padding: '14px 20px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <p style={{ margin: '0 0 10px', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.55)' }}>
+        Document Shelf — Assignment Archive
+      </p>
+      {files.map((file) => {
+        const locked = file.status === 'locked';
+        return (
+          <div
+            key={file.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: '11px 15px',
+              background: locked ? 'rgba(255,255,255,0.02)' : 'rgba(212,160,23,0.07)',
+              border: locked ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(212,160,23,0.22)',
+              borderRadius: 4,
+              opacity: locked ? 0.52 : 1,
+            }}
+          >
+            <span style={{ fontSize: 20, flexShrink: 0 }} aria-hidden>
+              {locked ? '🔒' : file.status === 'in_progress' ? '📝' : '📜'}
+            </span>
 
-      {/* Center: Identity + Signposts + Prophecy */}
-      <main style={{ padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <section>
-          <h2 style={{ margin: '0 0 12px', fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.7)' }}>Traveler</h2>
-          <div style={{ padding: '14px 16px', background: 'rgba(212,160,23,0.06)', border: '1px solid rgba(212,160,23,0.18)', borderRadius: 4 }}>
-            <p style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: '#f0dfa0', letterSpacing: '0.02em' }}>{player?.display_name ?? '—'}</p>
-            <p style={{ margin: '0 0 10px', fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.08em' }}>
-              Act {player?.current_act ?? 1} Traveler · {player?.xp_total ?? 0} XP
-            </p>
-            {player ? <div style={{ marginTop: 8 }}><ResolveBar player={player} /></div> : null}
-            {player?.required_next_action ? (
-              <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(245,158,11,0.08)', borderLeft: '2px solid #f59e0b', borderRadius: 2 }}>
-                <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Next directive</p>
-                <p style={{ margin: '2px 0 0', fontSize: 13, color: '#e8dcc8', lineHeight: 1.4 }}>{player.required_next_action}</p>
-              </div>
-            ) : null}
-          </div>
-        </section>
-
-        <section>
-          <h2 style={{ margin: '0 0 12px', fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.7)' }}>Foretold Signposts</h2>
-          {foretoldSignpostRealmIds.length > 0 ? (
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              {foretoldSignpostRealmIds.map((realmId, idx) => {
-                const realm = allRealms.find((r) => r.realm_id === realmId);
-                const guild = getGuildById(realmId);
-                return (
-                  <div key={realmId} style={{ flex: '1 1 140px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '12px 10px', background: 'rgba(212,160,23,0.06)', border: '1px solid rgba(212,160,23,0.2)', borderRadius: 4, textAlign: 'center' }}>
-                    <span style={{ fontSize: 10, color: 'rgba(212,160,23,0.6)', letterSpacing: '0.1em' }}>{String(idx + 1).padStart(2, '0')}</span>
-                    <RuneGlyph guildId={realmId} />
-                    <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: '#f0dfa0', lineHeight: 1.2 }}>{realm?.display_name ?? realmId}</p>
-                    {guild?.career_cluster ? <p style={{ margin: 0, fontSize: 10, color: 'rgba(212,160,23,0.55)', lineHeight: 1.3 }}>{guild.career_cluster}</p> : null}
-                  </div>
-                );
-              })}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: locked ? 'rgba(232,220,200,0.45)' : '#f0dfa0', lineHeight: 1.2 }}>
+                {file.fantasyTitle}
+              </p>
+              <p style={{ margin: '2px 0 0', fontSize: 10, color: locked ? 'rgba(212,160,23,0.32)' : 'rgba(212,160,23,0.65)', letterSpacing: '0.07em', textTransform: 'uppercase' }}>
+                {file.realTitle}
+              </p>
+              <p style={{ margin: '5px 0 0', fontSize: 11, color: locked ? 'rgba(255,255,255,0.28)' : 'rgba(232,220,200,0.70)', lineHeight: 1.45 }}>
+                {file.loreDesc}
+              </p>
             </div>
-          ) : (
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5, margin: 0 }}>
-              Seal the Manifest with the Master Scribe to reveal your Signposts.
-            </p>
-          )}
-        </section>
 
-        <section>
-          <h2 style={{ margin: '0 0 12px', fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.7)' }}>Your Prophecy</h2>
-          {hasProphecy ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px', background: 'rgba(212,160,23,0.06)', borderRadius: 4, borderLeft: '3px solid #d4a017' }}>
-              <span style={{ fontSize: 24, fontWeight: 700, color: '#f59e0b', minWidth: 40, textAlign: 'center' }} aria-hidden>#{prophecyId}</span>
-              <div>
-                <p style={{ margin: 0, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.4)' }}>Destiny #{prophecyId}</p>
-                <p style={{ margin: '2px 0 0', fontSize: 14, fontWeight: 600, color: '#f0dfa0' }}>{prophecyTitle}</p>
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 7, flexShrink: 0 }}>
+              {file.lockLabel ? (
+                <span style={{ fontSize: 9, letterSpacing: '0.07em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.32)', whiteSpace: 'nowrap' }}>
+                  {file.lockLabel}
+                </span>
+              ) : (
+                <span style={{ fontSize: 9, letterSpacing: '0.07em', textTransform: 'uppercase', color: file.status === 'in_progress' ? '#f59e0b' : '#86efac', whiteSpace: 'nowrap' }}>
+                  {file.status === 'in_progress' ? 'In Progress' : 'Available'}
+                </span>
+              )}
+              <button
+                type="button"
+                disabled={locked}
+                style={{
+                  padding: '5px 14px',
+                  background: locked ? 'rgba(255,255,255,0.03)' : 'rgba(212,160,23,0.12)',
+                  border: locked ? '1px solid rgba(255,255,255,0.09)' : '1px solid rgba(212,160,23,0.35)',
+                  borderRadius: 3,
+                  color: locked ? 'rgba(255,255,255,0.28)' : '#d4a017',
+                  fontSize: 10,
+                  cursor: locked ? 'default' : 'pointer',
+                  letterSpacing: '0.05em',
+                  fontFamily: 'serif',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {file.btnLabel}
+              </button>
             </div>
-          ) : (
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5, margin: 0 }}>
-              Consult the Oracle of Fate to reveal your prophecy.
-            </p>
-          )}
-        </section>
-
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {onOpenScrollViewer && foretoldSignpostRealmIds.length > 0 ? (
-            <button type="button" onClick={onOpenScrollViewer} style={btnStyle}>Open Scroll Viewer</button>
-          ) : null}
-          {hasProphecy && onReviewProphecy ? (
-            <button type="button" onClick={onReviewProphecy} style={btnStyle}>Review Prophecy Research</button>
-          ) : null}
-          {hasProphecy && onOpenQuestOfFateWorksheet ? (
-            <button type="button" onClick={onOpenQuestOfFateWorksheet} style={{ ...btnStyle, color: '#e8dcc8', borderColor: 'rgba(255,255,255,0.2)' }}>Quest of Fate Worksheet</button>
-          ) : null}
-        </div>
-
-        <section>
-          <h2 style={{ margin: '0 0 10px', fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.7)' }}>Progress</h2>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {[{ label: 'Quests complete', value: completedCount }, { label: 'XP earned', value: player?.xp_total ?? 0 }].map((row) => (
-              <div key={row.label} style={{ flex: 1, display: 'flex', justifyContent: 'space-between', padding: '6px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 3, fontSize: 12 }}>
-                <span style={{ color: 'rgba(255,255,255,0.5)' }}>{row.label}</span>
-                <span style={{ color: '#f0dfa0', fontWeight: 700 }}>{row.value}</span>
-              </div>
-            ))}
           </div>
-        </section>
-
-        <section>
-          <h2 style={{ margin: '0 0 10px', fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.7)' }}>Active Quests</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {activeQuests.length > 0 ? (
-              activeQuests.slice(0, 8).map((q) => (
-                <div key={q.quest_id} style={{ padding: '7px 10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 3 }}>
-                  <p style={{ margin: 0, fontSize: 12, color: '#e8dcc8', lineHeight: 1.2, fontWeight: 600 }}>{q.title}</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 10, color: 'rgba(255,255,255,0.35)', lineHeight: 1.2 }}>{q.objective_short}</p>
-                </div>
-              ))
-            ) : (
-              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', margin: 0 }}>No active quests.</p>
-            )}
-          </div>
-        </section>
-      </main>
+        );
+      })}
     </div>
   );
 }
@@ -565,7 +686,7 @@ function JourneyReviewTab({ player, exploration }: { player: PlayerSave | null; 
             { label: 'Campfire streak',       value: player?.campfire_streak ?? 0 },
           ].map((stat) => (
             <div key={stat.label} style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 3 }}>
-              <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{stat.label}</p>
+              <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.60)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{stat.label}</p>
               <p style={{ margin: '4px 0 0', fontSize: 20, fontWeight: 700, color: '#f0dfa0' }}>{stat.value}</p>
             </div>
           ))}
@@ -578,7 +699,7 @@ function JourneyReviewTab({ player, exploration }: { player: PlayerSave | null; 
             {ledger.slice(-5).reverse().map((entry) => (
               <div key={entry.id} style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 3 }}>
                 <p style={{ margin: '0 0 4px', fontSize: 12, fontWeight: 700, color: '#e8dcc8' }}>{entry.career_a} vs {entry.career_b}</p>
-                <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.4 }}>{entry.note}</p>
+                <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.65)', lineHeight: 1.4 }}>{entry.note}</p>
               </div>
             ))}
           </div>
@@ -592,7 +713,7 @@ function EnemyRecordsTab({ exploration }: { exploration?: ExplorationLoopState |
   const log = exploration?.encounter_log ?? [];
   if (!log.length) return (
     <div style={{ padding: '20px 24px' }}>
-      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>No encounters recorded this session.</p>
+      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>No encounters recorded this session.</p>
     </div>
   );
   return (
@@ -626,7 +747,7 @@ function RealmNotesTab({ allRealms, realmProgress }: { allRealms: readonly Realm
   const visited = Object.entries(realmProgress ?? {}).filter(([, e]) => e?.entered);
   if (!visited.length) return (
     <div style={{ padding: '20px 24px' }}>
-      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)' }}>No realms visited yet.</p>
+      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>No realms visited yet.</p>
     </div>
   );
   return (
@@ -655,7 +776,7 @@ function RealmNotesTab({ allRealms, realmProgress }: { allRealms: readonly Realm
 }
 
 function MementosTab({ player }: { player: PlayerSave | null }) {
-  if (!player) return <div style={{ padding: '20px 24px' }}><p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>No player loaded.</p></div>;
+  if (!player) return <div style={{ padding: '20px 24px' }}><p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>No player loaded.</p></div>;
   const inventory    = parseSatchelInventory(player.satchel_inventory_json);
   const { unlocked_titles, unlocked_badges } = inventory.cosmetics;
   const streak      = player.campfire_streak ?? 0;
@@ -684,7 +805,7 @@ function MementosTab({ player }: { player: PlayerSave | null }) {
                 <span style={{ fontSize: 18 }} aria-hidden>{earned ? '✅' : '○'}</span>
                 <div style={{ flex: 1 }}>
                   <p style={{ margin: 0, fontSize: 12, color: earned ? '#f0dfa0' : 'rgba(232,220,200,0.5)', fontWeight: 700 }}>{m.reward_label}</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.35)' }}>{m.description}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{m.description}</p>
                 </div>
                 <span style={{ fontSize: 11, color: 'rgba(212,160,23,0.6)' }}>Streak {m.streak}</span>
               </div>
@@ -729,7 +850,7 @@ function MementosTab({ player }: { player: PlayerSave | null }) {
       ) : null}
 
       {!hasMementos ? (
-        <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.35)', lineHeight: 1.5, margin: 0 }}>
+        <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5, margin: 0 }}>
           Complete quests, explore guilds, and maintain your campfire streak to collect mementos and titles.
         </p>
       ) : null}
@@ -755,7 +876,7 @@ function ReflectionArchiveTab({ player }: { player: PlayerSave | null }) {
             { label: 'Rested Readiness', value: tier ? tier.replace(/_/g, ' ') : '—' },
           ].map((stat) => (
             <div key={stat.label} style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 3 }}>
-              <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{stat.label}</p>
+              <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.60)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{stat.label}</p>
               <p style={{ margin: '4px 0 0', fontSize: 16, fontWeight: 700, color: '#f0dfa0', textTransform: 'capitalize' }}>{stat.value}</p>
             </div>
           ))}
@@ -763,7 +884,7 @@ function ReflectionArchiveTab({ player }: { player: PlayerSave | null }) {
       </section>
       <section>
         <h2 style={{ margin: '0 0 10px', fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.7)' }}>About the Codex</h2>
-        <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', lineHeight: 1.6, margin: 0 }}>
+        <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', lineHeight: 1.6, margin: 0 }}>
           Your campfire reflections are recorded in the Codex and reviewed by your teacher. A strong reflection
           earns a higher Rested Readiness tier, which increases the XP multiplier at the start of your next session.
           Maintain your streak to unlock titles and honors.
@@ -776,9 +897,7 @@ function ReflectionArchiveTab({ player }: { player: PlayerSave | null }) {
 // ── Journal Shell (tabs view) ─────────────────────────────────────────────
 
 function JournalShell({
-  player, quests, allRealms, foretoldSignpostRealmIds, oracleDraft, riasecScores,
-  exploration, realmProgress, onSave, onEndSession, onOpenQuestLog, onOpenRealmAtlas,
-  onOpenInventory, onOpenScrollViewer, onReviewProphecy, onOpenQuestOfFateWorksheet,
+  player, allRealms, exploration, realmProgress,
   onBackToScroll,
 }: Props & { onBackToScroll: () => void }) {
   const [activeTab, setActiveTab] = useState<FieldJournalTab>('work_files');
@@ -807,41 +926,6 @@ function JournalShell({
     </div>
   );
 
-  const journalFooter = (
-    <div style={{ display: 'flex', gap: 8, padding: '8px 20px', flexWrap: 'wrap' }}>
-      {[
-        { label: 'Quest Log',   handler: onOpenQuestLog,   highlight: false, dim: false },
-        { label: 'World Atlas', handler: onOpenRealmAtlas,  highlight: false, dim: false },
-        { label: 'Satchel',     handler: onOpenInventory,   highlight: false, dim: false },
-        { label: 'Make Camp',   handler: onSave,            highlight: true,  dim: false },
-        { label: 'End Session', handler: onEndSession,      highlight: false, dim: true  },
-      ].map(({ label, handler, highlight, dim }) =>
-        handler ? (
-          <button
-            key={label}
-            type="button"
-            onClick={handler}
-            style={{
-              padding: '7px 16px',
-              fontSize: 12,
-              fontFamily: 'serif',
-              letterSpacing: '0.04em',
-              background: highlight ? 'linear-gradient(135deg,#d4a017,#b8912a)' : 'rgba(255,255,255,0.06)',
-              color: highlight ? '#1a0e00' : dim ? 'rgba(220,180,130,0.6)' : '#e8dcc8',
-              border: highlight ? '1px solid #8a6a1a' : dim ? '1px solid rgba(180,120,40,0.25)' : '1px solid rgba(255,255,255,0.12)',
-              borderRadius: 3,
-              cursor: 'pointer',
-              fontWeight: highlight ? 700 : 400,
-              opacity: dim ? 0.85 : 1,
-            }}
-          >
-            {label}
-          </button>
-        ) : null,
-      )}
-    </div>
-  );
-
   return (
     <ScrollSubMenuShell
       title="Field Journal"
@@ -851,18 +935,11 @@ function JournalShell({
       ariaLabel="Field Journal"
       zIndex={8500}
       tabs={journalTabs}
-      footer={journalFooter}
     >
       {/* Tab content */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {activeTab === 'work_files' ? (
-          <WorkFilesTab
-            player={player} quests={quests} allRealms={allRealms}
-            foretoldSignpostRealmIds={foretoldSignpostRealmIds}
-            oracleDraft={oracleDraft} riasecScores={riasecScores}
-            onOpenScrollViewer={onOpenScrollViewer} onReviewProphecy={onReviewProphecy}
-            onOpenQuestOfFateWorksheet={onOpenQuestOfFateWorksheet}
-          />
+          <WorkFilesTab player={player} />
         ) : null}
         {activeTab === 'journey_review'     ? <JourneyReviewTab player={player} exploration={exploration} /> : null}
         {activeTab === 'enemy_records'      ? <EnemyRecordsTab  exploration={exploration} /> : null}

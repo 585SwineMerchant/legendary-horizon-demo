@@ -739,31 +739,31 @@ export function GT100GuardianBossModule({
               textAlign: 'center',
             }}
           >
-            <div style={{ fontSize: 'clamp(48px, 8vw, 80px)' }}>💀</div>
+            <div style={{ fontSize: 'clamp(36px, 6vw, 64px)' }}>🌀</div>
             <h2
               style={{
                 fontFamily: '"Cinzel", serif',
-                color: '#ef4444',
+                color: '#f59e0b',
                 fontSize: 'clamp(18px, 3vw, 28px)',
                 margin: 0,
-                textShadow: '0 0 20px rgba(239,68,68,0.6)',
+                textShadow: '0 0 20px rgba(245,158,11,0.45)',
                 letterSpacing: '0.1em',
               }}
             >
-              DEFEATED
+              OVERWHELMED
             </h2>
             <p
               style={{
                 fontFamily: '"Cinzel", serif',
                 color: '#d1d5db',
                 fontSize: 'clamp(10px, 1.4vw, 14px)',
-                maxWidth: 400,
+                maxWidth: 420,
                 lineHeight: 1.6,
                 margin: 0,
               }}
             >
-              The Guardian stands unbroken. But knowledge grows with each attempt —
-              review the career concepts and try again. There is no penalty for retrying.
+              The Guardian stands unbroken. Take a breath, recover your Resolve,
+              and try again when you are ready.
             </p>
             <button
               type="button"
@@ -771,7 +771,7 @@ export function GT100GuardianBossModule({
               style={{ marginTop: 8, minWidth: 160 }}
               onClick={handleRetry}
             >
-              Rise again & retry
+              Recover &amp; retry
             </button>
           </div>
 

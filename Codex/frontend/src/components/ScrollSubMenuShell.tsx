@@ -20,6 +20,12 @@
 
 import type { ReactNode } from 'react';
 import { ScrollFrameStage } from './scrollUI/ScrollFrameStage';
+import {
+  SUBMENU_SCROLL_LAYOUT,
+  SUBMENU_SCROLL_REF,
+  toSubmenuOverlayCss,
+} from './scrollUI/scrollSubmenuLayout';
+import { ScrollLayoutCalibrator } from './scrollUI/ScrollLayoutCalibrator';
 
 // ── Decorative diamond in the header rule lines ───────────────────────────
 function Diamond() {
@@ -46,7 +52,6 @@ export type ScrollSubMenuShellProps = {
   onBack: () => void;
   backLabel?: string;
   tabs?: ReactNode;
-  footer?: ReactNode;
   children: ReactNode;
   zIndex?: number;
   ariaLabel?: string;
@@ -58,7 +63,6 @@ export function ScrollSubMenuShell({
   onBack,
   backLabel = '← Scroll',
   tabs,
-  footer,
   children,
   zIndex = 8800,
   ariaLabel,
@@ -66,161 +70,99 @@ export function ScrollSubMenuShell({
   return (
     <ScrollFrameStage zIndex={zIndex} variant="submenu">
       {/*
-       * Content panel — positioned inside the blank scroll's ornamental border.
-       *
-       * Blank scroll parchment safe-zone (approx, 1280×720 reference):
-       *   left roller ends at ~12%  |  right roller starts at ~88%
-       *   top cap ends at    ~11%  |  bottom cap starts at  ~89%
-       *
-       * We sit the panel inside the inner ornamental frame, leaving the full
-       * blue-gold border and wooden rollers exposed as decorative framing.
-       *
-       *   left:16%  top:12%  width:68%  height:76%
-       *
-       * The semi-transparent dark background (≈45 % opacity) lets the warm
-       * parchment texture bleed through, producing an amber-dark ground that
-       * still reads as "writing on parchment" while keeping all existing
-       * light-text card components legible.
+       * Content panel — positioned by SUBMENU_SCROLL_LAYOUT.contentPanel.
+       * Tune via ?lh_scroll_layout_debug=1 → SUBMENU SHELL calibrator,
+       * then paste updated JSON back into scrollSubmenuLayout.ts.
        */}
       <div
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel ?? title}
         style={{
-          position: 'absolute',
-          left: '16%',
-          top: '12%',
-          width: '68%',
-          height: '76%',
-          /* Parchment bleeds through at ~45 % — warm amber-dark ground */
+          ...toSubmenuOverlayCss(SUBMENU_SCROLL_LAYOUT.contentPanel),
           background: 'rgba(6,3,1,0.46)',
           border: '1px solid rgba(180,138,30,0.55)',
           borderRadius: 2,
-          boxShadow:
-            '0 6px 36px rgba(0,0,0,0.55), inset 0 0 100px rgba(160,95,0,0.06)',
+          boxShadow: '0 6px 36px rgba(0,0,0,0.55), inset 0 0 100px rgba(160,95,0,0.06)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
           color: '#e8dcc8',
-          /* No font-family here — let each content component decide */
         }}
       >
-        {/* ── Header — centered Cinzel title + decorative rules ──────── */}
+        {/* ── Header — fully centered Cinzel title + decorative rules ─── */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            padding: '9px 14px 8px',
+            padding: '9px 20px 8px',
             borderBottom: '1px solid rgba(180,138,30,0.24)',
             flexShrink: 0,
-            /* Barely-there header tint — parchment shows through */
             background: 'rgba(0,0,0,0.06)',
             gap: 9,
           }}
         >
-          {/* Left rule */}
-          <div
-            style={{
-              flex: 1,
-              height: 1,
-              background:
-                'linear-gradient(90deg, transparent, rgba(180,138,30,0.55))',
-            }}
-          />
+          <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, transparent, rgba(180,138,30,0.55))' }} />
           <Diamond />
-
-          {/* Centered title block */}
           <div style={{ textAlign: 'center', flexShrink: 0, padding: '0 5px' }}>
-            <p
-              style={{
-                margin: 0,
-                fontSize: 9,
-                letterSpacing: '0.28em',
-                textTransform: 'uppercase',
-                color: 'rgba(212,168,40,0.60)',
-                fontFamily: 'var(--lh-guild-display, "Cinzel", serif)',
-              }}
-            >
+            <p style={{ margin: 0, fontSize: 9, letterSpacing: '0.28em', textTransform: 'uppercase', color: 'rgba(212,168,40,0.80)', fontFamily: 'var(--lh-guild-display, "Cinzel", serif)' }}>
               {subtitle}
             </p>
-            <h2
-              style={{
-                margin: '1px 0 0',
-                fontSize: 20,
-                fontWeight: 700,
-                /* Brighter amber — readable against the parchment-tinted dark */
-                color: '#f5e070',
-                letterSpacing: '0.07em',
-                fontFamily: 'var(--lh-guild-display, "Cinzel", serif)',
-                lineHeight: 1.1,
-              }}
-            >
+            <h2 style={{ margin: '1px 0 0', fontSize: 20, fontWeight: 700, color: '#f5e070', letterSpacing: '0.07em', fontFamily: 'var(--lh-guild-display, "Cinzel", serif)', lineHeight: 1.1 }}>
               {title}
             </h2>
           </div>
-
           <Diamond />
-          {/* Right rule */}
-          <div
-            style={{
-              flex: 1,
-              height: 1,
-              background:
-                'linear-gradient(270deg, transparent, rgba(180,138,30,0.55))',
-            }}
-          />
-
-          {/* Back button — parchment tab, top-right */}
-          <button
-            type="button"
-            onClick={onBack}
-            style={{
-              flexShrink: 0,
-              marginLeft: 5,
-              padding: '5px 13px',
-              background: 'rgba(212,168,40,0.13)',
-              border: '1px solid rgba(212,168,40,0.40)',
-              borderRadius: 2,
-              color: '#d4a820',
-              fontSize: 11,
-              cursor: 'pointer',
-              fontFamily: 'serif',
-              letterSpacing: '0.04em',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {backLabel}
-          </button>
+          <div style={{ flex: 1, height: 1, background: 'linear-gradient(270deg, transparent, rgba(180,138,30,0.55))' }} />
         </div>
 
-        {/* Optional tab bar */}
-        {tabs != null ? <div style={{ flexShrink: 0 }}>{tabs}</div> : null}
-
-        {/* Scrollable content */}
-        <div
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            minHeight: 0,
-          }}
-        >
-          {children}
-        </div>
-
-        {/* Optional footer */}
-        {footer != null ? (
-          <div
-            style={{
-              flexShrink: 0,
-              borderTop: '1px solid rgba(180,138,30,0.20)',
-            }}
-          >
-            {footer}
+        {/* Optional tab bar — centered */}
+        {tabs != null ? (
+          <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+            {tabs}
           </div>
         ) : null}
+
+        {/* Scrollable content */}
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          {children}
+        </div>
       </div>
+
+      {/* ── Back button — floating at calibrated position on the scroll stage ── */}
+      {/* Position driven by SUBMENU_SCROLL_LAYOUT.backButton. Sits outside       */}
+      {/* the content panel so it does not displace the header layout.            */}
+      <button
+        type="button"
+        onClick={onBack}
+        style={{
+          ...toSubmenuOverlayCss(SUBMENU_SCROLL_LAYOUT.backButton),
+          zIndex: zIndex + 10,
+          padding: '0',
+          background: 'rgba(212,168,40,0.13)',
+          border: '1px solid rgba(212,168,40,0.40)',
+          borderRadius: 2,
+          color: '#d4a820',
+          fontSize: 11,
+          cursor: 'pointer',
+          fontFamily: 'serif',
+          letterSpacing: '0.04em',
+          whiteSpace: 'nowrap',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {backLabel}
+      </button>
+
+      {/* DEV ONLY — submenu layout calibration. Activate with ?lh_scroll_layout_debug=1 */}
+      <ScrollLayoutCalibrator
+        scrollLayout={SUBMENU_SCROLL_LAYOUT}
+        scrollRef={SUBMENU_SCROLL_REF}
+        layoutLabel="SUBMENU SHELL"
+        jsonTarget="SUBMENU_SCROLL_LAYOUT"
+      />
     </ScrollFrameStage>
   );
 }
