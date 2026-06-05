@@ -1247,6 +1247,10 @@ export function PhaserExplorationView({
         private nextTravelerStrikeIsSecondary = false;
         /** Roaming hack-and-slash Lost Echoes. Distinct from the scripted `lost_echo_demo` JRPG trigger. */
         private roamingLostEchoes: RoamingLostEcho[] = [];
+        /** Solid tile layers stored from create() so programmatic spawns (e.g. mq-103) can wire colliders. */
+        private solidLayersRef: Array<Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer> = [];
+        /** Counts remaining mq-103 tutorial echoes; fires lh:mq103-echoes-cleared when all are defeated. */
+        private mq103EchoesRemaining = 0;
         /**
          * Scene time at which the roaming AI was last frozen (pause / Maia handoff / transition lock).
          * `0` means "currently active". Used to advance per-roamer timers across the pause window
@@ -1818,6 +1822,13 @@ export function PhaserExplorationView({
             if (this.anims.exists('lh_lost_echo_death')) {
               r.sprite.play('lh_lost_echo_death');
             }
+            // MQ-103 quest completion bridge: count down tutorial echoes.
+            if (r.spawn_group === 'mq_103' && this.mq103EchoesRemaining > 0) {
+              this.mq103EchoesRemaining -= 1;
+              if (this.mq103EchoesRemaining <= 0) {
+                window.dispatchEvent(new CustomEvent('lh:mq103-echoes-cleared'));
+              }
+            }
             this.tweens.add({
               targets: r.sprite,
               alpha: 0,
@@ -2004,6 +2015,38 @@ export function PhaserExplorationView({
             });
           }
         }
+
+        /** Spawns 4 standard roaming Lost Echoes near the player for the MQ-103 combat tutorial. */
+        private handleMq103SpawnEchoes = () => {
+          if (!this.player?.active) return;
+          const px = this.player.x;
+          const py = this.player.y;
+          const { width: worldW, height: worldH } = this.physics.world.bounds;
+          const offsets = [
+            { dx: -180, dy: -160 },
+            { dx:  180, dy: -140 },
+            { dx:  -60, dy:  180 },
+            { dx:  160, dy:  140 },
+          ];
+          const spawns: ParsedLhRoamingLostEchoSpawn[] = offsets.map((o, i) => ({
+            tiled_object_id: -(9000 + i),
+            name: `mq103_echo_${i + 1}`,
+            layer_name: 'mq103_spawn',
+            bounds: { x: px + o.dx, y: py + o.dy, width: 0, height: 0 },
+            center_x: px + o.dx,
+            center_y: py + o.dy,
+            count: 1,
+            respawn: false,
+            spawn_group: 'mq_103',
+            debug_label: `mq103_echo_${i + 1}`,
+            ignored_aliases: [],
+          }));
+          this.mq103EchoesRemaining = 4;
+          this.spawnRoamingLostEchoes(spawns, this.solidLayersRef, worldW, worldH);
+          if (import.meta.env.DEV) {
+            console.info('[LhScene] MQ-103: 4 roaming Lost Echoes spawned near the Scribe camp');
+          }
+        };
 
         private handleKnowledgeBattlePresentation = (ev: Event) => {
           const detail = (ev as CustomEvent<LhKnowledgeBattlePresentationDetail>).detail;
@@ -3918,6 +3961,9 @@ export function PhaserExplorationView({
           this.cameras.main.setZoom(EXPLORATION_CAMERA_ZOOM);
           this.cameras.main.setRoundPixels(true);
 
+          // Store for late spawns (e.g. mq-103 programmatic spawn on dialogue dismiss).
+          this.solidLayersRef = solidLayers;
+
           // Roaming hack-and-slash Lost Echoes are now driven entirely by Tiled `roaming_lost_echo_spawn`
           // markers. If a map has none authored yet, we either log a clear DEV note (default) or fall
           // back to the original hardcoded triangle around the player spawn (`VITE_LH_FALLBACK_HARDCODED_ROAMERS=true`).
@@ -4017,6 +4063,7 @@ export function PhaserExplorationView({
           window.addEventListener(LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT, this.handleGuildResearchAbort);
           window.addEventListener(LH_WINDOW_PHASER_GUILD_RESEARCH_EXIT, this.handleGuildResearchExit);
           window.addEventListener(LH_WINDOW_KNOWLEDGE_COMBAT_VISUAL, this.handleKnowledgeCombatVisual);
+          window.addEventListener('lh:spawn-mq103-echoes', this.handleMq103SpawnEchoes);
           window.addEventListener(LH_WINDOW_KNOWLEDGE_BATTLE_PRESENTATION, this.handleKnowledgeBattlePresentation);
           window.addEventListener(LH_WINDOW_ORACLE_BUILDUP_START, this.handleOracleBuildupStart);
           window.addEventListener(LH_WINDOW_ORACLE_RETURN_TRANSITION, this.handleOracleReturnTransition);
@@ -4032,6 +4079,7 @@ export function PhaserExplorationView({
             window.removeEventListener(LH_WINDOW_KNOWLEDGE_BATTLE_PRESENTATION, this.handleKnowledgeBattlePresentation);
             window.removeEventListener(LH_WINDOW_ORACLE_BUILDUP_START, this.handleOracleBuildupStart);
             window.removeEventListener(LH_WINDOW_ORACLE_RETURN_TRANSITION, this.handleOracleReturnTransition);
+            window.removeEventListener('lh:spawn-mq103-echoes', this.handleMq103SpawnEchoes);
             this._vfxUnsub?.();
             this._vfxUnsub = undefined;
             this.campfireFireSprites = [];

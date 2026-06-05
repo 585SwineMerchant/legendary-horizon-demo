@@ -422,18 +422,16 @@ export function ExplorationScreen({
       </div> : null}
 
       {npcDialogue && onDismissNpcDialogue ? (
-        <div className="lh-overlay lh-overlay--dim lh-npc-dialogue-overlay" role="presentation">
-          <div className="lh-panel lh-panel--npc-dialogue">
-            <DialogueBox
-              variant="default"
-              title={npcDialogue.title}
-              speakerLabel={npcDialogue.speakerLabel}
-              portraitUrl={npcDialogue.portraitUrl}
-              body={npcDialogue.body}
-              primaryLabel="Continue"
-              onPrimary={onDismissNpcDialogue}
-            />
-          </div>
+        <div className="lh-npc-dialogue-overlay" role="presentation">
+          <DialogueBox
+            variant="default"
+            title={npcDialogue.title}
+            speakerLabel={npcDialogue.speakerLabel}
+            portraitUrl={npcDialogue.portraitUrl}
+            body={npcDialogue.body}
+            primaryLabel="Continue"
+            onPrimary={onDismissNpcDialogue}
+          />
         </div>
       ) : null}
 

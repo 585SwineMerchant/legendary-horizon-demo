@@ -88,3 +88,47 @@ export function loadCanonicalDemoPersistedSessionForResume(
   }
   return loadCanonicalDemoPersistedSession(seededPlayer);
 }
+
+/**
+ * Reset all quest statuses to their opening-game state.
+ * Locks every quest, activates mq-101 (the first quest), then reconciles prerequisites
+ * so any quests whose prereqs are already met get unlocked.
+ */
+function resetQuestsToFreshStart(quests: QuestDefinition[]): QuestDefinition[] {
+  const locked = quests.map((q) => ({ ...deepClone(q), status: 'locked' as const }));
+  const withOpening = locked.map((q) =>
+    q.quest_id === 'mq-101' ? { ...q, status: 'active' as const } : q,
+  );
+  return reconcileQuestPrerequisites(withOpening);
+}
+
+/**
+ * Build a completely fresh opening-game payload from blueprint seeds.
+ * Start Game always calls this — it never touches demo_save_state.json or remote data.
+ * Campfire / rested-readiness fields are explicitly cleared so the popup never fires on new game.
+ */
+export function loadFreshStartPayload(
+  seededPlayer: PlayerSave,
+  seededQuests: QuestDefinition[],
+): DemoPersistedSessionPayload {
+  const freshPlayer: PlayerSave = {
+    ...deepClone(seededPlayer),
+    campfire_streak: undefined,
+    last_campfire_iso: undefined,
+    used_campfire_prompt_ids_json: undefined,
+    last_campfire_score: undefined,
+    rested_readiness_tier: undefined,
+    rested_readiness_multiplier: undefined,
+    rested_readiness_wake_index: undefined,
+  };
+
+  return {
+    source: 'canonical_demo_fixture',
+    nextPlayer: freshPlayer,
+    nextQuests: resetQuestsToFreshStart(seededQuests.map((q) => deepClone(q))),
+    explorationAfterCoerce: createEmptyExplorationLoopState(),
+    realmProgressInit: {},
+    visitedInit: [],
+    rawExplorationLoopFromRemote: null,
+  };
+}

@@ -1,11 +1,11 @@
 ﻿[
     {
         "quest_id":  "mq-101",
-        "title":  "Meet the Master Scribe",
+        "title":  "The First Reflection",
         "tier":  "main",
         "act":  1,
         "status":  "turned_in",
-        "objective_short":  "Complete opening dialogue with the Master Scribe",
+        "objective_short":  "Seek the Mirror of Maia.",
         "realm_ids":  [
 
                       ],
@@ -14,11 +14,11 @@
     },
     {
         "quest_id":  "mq-102",
-        "title":  "Enter the Mirror of Maia",
+        "title":  "The First Sign",
         "tier":  "main",
         "act":  1,
         "status":  "turned_in",
-        "objective_short":  "Launch the Maia assessment sequence",
+        "objective_short":  "Complete the first Maia reflection.",
         "realm_ids":  [
 
                       ],
@@ -30,96 +30,160 @@
     },
     {
         "quest_id":  "mq-103",
-        "title":  "Complete the Ritual of Reflection",
+        "title":  "Embers in the Grass",
         "tier":  "main",
         "act":  1,
         "status":  "turned_in",
-        "objective_short":  "Complete all four required Maia assessments and return to the Master Scribe",
+        "objective_short":  "Defeat 4 Lost Echoes near the Scribe's camp.",
         "realm_ids":  [
 
                       ],
         "prerequisite_quest_ids":  [
                                        "mq-102"
                                    ],
-        "xp_reward":  400,
-        "item_reward":  "1 Rune for Each Assessment"
+        "xp_reward":  150,
+        "item_reward":  null
     },
     {
         "quest_id":  "mq-104",
-        "title":  "Complete the Scribe\u0027s Survey",
+        "title":  "Hidden Strengths",
         "tier":  "main",
         "act":  1,
         "status":  "turned_in",
-        "objective_short":  "Complete the Scribe\u0027s stat-builder survey to finalize your Scroll of Destiny",
+        "objective_short":  "Complete the second Maia reflection.",
         "realm_ids":  [
 
                       ],
         "prerequisite_quest_ids":  [
                                        "mq-103"
                                    ],
-        "xp_reward":  200,
+        "xp_reward":  75,
         "item_reward":  null
     },
     {
         "quest_id":  "mq-105",
-        "title":  "Generate the Scroll of Destiny",
+        "title":  "The Echo That Questions",
         "tier":  "main",
         "act":  1,
         "status":  "turned_in",
-        "objective_short":  "Generate the Scroll of Destiny with base stats, rune slots, and foretold signposts",
+        "objective_short":  "Defeat the Knowledge Echo.",
         "realm_ids":  [
 
                       ],
         "prerequisite_quest_ids":  [
                                        "mq-104"
                                    ],
-        "xp_reward":  0,
-        "item_reward":  "Scroll of Destiny"
+        "xp_reward":  150,
+        "item_reward":  null
     },
     {
-        "quest_id":  "mq-202",
-        "title":  "Reveal the Three Foretold Signposts",
+        "quest_id":  "mq-106",
+        "title":  "Values of the Traveler",
         "tier":  "main",
         "act":  1,
         "status":  "turned_in",
-        "objective_short":  "Review the 3 foretold signpost guilds in your Scroll of Destiny at the Altar of Reflection",
+        "objective_short":  "Complete the third Maia reflection.",
         "realm_ids":  [
 
                       ],
         "prerequisite_quest_ids":  [
                                        "mq-105"
                                    ],
-        "xp_reward":  50,
-        "item_reward":  "Signpost Reveal"
+        "xp_reward":  75,
+        "item_reward":  null
     },
     {
-        "quest_id":  "mq-201",
-        "title":  "Visit the Oracle of Opportunity",
+        "quest_id":  "mq-107",
+        "title":  "The Blank Scroll",
         "tier":  "main",
-        "act":  2,
+        "act":  1,
         "status":  "turned_in",
-        "objective_short":  "Seek out the Oracle and reflect on your Scroll of Destiny",
+        "objective_short":  "Open the Scroll of Destiny and review its tools.",
         "realm_ids":  [
 
                       ],
         "prerequisite_quest_ids":  [
-                                       "mq-202"
+                                       "mq-106"
+                                   ],
+        "xp_reward":  50,
+        "item_reward":  null
+    },
+    {
+        "quest_id":  "mq-108",
+        "title":  "The Foretold Signposts",
+        "tier":  "main",
+        "act":  1,
+        "status":  "turned_in",
+        "objective_short":  "Complete the fourth Maia reflection.",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-107"
+                                   ],
+        "xp_reward":  200,
+        "item_reward":  null
+    },
+    {
+        "quest_id":  "mq-109",
+        "title":  "The Scroll Awakens",
+        "tier":  "main",
+        "act":  1,
+        "status":  "turned_in",
+        "objective_short":  "Return to the Master Scribe.",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-108"
+                                   ],
+        "xp_reward":  200,
+        "item_reward":  "Scroll of Destiny"
+    },
+    {
+        "quest_id":  "mq-202",
+        "title":  "The Runes Become Legible",
+        "tier":  "main",
+        "act":  2,
+        "status":  "turned_in",
+        "objective_short":  "Return to the Master Scribe.",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-201"
+                                   ],
+        "xp_reward":  150,
+        "item_reward":  "Quest of Fate Worksheet"
+    },
+    {
+        "quest_id":  "mq-201",
+        "title":  "The Oracle's Summons",
+        "tier":  "main",
+        "act":  2,
+        "status":  "turned_in",
+        "objective_short":  "Seek the Oracle Shrine.",
+        "realm_ids":  [
+
+                      ],
+        "prerequisite_quest_ids":  [
+                                       "mq-109"
                                    ],
         "xp_reward":  100,
         "item_reward":  null
     },
     {
         "quest_id":  "mq-203",
-        "title":  "Receive the Prophecy",
+        "title":  "The Quest of Fate",
         "tier":  "main",
         "act":  2,
         "status":  "turned_in",
-        "objective_short":  "Receive a gamified career prophecy from the Oracle drawn from your foretold signposts",
+        "objective_short":  "Open the Quest of Fate Worksheet from Work Files.",
         "realm_ids":  [
 
                       ],
         "prerequisite_quest_ids":  [
-                                       "mq-201"
+                                       "mq-202"
                                    ],
         "xp_reward":  100,
         "item_reward":  "Oracle Token"

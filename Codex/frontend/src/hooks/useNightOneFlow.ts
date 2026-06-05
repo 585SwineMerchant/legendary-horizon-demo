@@ -119,6 +119,7 @@ import {
   finalizeDemoBootstrapExploration,
   logDemoLoadAudit,
 } from '../demo/demoSessionBootstrap';
+import { loadFreshStartPayload } from '../demo/demoCanonicalSave';
 import {
   createDefaultGuildEndgameV1,
   createEmptyExplorationLoopState,
@@ -269,19 +270,118 @@ const LOST_ECHO_KC_INTERACTABLE_IDS = PARSED_PRIMARY_MAP.triggers
   .filter(isFirstKnowledgeCombatTrigger)
   .map((t) => makeTriggerInteractableId(PRIMARY_WORLD_TRIGGER_REALM_ID, t.tiled_object_id));
 
-// ── Act I Master Scribe Dialogue ──────────────────────────────────────────
-// Replaces demo-stage-driven dialogue. Chooses a line based on real quest state.
+// ── Master Scribe Dialogue (Act I + Act II opening) ───────────────────────
+// Ordered most-advanced → least; first matching branch wins.
+// Exact bridge lines from approved Act I script. Do not improvise new beats.
 function resolveAct1MasterScribeDialogue(quests: readonly QuestDefinition[]): string {
-  const isComplete = (id: string) => {
+  const isActive = (id: string) => {
     const q = quests.find((q) => q.quest_id === id);
-    return q ? (q.status === 'completed' || q.status === 'turned_in') : false;
+    return q ? (q.status === 'active' || q.status === 'available') : false;
   };
-  if (isComplete('mq-101')) {
-    return 'Your Manifest is sealed, Traveler. The guild roads are open — follow the Scroll of Destiny and choose your path with evidence.';
+
+  let branch = 'fallback';
+  let line: string;
+
+  // MQ-202: The Runes Become Legible — Scribe reads signposts, gives Quest of Fate
+  if (isActive('mq-202')) {
+    branch = 'mq-202';
+    line =
+      'You heard the Oracle.\n\nThen the prophecy is awake.\n\nLet me see the Scroll.' +
+      '\n\nAh...\n\nYes.\n\nThe runes have settled.\n\nNow they may be read.' +
+      '\n\nThese are your Foretold Signposts.\n\nThey are not your destiny.\n\nThey are the first roads asking to be explored.' +
+      '\n\nA careless Traveler sees a signpost and calls it fate.\n\nA wise Traveler gathers evidence.' +
+      '\n\nThat is your next task.\n\nYou will investigate one prophecy path first.\n\nNot to choose it.\n\nTo learn how a Traveler studies a road before walking it.' +
+      '\n\nI have placed the Quest of Fate in your Field Journal.\n\nOpen the Scroll of Destiny.\n\nFind your Field Journal.\n\nThen open Work Files.\n\nYour document will be waiting there.';
+  // MQ-201: The Oracle's Summons — Scribe sends player to Oracle Shrine
+  } else if (isActive('mq-201')) {
+    branch = 'mq-201';
+    line = 'The Oracle Shrine lies beyond the Grey Commons.\n\nSeek it.\n\nThe Scroll has awakened — but only the Oracle can make its runes legible.';
+  // MQ-109: The Scroll Awakens — Act I finale, Oracle handoff
+  } else if (isActive('mq-109')) {
+    branch = 'mq-109';
+    line =
+      'The Scroll has awakened.\n\nYour first signs are written here...\n\nbut they are not yet readable.' +
+      '\n\nI can record what the Scroll reveals.\n\nI cannot always interpret what it means.\n\nFor that, we need the Oracle.' +
+      '\n\nTravel to the Oracle Shrine.\n\nListen carefully.\n\nThe Oracle does not speak often.\n\nAnd never without purpose.';
+  // MQ-108: The Foretold Signposts — send to Maia IV
+  } else if (isActive('mq-108')) {
+    branch = 'mq-108';
+    line = 'Good.\n\nThe Scroll will remember what the mind forgets.\n\nOne reflection remains.\n\nReturn to Maia and seek your Foretold Signposts.';
+  // MQ-107: The Blank Scroll — Scroll of Destiny tutorial
+  } else if (isActive('mq-107')) {
+    branch = 'mq-107';
+    line = 'Every Traveler needs more than courage and reflection.\n\nThey need records.\n\nTools.\n\nMaps.\n\nMemories.\n\nOpen the Scroll of Destiny.\n\nFind what it remembers.';
+  // MQ-106: Values of the Traveler — send to Maia III
+  } else if (isActive('mq-106')) {
+    branch = 'mq-106';
+    line = 'Well answered.\n\nNot every Echo is defeated by force.\n\nSome fade only when met with understanding.\n\nReturn to Maia, Traveler.\n\nThe next reflection awaits.';
+  // MQ-105: The Echo That Questions — knowledge combat tutorial
+  } else if (isActive('mq-105')) {
+    branch = 'mq-105';
+    line = 'A different Echo waits ahead.\n\nThis one does not strike first.\n\nIt questions.\n\nListen carefully, then answer with what you know.';
+  // MQ-104: Hidden Strengths — send to Maia II
+  } else if (isActive('mq-104')) {
+    branch = 'mq-104';
+    line = 'Good. The Echoes have scattered.\n\nYou have learned that some uncertainty must be faced directly.\n\nNow return to the Mirror of Maia.\n\nYour next sign is waiting.';
+  // MQ-103: Embers in the Grass — combat tutorial
+  } else if (isActive('mq-103')) {
+    branch = 'mq-103';
+    line = 'The Echoes grow bolder.\n\nThey gather where purpose is unclear.\n\nStand with me, Traveler.\n\nDrive them back.';
+  // MQ-102: The First Sign — remind player to seek Maia I
+  } else if (isActive('mq-102')) {
+    branch = 'mq-102';
+    line = 'The Mirror of Maia awaits, Traveler. Beyond these fields — seek it. Return when you have glimpsed your first sign.';
+  // MQ-101: The First Reflection — opening speech
+  } else if (isActive('mq-101')) {
+    branch = 'mq-101';
+    line =
+      'Traveler... At last.\n\nYou have crossed the threshold and arrived in the Grey Commons.' +
+      ' Every path in the Horizon begins here. The roads stretch in every direction.' +
+      ' Some lead to prosperity. Some to purpose. Yet from where you stand, they all appear hidden by fog.' +
+      '\n\nThis is the Scroll of Destiny. One day it will contain the story of your journey.' +
+      ' But today — its pages are blank. As they should be.' +
+      '\n\nBefore the Scroll can guide you, you must first discover who you are.' +
+      ' Beyond these fields stands the Mirror of Maia. Seek it. Learn what it reveals. Then return to me.';
+  // Fallback: post-Act II
+  } else {
+    line = 'The guild roads are open, Traveler. Follow the Scroll of Destiny and gather evidence before choosing your path.';
   }
-  // Check if Mirror of Maia has been visited (any maia_portal trigger visited)
-  // For now, use quest status of mq-101 as primary signal.
-  return 'Ah, a Traveler wakes. Good. The map is dark, but not unkind. First, seek the Mirror of Maia — it will show the shape of your strengths.';
+
+  if (typeof console !== 'undefined') {
+    const ids = ['mq-101','mq-102','mq-103','mq-104','mq-105','mq-106','mq-107','mq-108','mq-109','mq-201','mq-202'];
+    const statuses = ids.map((id) => {
+      const q = quests.find((q) => q.quest_id === id);
+      return q ? `${id}:${q.status}` : `${id}:?`;
+    }).join(' | ');
+    console.log(`[LH_ACT_FLOW_DEBUG] Scribe dialogue → branch:${branch} | ${statuses}`);
+  }
+
+  return line!;
+}
+
+// ── Oracle Dialogue (Act II opening) ──────────────────────────────────────
+// Short, mystical. The Scribe teaches; the Oracle prophesies.
+function resolveAct1OracleDialogue(quests: readonly QuestDefinition[]): string {
+  const isActive = (id: string) => {
+    const q = quests.find((q) => q.quest_id === id);
+    return q ? (q.status === 'active' || q.status === 'available') : false;
+  };
+
+  if (typeof console !== 'undefined') {
+    const mq201 = quests.find((q) => q.quest_id === 'mq-201');
+    console.log(`[LH_ACT_FLOW_DEBUG] Oracle dialogue — mq-201 status: ${mq201?.status ?? '?'}`);
+  }
+
+  if (isActive('mq-201')) {
+    return (
+      'Traveler of the Grey Commons...\n\nYour first signs have awakened.' +
+      '\n\nThree runes burn upon your Scroll.\n\nNot answers.\n\nNot chains.\n\nSignposts.' +
+      '\n\nDo not choose from wonder.\n\nDo not choose from fear.\n\nChoose only after seeking evidence.' +
+      '\n\nReturn to the Scribe.\n\nThe runes will open for him now.'
+    );
+  }
+  // Fallback after mq-201 is complete
+  return 'The signs are spoken, Traveler. The road is yours to walk.';
 }
 
 export function useNightOneFlow() {
@@ -398,6 +498,19 @@ export function useNightOneFlow() {
   const activeEncounterRef = useRef<EncounterLaunchPayload | null>(null);
   activeEncounterRef.current = activeEncounter;
 
+  // [LH_ACT1_DEBUG] log which screen is chosen when an encounter launches.
+  useEffect(() => {
+    if (!activeEncounter) return;
+    const route = activeEncounter.presentation === 'jrpg_knowledge'
+      ? 'KnowledgeJrpgBattleOverlay'
+      : 'EncounterOverlay (modal)';
+    if (typeof console !== 'undefined') {
+      console.log(
+        `[LH_ACT1_DEBUG] Encounter launched → route: ${route} | kind: ${activeEncounter.kind} | presentation: ${activeEncounter.presentation ?? 'modal'} | target_quest_id: ${activeEncounter.target_quest_id ?? 'none'} | interactableId: ${activeEncounter.interactableId}`,
+      );
+    }
+  }, [activeEncounter]);
+
   /** Active guild / HQ / narrative row — `current_realm_id` on the player save. */
   const realm = useMemo(() => {
     if (!player) return BLUEPRINT.realm;
@@ -418,10 +531,14 @@ export function useNightOneFlow() {
     }
   }, [screen, player?.current_realm_id]);
 
-  // Show Rested Readiness modal on first session-start when player has a graded campfire score.
+  // 'new' = Start Game (fresh fixture, never show popup); 'resume' = Load Game (check save).
+  const launchModeRef = useRef<'new' | 'resume' | null>(null);
+
+  // Show Rested Readiness modal on first Load Game session when save has a graded campfire score.
   const restedReadinessShownRef = useRef(false);
   useEffect(() => {
     if (screen !== 'explore') return;
+    if (launchModeRef.current !== 'resume') return;
     if (restedReadinessShownRef.current) return;
     if (!player) return;
     if (player.last_campfire_score == null) return;
@@ -595,6 +712,46 @@ export function useNightOneFlow() {
       document.removeEventListener('visibilitychange', onVis);
     };
   }, [maiaHandoffActive, checkForMaiaWindowClosed, finalizeMaiaHandoffClosed]);
+
+  // DEBUG: Act I progression shortcut.
+  // Any Maia return counts as assessment completion.
+  // Replace with real assessment completion validation later.
+  //
+  // Listens to 'lh:maia-handoff-closed' (fired by finalizeMaiaHandoffClosed) rather than
+  // watching maiaHandoffActive state. This covers every return path including:
+  //   - Popup blocked → player clicks "Return to game" (maiaHandoffActive never goes true)
+  //   - Popup opens → player closes tab naturally
+  //   - Popup opens → player clicks "I closed Maia — return to the game"
+  useEffect(() => {
+    const MAIA_VISIT_IDS = ['mq-102', 'mq-104', 'mq-106', 'mq-108'] as const;
+    const handler = () => {
+      setQuests((q) => {
+        for (const id of MAIA_VISIT_IDS) {
+          const quest = q.find((quest) => quest.quest_id === id);
+          if (quest && (quest.status === 'active' || quest.status === 'available')) {
+            if (typeof console !== 'undefined') {
+              console.log('[LH_ACT1_DEBUG] Maia closed — active quest before completion:', id, quest.status);
+            }
+            const xp = getQuestXpReward(q, id);
+            if (xp > 0) setPlayer((p) => (p ? { ...p, xp_total: p.xp_total + xp } : p));
+            const next = markQuestCompleted(q, id);
+            if (typeof console !== 'undefined') {
+              const unlocked = next.find((nq) => nq.quest_id !== id && q.find((oq) => oq.quest_id === nq.quest_id && oq.status === 'locked') && nq.status === 'available');
+              console.log('[LH_ACT1_DEBUG] Quest completed:', id, '— next unlocked:', unlocked?.quest_id ?? 'none');
+            }
+            return next;
+          }
+        }
+        if (typeof console !== 'undefined') {
+          console.log('[LH_ACT1_DEBUG] Maia closed — no active Maia quest found (IDs checked:', MAIA_VISIT_IDS.join(', '), ')');
+          console.log('[LH_ACT1_DEBUG] Current quest statuses:', q.filter(quest => MAIA_VISIT_IDS.includes(quest.quest_id as typeof MAIA_VISIT_IDS[number])).map(quest => `${quest.quest_id}:${quest.status}`).join(', '));
+        }
+        return q;
+      });
+    };
+    window.addEventListener('lh:maia-handoff-closed', handler);
+    return () => window.removeEventListener('lh:maia-handoff-closed', handler);
+  }, []); // registered once — uses functional setQuests to always read current state
 
   /** Production-shaped: show GT-101 on Pause only after in-map manager unlock + HQ context. */
   const pauseCanOpenGt101 = useMemo(() => {
@@ -875,6 +1032,8 @@ export function useNightOneFlow() {
   }, []);
 
   const quitToTitle = () => {
+    launchModeRef.current = null;
+    restedReadinessShownRef.current = false;
     setScreen('title');
     setPauseOpen(false);
     setQuestLogOpen(false);
@@ -900,6 +1059,69 @@ export function useNightOneFlow() {
     // Act I: Master Scribe dialogue dismissal no longer advances demo stage state.
     // Quest progression is handled by the quest engine based on player actions.
   }, [npcDialogue]);
+
+  // MQ-103 completion: Phaser fires this after all 4 tutorial echoes are defeated.
+  useEffect(() => {
+    const handler = () => {
+      setQuests((q) => {
+        const mq103 = q.find((quest) => quest.quest_id === 'mq-103');
+        if (mq103 && (mq103.status === 'active' || mq103.status === 'available')) {
+          if (typeof console !== 'undefined') {
+            console.log('[LH_ACT1_DEBUG] lh:mq103-echoes-cleared — completing mq-103 (Embers in the Grass)');
+          }
+          const xp = getQuestXpReward(q, 'mq-103');
+          if (xp > 0) setPlayer((p) => (p ? { ...p, xp_total: p.xp_total + xp } : p));
+          return markQuestCompleted(q, 'mq-103');
+        }
+        return q;
+      });
+      setSaveFeedback({ tone: 'success', text: 'Lost Echoes defeated. Continue onward.' });
+    };
+    window.addEventListener('lh:mq103-echoes-cleared', handler);
+    return () => window.removeEventListener('lh:mq103-echoes-cleared', handler);
+  }, []); // registered once — uses functional setQuests
+
+  // Act I: spawn mq-103 roaming echoes when the Master Scribe dialogue closes.
+  const lastNpcDialogueIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const prevNpcId = lastNpcDialogueIdRef.current;
+    lastNpcDialogueIdRef.current = npcDialogue?.npcId ?? null;
+
+    // Only proceed on Scribe dialogue close (Scribe→null transition).
+    if (prevNpcId !== LH_NPC_ID_MASTER_SCRIBE || npcDialogue !== null) return;
+    // Don't stack encounters.
+    if (activeEncounterRef.current) return;
+
+    const mq103 = quests.find((q) => q.quest_id === 'mq-103');
+    if (mq103 && (mq103.status === 'active' || mq103.status === 'available')) {
+      // mq-103: Embers in the Grass — spawn 4 roaming Lost Echoes via Phaser's attack-button system.
+      // No modal; player fights them in the exploration view with the A button.
+      if (typeof console !== 'undefined') {
+        console.log('[LH_ACT_FLOW_DEBUG] mq-103 active — spawning 4 roaming Lost Echoes via Phaser (lh:spawn-mq103-echoes)');
+      }
+      window.dispatchEvent(new CustomEvent('lh:spawn-mq103-echoes'));
+      return;
+    }
+
+    const mq105 = quests.find((q) => q.quest_id === 'mq-105');
+    if (mq105 && (mq105.status === 'active' || mq105.status === 'available')) {
+      // mq-105: The Echo That Questions — knowledge combat tutorial.
+      // Uses jrpg_knowledge (KnowledgeJrpgBattleOverlay) — the full battle screen.
+      // TODO: when a "Knowledge Echo" sprite/template distinct from the Lost Echo exists, update enemyTemplateId.
+      if (typeof console !== 'undefined') {
+        console.log('[LH_ACT_FLOW_DEBUG] mq-105 active — spawning knowledge battle encounter (jrpg_knowledge, target=mq-105)');
+      }
+      getLhAudioDirector().primeBattleMusicFromUserGesture();
+      setActiveEncounter({
+        kind: 'combat_encounter',
+        interactableId: 'act1_tutorial_echo_mq105',
+        target_quest_id: 'mq-105',
+        title: 'The Echo That Questions',
+        presentation: 'jrpg_knowledge',
+        enemyTemplateId: 'lost_echo',
+      });
+    }
+  }, [npcDialogue, quests]);
 
   const handleEncounterRetreat = useCallback(() => {
     const cur = activeEncounterRef.current;
@@ -951,8 +1173,47 @@ export function useNightOneFlow() {
       const playerAfterEnc = sqEnc.xpAwarded > 0 && qLink.nextPlayer
         ? { ...qLink.nextPlayer, xp_total: qLink.nextPlayer.xp_total + sqEnc.xpAwarded }
         : qLink.nextPlayer;
-      setPlayer(playerAfterEnc);
-      setQuests(sqEnc.nextQuests);
+
+      // Act I main-quest bridges from encounter wins.
+      // Keyed on target_quest_id so only explicitly-tagged tutorial encounters advance Act I quests.
+      let act1Quests = sqEnc.nextQuests;
+      let act1Xp = 0;
+      // MQ-103 (Embers in the Grass): jrpg_knowledge battle win.
+      if (cur.target_quest_id === 'mq-103') {
+        const mq103 = act1Quests.find((q) => q.quest_id === 'mq-103');
+        if (mq103 && (mq103.status === 'active' || mq103.status === 'available')) {
+          if (typeof console !== 'undefined') {
+            console.log('[LH_ACT1_DEBUG] Encounter win (target=mq-103) — completing mq-103 (Embers in the Grass)');
+          }
+          act1Xp += getQuestXpReward(act1Quests, 'mq-103');
+          act1Quests = markQuestCompleted(act1Quests, 'mq-103');
+          if (typeof console !== 'undefined') {
+            const mq104 = act1Quests.find((q) => q.quest_id === 'mq-104');
+            console.log('[LH_ACT1_DEBUG] mq-103 complete — mq-104 (Hidden Strengths) status:', mq104?.status ?? 'not found');
+          }
+        }
+      }
+      // MQ-105 (The Echo That Questions): knowledge modal win.
+      if (cur.target_quest_id === 'mq-105') {
+        const mq105 = act1Quests.find((q) => q.quest_id === 'mq-105');
+        if (mq105 && (mq105.status === 'active' || mq105.status === 'available')) {
+          if (typeof console !== 'undefined') {
+            console.log('[LH_ACT1_DEBUG] Encounter win (target=mq-105) — completing mq-105 (The Echo That Questions)');
+          }
+          act1Xp += getQuestXpReward(act1Quests, 'mq-105');
+          act1Quests = markQuestCompleted(act1Quests, 'mq-105');
+          if (typeof console !== 'undefined') {
+            const mq106 = act1Quests.find((q) => q.quest_id === 'mq-106');
+            console.log('[LH_ACT1_DEBUG] mq-105 complete — mq-106 (Values of the Traveler) status:', mq106?.status ?? 'not found');
+          }
+        }
+      }
+      const finalEncPlayer = act1Xp > 0 && playerAfterEnc
+        ? { ...playerAfterEnc, xp_total: playerAfterEnc.xp_total + act1Xp }
+        : playerAfterEnc;
+
+      setPlayer(finalEncPlayer);
+      setQuests(act1Quests);
       setExploration(nextE);
       setVisitedInteractableIds((ids) => (ids.includes(cur.interactableId) ? ids : [...ids, cur.interactableId]));
       setActiveEncounter(null);
@@ -993,6 +1254,10 @@ export function useNightOneFlow() {
       if (kind === 'maia_portal') {
         // Act I: Maia portal is always accessible — demo stage gate removed.
         // Manual "Return to game" must be able to fire each time.
+        if (typeof console !== 'undefined') {
+          const activeMailaQ = quests.find((q) => ['mq-102','mq-104','mq-106','mq-108'].includes(q.quest_id) && (q.status === 'active' || q.status === 'available'));
+          console.log('[LH_ACT1_DEBUG] Maia portal triggered — active Maia quest:', activeMailaQ?.quest_id ?? 'none', activeMailaQ?.status ?? '');
+        }
         maiaHandoffClosedOnceRef.current = false;
         const nextVisited = visitedInteractableIds.includes(interactableId)
           ? visitedInteractableIds
@@ -1335,16 +1600,21 @@ export function useNightOneFlow() {
       }
 
       if (result.openNpcDialogue) {
-        const npc = findNpcEntry(BLUEPRINT.npc_registry, result.openNpcDialogue.npcId);
-        const isMasterScribe = result.openNpcDialogue.npcId === LH_NPC_ID_MASTER_SCRIBE;
-        // Act I: Master Scribe uses static quest-aware dialogue, not demo stage state.
-        const masterScribeBody = isMasterScribe
+        const npcId = result.openNpcDialogue.npcId;
+        const npc = findNpcEntry(BLUEPRINT.npc_registry, npcId);
+        const isMasterScribe = npcId === LH_NPC_ID_MASTER_SCRIBE;
+        const isOracle = npcId === 'oracle_veiled';
+
+        // Scribe and Oracle use static quest-aware dialogue; all others use the catalog.
+        const staticBody = isMasterScribe
           ? resolveAct1MasterScribeDialogue(result.nextQuests ?? quests)
-          : null;
+          : isOracle
+            ? resolveAct1OracleDialogue(result.nextQuests ?? quests)
+            : null;
         const body =
-          masterScribeBody ??
+          staticBody ??
           resolveNpcDialogueBody(
-            result.openNpcDialogue.npcId,
+            npcId,
             BLUEPRINT.dialogue_catalog,
             BLUEPRINT.npc_registry,
             {
@@ -1358,14 +1628,54 @@ export function useNightOneFlow() {
             },
           ).body;
         const aid = npc?.portrait_asset_id;
-        const portraitUrl = aid ? resolveAssetDeliveryUrl(aid, BLUEPRINT.media_assets) : '';
+        const catalogPortrait = aid ? resolveAssetDeliveryUrl(aid, BLUEPRINT.media_assets) : '';
+        const portraitUrl =
+          catalogPortrait ||
+          (isMasterScribe
+            ? `${import.meta.env.BASE_URL}assets/npcs/master-scribe/old_wizard-idle.png`
+            : '');
         setNpcDialogue({
-          npcId: result.openNpcDialogue.npcId,
+          npcId,
           title: npc?.card_title ?? 'A moment together',
           speakerLabel: formatNpcSpeakerLabel(npc),
           body,
           portraitUrl: portraitUrl || undefined,
         });
+
+        // Advance quests whose progression is gated on NPC dialogue firing.
+        // Dialogue body already resolved above → advance takes effect on the NEXT interaction.
+        if (isMasterScribe) {
+          // mq-101 (opening) and mq-109 (Act I finale) complete when player first speaks to Scribe.
+          // mq-202 (Runes Become Legible) completes after Oracle visit when Scribe reads signposts.
+          for (const id of ['mq-101', 'mq-109', 'mq-202'] as const) {
+            const q = quests.find((q) => q.quest_id === id);
+            if (q && (q.status === 'active' || q.status === 'available')) {
+              if (typeof console !== 'undefined') {
+                console.log(`[LH_ACT_FLOW_DEBUG] Scribe dialogue — completing ${id}`);
+              }
+              completeQuestWithXp(id);
+              // mq-109 finale: also open the Scroll reveal so signposts are shown.
+              if (id === 'mq-109') {
+                setScrollRevealOpen(true);
+                if (typeof console !== 'undefined') {
+                  console.log('[LH_ACT_FLOW_DEBUG] mq-109 complete — Scroll reveal opened, mq-201 (Oracle\'s Summons) unlocked');
+                }
+              }
+              break;
+            }
+          }
+        }
+
+        // Oracle advances mq-201 when the player first speaks to her.
+        if (isOracle) {
+          const mq201 = quests.find((q) => q.quest_id === 'mq-201');
+          if (mq201 && (mq201.status === 'active' || mq201.status === 'available')) {
+            if (typeof console !== 'undefined') {
+              console.log('[LH_ACT_FLOW_DEBUG] Oracle dialogue — completing mq-201 (Oracle\'s Summons), unlocking mq-202 (Runes Become Legible)');
+            }
+            completeQuestWithXp('mq-201');
+          }
+        }
       }
 
       if (result.markVisited) {
@@ -2085,43 +2395,24 @@ export function useNightOneFlow() {
     return persisted.source;
   }, []);
 
-  const applyCanonicalDemoSessionToRuntime = useCallback(
-    async (opts: { allowLocalCache: boolean; clearCacheFirst?: boolean }) => {
-      if (opts.clearCacheFirst) {
-        clearCachedFullState();
-      }
-      const persisted = await fetchPersistedDemoSession(seededPlayerSeed, seededQuestSeed, {
-        allowLocalCache: opts.allowLocalCache,
-        mode: 'canonical',
-      });
-      const finalized = finalizeDemoBootstrapExploration({
-        academicTaskDefs: BLUEPRINT.academic_worksheet_tasks,
-        explorationAfterCoerce: persisted.explorationAfterCoerce,
-        realmProgressInit: persisted.realmProgressInit,
-        nextPlayer: persisted.nextPlayer,
-      });
-      setPlayer(finalized.nextPlayer);
-      setQuests(reconcileQuestPrerequisites(loadQuestDefinitionsFromJson(persisted.nextQuests)));
-      setVisitedInteractableIds(persisted.visitedInit);
-      setRealmProgress(finalized.realmProgress);
-      setExploration(finalized.exploration);
-      setLedgerDraft(emptyLedgerDraft());
-      setPhaserExplorationRemountKey((k) => k + 1);
-      logDemoLoadAudit('canonical demo session applied', {
-        load_source: persisted.source,
-        demo_guidance_v1: finalized.exploration.demo_guidance_v1,
-        guild_hq_atlas_revealed_realm_ids: finalized.exploration.guild_hq_atlas_revealed_realm_ids ?? [],
-        visited_interactable_ids: [...persisted.visitedInit],
-      });
-      return persisted.source;
-    },
-    [],
-  );
-
-  const applyFreshVerticalSliceFromGameTitle = useCallback(async () => {
-    // Canonical fixture is `demo_awakened` (Master Scribe → Maia → Lost Echo → guild HQ).
-    await applyCanonicalDemoSessionToRuntime({ allowLocalCache: false, clearCacheFirst: true });
-  }, [applyCanonicalDemoSessionToRuntime]);
+  const applyFreshVerticalSliceFromGameTitle = useCallback(() => {
+    // Build from blueprint seeds only — never load demo_save_state.json for a fresh game.
+    clearCachedFullState();
+    const persisted = loadFreshStartPayload(seededPlayerSeed, seededQuestSeed);
+    const finalized = finalizeDemoBootstrapExploration({
+      academicTaskDefs: BLUEPRINT.academic_worksheet_tasks,
+      explorationAfterCoerce: persisted.explorationAfterCoerce,
+      realmProgressInit: persisted.realmProgressInit,
+      nextPlayer: persisted.nextPlayer,
+    });
+    setPlayer(finalized.nextPlayer);
+    setQuests(reconcileQuestPrerequisites(loadQuestDefinitionsFromJson(persisted.nextQuests)));
+    setVisitedInteractableIds([]);
+    setRealmProgress(finalized.realmProgress);
+    setExploration(finalized.exploration);
+    setLedgerDraft(emptyLedgerDraft());
+    setPhaserExplorationRemountKey((k) => k + 1);
+  }, []);
 
   // DEV-only: clear KC visited IDs so the Lost Echo trigger can fire again.
   const devResetToLostEchoCombatStep = useCallback(() => {
@@ -2368,6 +2659,8 @@ export function useNightOneFlow() {
     beginDemo,
     quitToTitle,
     gameTitleStart: () => {
+      launchModeRef.current = 'new';
+      restedReadinessShownRef.current = false;
       setSaveFeedback(null);
       setScreen('intro');
     },
@@ -2377,6 +2670,8 @@ export function useNightOneFlow() {
       setScreen('explore');
     },
     gameTitleResume: async () => {
+      launchModeRef.current = 'resume';
+      restedReadinessShownRef.current = false;
       setSaveFeedback(null);
       try {
         const source = await reloadPersistedDemoForResume();
@@ -2397,7 +2692,26 @@ export function useNightOneFlow() {
     maiaProfileToResume: () => setScreen('scrollReveal'),
     scrollRevealToResume: () => setScreen('resume'),
     resumeToExplore: () => setScreen('explore'),
-    openPause: () => setPauseOpen(true),
+    openPause: () => {
+      setPauseOpen(true);
+      // MQ-107 (The Blank Scroll): complete on first Scroll of Destiny open while active.
+      const mq107 = quests.find((q) => q.quest_id === 'mq-107');
+      if (mq107 && (mq107.status === 'active' || mq107.status === 'available')) {
+        if (typeof console !== 'undefined') {
+          console.log('[LH_ACT_FLOW_DEBUG] Scroll opened — completing mq-107 (The Blank Scroll)');
+        }
+        completeQuestWithXp('mq-107');
+      }
+      // MQ-203 (The Quest of Fate): MVP stub — completes when Scroll opens while active.
+      // TODO: replace with detection of the actual Work Files / Quest of Fate document being opened.
+      const mq203 = quests.find((q) => q.quest_id === 'mq-203');
+      if (mq203 && (mq203.status === 'active' || mq203.status === 'available')) {
+        if (typeof console !== 'undefined') {
+          console.log('[LH_ACT_FLOW_DEBUG] Scroll opened — completing mq-203 (Quest of Fate) [MVP stub: replace with Work Files open detection]');
+        }
+        completeQuestWithXp('mq-203');
+      }
+    },
     closePause: () => setPauseOpen(false),
     openQuestLog: () => setQuestLogOpen(true),
     // Close quest log returns to pause hub if pause was open, otherwise closes fully.

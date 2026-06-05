@@ -567,6 +567,7 @@ code.lh-code-inline {
   line-height: 1.65;
 }
 
+/* ── DialogueBox resume variant (ResumeDialogScreen centered card) ─── */
 .lh-dialogue {
   width: min(720px, 100%);
 }
@@ -604,6 +605,210 @@ code.lh-code-inline {
   line-height: 1.68;
   color: var(--lh-muted);
   white-space: pre-line;
+}
+
+/* ── RPG in-game dialogue box (in-world NPC, bottom-anchored) ──────── */
+.lh-npc-dialogue-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+  /* subtle vignette frames the box without obscuring the world */
+  background: linear-gradient(to bottom, transparent 50%, rgba(0, 0, 8, 0.6) 100%);
+}
+
+.lh-rpg-dialogue {
+  pointer-events: all;
+  padding: 0 clamp(0.75rem, 3vw, 2.5rem) 1rem;
+  cursor: pointer; /* whole box advances on click */
+  animation: lh-rpg-slide-up 0.16s ease-out;
+}
+
+@keyframes lh-rpg-slide-up {
+  from { transform: translateY(16px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.lh-rpg-dialogue__panel {
+  position: relative;
+  background: rgba(6, 9, 22, 0.97);
+  border: 2px solid var(--lh-amber);
+  border-radius: 8px;
+  /* corner accent: faint inner amber glow + deep drop shadow */
+  box-shadow:
+    0 0 20px rgba(244, 185, 66, 0.14),
+    inset 0 0 20px rgba(244, 185, 66, 0.03),
+    0 -6px 36px rgba(0, 0, 0, 0.9);
+  padding: 1.25rem 1.25rem 0.875rem;
+}
+
+/* Nameplate floats above the panel's top-left edge */
+.lh-rpg-dialogue__nameplate {
+  position: absolute;
+  top: -0.875rem;
+  left: 1.25rem;
+  background: var(--lh-amber);
+  color: #0e0800;
+  font-family: var(--lh-guild-display);
+  font-weight: 700;
+  font-size: 0.68rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.875rem;
+  border-radius: 3px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.lh-rpg-dialogue__row {
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+}
+
+/* Portrait cell — fixed square, clips sprite sheet to first frame */
+.lh-rpg-dialogue__portrait-cell {
+  flex-shrink: 0;
+  width: 132px;
+  height: 132px;
+}
+
+.lh-rpg-dialogue__portrait {
+  width: 132px;
+  height: 132px;
+  border-radius: 6px;
+  border: 2px solid rgba(244, 185, 66, 0.4);
+  /* object-fit cover + left center: shows frame 0 of a horizontal sprite sheet.
+     Scale factor 132/160 = 0.825 → each 160px frame renders as 132px → container
+     shows exactly one frame when positioned left center. */
+  object-fit: cover;
+  object-position: left center;
+  display: block;
+  image-rendering: pixelated; /* preserve sprite crispness */
+}
+
+.lh-rpg-dialogue__portrait-placeholder {
+  width: 132px;
+  height: 132px;
+  border-radius: 6px;
+  border: 2px solid rgba(244, 185, 66, 0.2);
+  background: rgba(244, 185, 66, 0.03);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lh-amber);
+  font-size: 2.5rem;
+  opacity: 0.45;
+}
+
+.lh-rpg-dialogue__text-cell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Body text — pre-line handles \n within a beat; min-height prevents layout jump */
+.lh-rpg-dialogue__body {
+  margin: 0;
+  font-size: 1.3rem;
+  line-height: 1.72;
+  color: rgba(253, 230, 138, 0.93);
+  white-space: pre-line;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  min-height: 3.44em; /* ~2 lines at new size — prevents height jump as text reveals */
+}
+
+/* Blinking text cursor during typewriter reveal */
+.lh-rpg-dialogue__cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--lh-amber);
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  animation: lh-rpg-blink 0.65s step-end infinite;
+}
+
+@keyframes lh-rpg-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* Footer: advance cue shown only when text is complete */
+.lh-rpg-dialogue__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Advance button styled as plain text (no border/background) */
+.lh-rpg-dialogue__advance {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+}
+
+.lh-rpg-dialogue__advance:focus-visible {
+  outline: 1px solid rgba(244, 185, 66, 0.45);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.lh-rpg-dialogue__hint {
+  font-size: 0.67rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(244, 185, 66, 0.38);
+  user-select: none;
+}
+
+/* Animated chevron bounces to signal "tap to advance" */
+.lh-rpg-dialogue__glyph {
+  display: inline-block;
+  color: var(--lh-amber);
+  font-size: 0.7rem;
+  animation: lh-rpg-bounce 0.85s ease-in-out infinite;
+  user-select: none;
+}
+
+@keyframes lh-rpg-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(3px); }
+}
+
+/* Page-progress dots for multi-beat dialogue */
+.lh-rpg-dialogue__dots {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.lh-rpg-dialogue__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(244, 185, 66, 0.18);
+  transition: background 0.2s;
+}
+
+.lh-rpg-dialogue__dot--active {
+  background: var(--lh-amber);
+}
+
+.lh-rpg-dialogue__dot--past {
+  background: rgba(244, 185, 66, 0.45);
 }
 
 .lh-exploration {
@@ -4300,18 +4505,38 @@ html[data-lh-motion='reduce'] *::after {
     rgba(245,  95,  20, 0.22) 28%,
     rgba(245, 158,  11, 0.08) 52%,
     transparent 72%);
-  animation: lh-campfire-flicker 3.6s ease-in-out infinite;
+  /* Two animations at non-syncing durations: opacity flickers at 1.3 s,
+     scale breathes at 3.1 s. Combined repeat period ≈ 40 s — beyond
+     perception, so it reads as random rather than mechanical. */
+  animation:
+    lh-campfire-flicker-opacity 1.3s linear infinite,
+    lh-campfire-flicker-scale   3.1s ease-in-out infinite;
 }
 
-@keyframes lh-campfire-flicker {
-  0%   { opacity: 0.60; transform: translate(-50%, -50%) scale(1.00); }
-  11%  { opacity: 0.88; transform: translate(-50%, -50%) scale(1.03); }
-  26%  { opacity: 0.70; transform: translate(-50%, -50%) scale(0.97); }
-  40%  { opacity: 0.93; transform: translate(-50%, -50%) scale(1.06); }
-  55%  { opacity: 0.63; transform: translate(-50%, -50%) scale(0.98); }
-  70%  { opacity: 0.87; transform: translate(-50%, -50%) scale(1.04); }
-  84%  { opacity: 0.72; transform: translate(-50%, -50%) scale(0.99); }
-  100% { opacity: 0.60; transform: translate(-50%, -50%) scale(1.00); }
+/* Opacity-only flicker: fire spends most time in the 0.70–0.88 band,
+   with sharp dips (0.44–0.50) that resolve quickly — like a flame catching.
+   Dips at 10 %, 39 %, 67 % are irregularly spaced so there is no audible beat. */
+@keyframes lh-campfire-flicker-opacity {
+  0%   { opacity: 0.78; }
+  10%  { opacity: 0.48; }   /* quick dip */
+  16%  { opacity: 0.86; }   /* fast recover */
+  30%  { opacity: 0.71; }
+  39%  { opacity: 0.50; }   /* dip */
+  44%  { opacity: 0.83; }   /* fast recover */
+  58%  { opacity: 0.74; }
+  67%  { opacity: 0.44; }   /* deeper dip */
+  72%  { opacity: 0.88; }   /* fast recover */
+  85%  { opacity: 0.66; }
+  100% { opacity: 0.78; }
+}
+
+/* Scale-only sway: very subtle expansion/contraction of the light radius.
+   Slower than the opacity so the two layers are never in sync. */
+@keyframes lh-campfire-flicker-scale {
+  0%   { transform: translate(-50%, -50%) scale(1.00); }
+  38%  { transform: translate(-50%, -50%) scale(1.03); }
+  63%  { transform: translate(-50%, -50%) scale(0.98); }
+  100% { transform: translate(-50%, -50%) scale(1.00); }
 }
 
 /* 3. Ember particles — container anchored over the fire */
