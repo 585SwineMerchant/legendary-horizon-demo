@@ -503,7 +503,7 @@ const LOST_ECHO_FRAME_COUNTS = {
 
 /** Oracle of Fate golden statue (static image loaded separately from tilesets). */
 const ORACLE_STATUE_KEY = 'lh_oracle_statue';
-const ORACLE_STATUE_FILE = 'assets/maps/golden statues_12.png';
+const ORACLE_STATUE_FILE = 'assets/maps/golden%20statues_12.png';
 /** Window event fired by useNightOneFlow to trigger Oracle buildup sequence. */
 const LH_WINDOW_ORACLE_BUILDUP_START = 'lh:oracle-buildup-start';
 /** Window event fired after Oracle module closes, triggering the return transition. */
@@ -1190,6 +1190,9 @@ export function PhaserExplorationView({
       const _tilesetUrl = (name: string) => publicAssetUrl(`assets/maps/${name.replace(/ /g, '%20')}.png`);
       const _travelerUrl = (sheet: string, dir: TravelerDirection) =>
         publicAssetUrl(`assets/player/traveler/${sheet}_${dir}.png`);
+      // Capture once at init — when the map has an oracle_altar_zone, oracle_encounter is visual-only
+      // (no Enter/E prompt, no Enter activation). Available to both create() and update() via closure.
+      const _hasOracleAltarZone = _triggers.some((t) => t.kind === 'oracle_altar_zone');
 
       class LhScene extends Phaser.Scene {
         private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -1251,6 +1254,27 @@ export function PhaserExplorationView({
         private solidLayersRef: Array<Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer> = [];
         /** Counts remaining mq-103 tutorial echoes; fires lh:mq103-echoes-cleared when all are defeated. */
         private mq103EchoesRemaining = 0;
+        /** mq-105 Knowledge Echo — sprite shown after Scribe dialogue, player must interact to start KC. */
+        private mq105EchoSprite: Phaser.GameObjects.Sprite | null = null;
+        /**
+         * Fallback text marker for the mq-105 echo when the idle sprite sheet hasn't loaded.
+         * Displays a purple "?" at the echo world position so the player can still locate it.
+         */
+        private mq105EchoFallbackMarker: Phaser.GameObjects.Text | null = null;
+        /**
+         * True once the mq-105 echo (sprite OR fallback marker) has faded in and is ready for
+         * interaction. Decoupled from `mq105EchoSprite?.active` so the fallback path also works.
+         */
+        private mq105EchoActive = false;
+        /** World-space position of the Knowledge Echo interaction zone center. */
+        private mq105EchoX = 0;
+        private mq105EchoY = 0;
+        /**
+         * Scene.time timestamp before which the mq-105 echo interaction is suppressed.
+         * Prevents the Enter key that dismisses Scribe dialogue from immediately triggering combat
+         * (input bleed: JustDown is still true on the first frame after dialogue closes).
+         */
+        private mq105EchoInteractableAfter = 0;
         /**
          * Scene time at which the roaming AI was last frozen (pause / Maia handoff / transition lock).
          * `0` means "currently active". Used to advance per-roamer timers across the pause window
@@ -1268,6 +1292,17 @@ export function PhaserExplorationView({
         private combatEncounterCooldownUntil = new Map<string, number>();
         private lostEchoIdleLoadFailed = false;
         private lastAuthoringDepthLogAt = 0;
+        // ── Oracle Altar Zone ─────────────────────────────────────────────────
+        /** True while the player is inside any oracle_altar_zone proximity rect. */
+        private playerInOracleAltarZone = false;
+        /** Scene.time timestamp when the player entered the altar zone (for reminder delay). */
+        private oracleAltarZoneEnteredAt = 0;
+        /** Prevents the reminder text from firing more than once per zone visit. */
+        private oracleAltarReminderShown = false;
+        /** World-space text hint shown after ~5 s in zone: "Press Space to open the Scroll here." */
+        private oracleAltarReminderText?: Phaser.GameObjects.Text;
+        // ─────────────────────────────────────────────────────────────────────
+
         /** Static Oracle statue image sprites, keyed by interactable_id. */
         private oracleStatueSprites = new Map<string, Phaser.GameObjects.Image>();
         /** Current glow outer-strength on oracle statues (tweened during buildup). */
@@ -1619,6 +1654,7 @@ export function PhaserExplorationView({
           if (this.knowledgeBattlePaused) return false;
           if (this.maiaHandoffPaused) return false;
           if (this.triggerTransitionLocked) return false;
+          if (_dialogueNpcId.current) return false; // freeze enemies while any NPC dialogue is open
           return true;
         }
 
@@ -2046,6 +2082,80 @@ export function PhaserExplorationView({
           if (import.meta.env.DEV) {
             console.info('[LhScene] MQ-103: 4 roaming Lost Echoes spawned near the Scribe camp');
           }
+        };
+
+        /** Spawns a stationary Knowledge Echo near the player for the mq-105 tutorial. Player must press Enter to engage. */
+        private handleMq105SpawnEcho = () => {
+          if (!this.player?.active) return;
+
+          // Clear any previous echo sprite or fallback marker.
+          if (this.mq105EchoSprite) {
+            this.mq105EchoSprite.destroy();
+            this.mq105EchoSprite = null;
+          }
+          if (this.mq105EchoFallbackMarker) {
+            this.mq105EchoFallbackMarker.destroy();
+            this.mq105EchoFallbackMarker = null;
+          }
+          this.mq105EchoActive = false;
+
+          // Spawn 3–4 tiles (200px) to the right of the player at the same height.
+          // This keeps the echo clearly visible on screen and requires the player to walk to it.
+          // Input bleed guard: suppress Enter interaction for 700ms so the key that dismissed
+          // the Scribe dialogue doesn't immediately fire the combat overlay.
+          this.mq105EchoX = this.player.x + 200;
+          this.mq105EchoY = this.player.y;
+          this.mq105EchoInteractableAfter = this.time.now + 700;
+
+          // BUG FIX: check texture key (LOST_ECHO_IDLE_KEY), NOT the animation key.
+          // LOST_ECHO_IDLE_ANIM_KEY is the Phaser.Anims key, not the loaded texture name.
+          const textureExists = this.textures.exists(LOST_ECHO_IDLE_KEY);
+          if (textureExists) {
+            this.mq105EchoSprite = this.add.sprite(this.mq105EchoX, this.mq105EchoY, LOST_ECHO_IDLE_KEY);
+            this.mq105EchoSprite.setDepth(100);
+            this.mq105EchoSprite.setAlpha(0);
+            // Purple tint distinguishes this Knowledge Echo from the mq-103 combat echoes.
+            this.mq105EchoSprite.setTint(0xc084fc);
+            this.tweens.add({
+              targets: this.mq105EchoSprite,
+              alpha: 0.92,
+              duration: 800,
+              ease: 'Sine.easeIn',
+              onComplete: () => { this.mq105EchoActive = true; },
+            });
+            if (this.anims.exists(LOST_ECHO_IDLE_ANIM_KEY)) {
+              this.mq105EchoSprite.play(LOST_ECHO_IDLE_ANIM_KEY);
+            }
+          } else {
+            // Fallback: visible purple "?" marker so the player can find and interact with the echo
+            // even when the sprite sheet hasn't loaded.
+            console.warn('[LH_MQ105] Lost Echo idle texture not found — using fallback marker', {
+              x: this.mq105EchoX,
+              y: this.mq105EchoY,
+              textureKey: LOST_ECHO_IDLE_KEY,
+            });
+            this.mq105EchoFallbackMarker = this.add
+              .text(this.mq105EchoX, this.mq105EchoY, '?', {
+                fontFamily: 'Georgia, serif',
+                fontSize: '32px',
+                color: '#e879f9',
+                backgroundColor: '#3b0764dd',
+                padding: { x: 12, y: 6 },
+              })
+              .setOrigin(0.5)
+              .setDepth(100)
+              .setAlpha(0);
+            this.tweens.add({
+              targets: this.mq105EchoFallbackMarker,
+              alpha: 1,
+              duration: 600,
+              ease: 'Sine.easeIn',
+              onComplete: () => { this.mq105EchoActive = true; },
+            });
+          }
+
+          // Required debug marker (always logs, not DEV-only, so it appears in live runs).
+          console.log('[LH_MQ105] Knowledge Echo spawned', { x: this.mq105EchoX, y: this.mq105EchoY });
         };
 
         private handleKnowledgeBattlePresentation = (ev: Event) => {
@@ -2794,6 +2904,12 @@ export function PhaserExplorationView({
 
         private handleOracleReturnTransition = () => {
           this.playOracleReturnTransition();
+        };
+
+        // React fires this when Space was intercepted in the altar zone but the Oracle sequence
+        // is not eligible (mq-201 not active, or already complete) — pass through to normal Scroll.
+        private handleOracleAltarPassthrough = () => {
+          onPauseRef.current?.();
         };
 
         private maybeAddTiledShadowHook(
@@ -3666,6 +3782,7 @@ export function PhaserExplorationView({
           }
 
           // Trigger zones (Maia portal overlap scales with Tiled object size — widen the portal rect in Tiled for a friendlier hit box.)
+          const _hasOracleEncounterTrigger = _triggers.some((t) => t.kind === 'oracle_encounter');
           _triggers.forEach((tr) => {
             // campfire_node: purely decorative — spawn animated fire sprite, skip trigger rect.
             // Author a Tiled object with lh_kind = campfire_node at each campfire tile position.
@@ -3702,8 +3819,23 @@ export function PhaserExplorationView({
               this.addLostEchoVisual(tr);
             }
 
-            if (tr.kind === 'oracle_encounter') {
+            // Draw Oracle statue for EITHER trigger kind:
+            // - oracle_encounter: the canonical Tiled trigger (dispatcher now routes → oracle_veiled dialogue)
+            // - npc_dialogue + oracle_veiled: synthetic fallback — only when oracle_encounter is absent
+            //   (demoGuidance no longer injects the synthetic when oracle_encounter exists, but guard
+            //   here too so a stale session can't render two statues)
+            const isOracleTrigger =
+              tr.kind === 'oracle_encounter' ||
+              (!_hasOracleEncounterTrigger && tr.kind === 'npc_dialogue' && tr.npc_id === 'oracle_veiled');
+            if (isOracleTrigger) {
+              const oracleSource = tr.kind === 'oracle_encounter' ? 'tiled' : 'synthetic';
               this.addOracleStatueVisual(tr);
+              console.log('[LH_ORACLE] ORACLE_SOURCE: ' + oracleSource, {
+                interactable_id: tr.interactable_id,
+                kind: tr.kind,
+                npc_id: tr.npc_id,
+                x: tr.x, y: tr.y, w: tr.w, h: tr.h,
+              });
             }
 
             const isPortal = tr.kind === 'maia_portal';
@@ -4064,9 +4196,11 @@ export function PhaserExplorationView({
           window.addEventListener(LH_WINDOW_PHASER_GUILD_RESEARCH_EXIT, this.handleGuildResearchExit);
           window.addEventListener(LH_WINDOW_KNOWLEDGE_COMBAT_VISUAL, this.handleKnowledgeCombatVisual);
           window.addEventListener('lh:spawn-mq103-echoes', this.handleMq103SpawnEchoes);
+          window.addEventListener('lh:spawn-mq105-echo', this.handleMq105SpawnEcho);
           window.addEventListener(LH_WINDOW_KNOWLEDGE_BATTLE_PRESENTATION, this.handleKnowledgeBattlePresentation);
           window.addEventListener(LH_WINDOW_ORACLE_BUILDUP_START, this.handleOracleBuildupStart);
           window.addEventListener(LH_WINDOW_ORACLE_RETURN_TRANSITION, this.handleOracleReturnTransition);
+          window.addEventListener('lh:oracle-altar-scroll-passthrough', this.handleOracleAltarPassthrough);
           // ── VFX event bridge (dispatched via dispatchVfx in lhVfxManager) ──
           this._vfxUnsub = subscribeToPhaserVfx((payload) => this.handleVfxEvent(payload));
           this.scale.on('resize', this.handleKnowledgeBattleResize);
@@ -4079,7 +4213,9 @@ export function PhaserExplorationView({
             window.removeEventListener(LH_WINDOW_KNOWLEDGE_BATTLE_PRESENTATION, this.handleKnowledgeBattlePresentation);
             window.removeEventListener(LH_WINDOW_ORACLE_BUILDUP_START, this.handleOracleBuildupStart);
             window.removeEventListener(LH_WINDOW_ORACLE_RETURN_TRANSITION, this.handleOracleReturnTransition);
+            window.removeEventListener('lh:oracle-altar-scroll-passthrough', this.handleOracleAltarPassthrough);
             window.removeEventListener('lh:spawn-mq103-echoes', this.handleMq103SpawnEchoes);
+            window.removeEventListener('lh:spawn-mq105-echo', this.handleMq105SpawnEcho);
             this._vfxUnsub?.();
             this._vfxUnsub = undefined;
             this.campfireFireSprites = [];
@@ -4444,8 +4580,9 @@ export function PhaserExplorationView({
             });
           }
 
-          this.portalCooldownUntil.set(portalId, this.time.now + 60000);
-          this.time.delayedCall(60000, () => {
+          // 8-second cooldown prevents duplicate trigger firing while still allowing re-entry.
+          this.portalCooldownUntil.set(portalId, this.time.now + 8000);
+          this.time.delayedCall(8000, () => {
             this.portalCooldownUntil.delete(portalId);
             this.activatedInteractableIds.delete(portalId);
             const cooledPortal = this.portalSprites.get(portalId);
@@ -4872,7 +5009,14 @@ export function PhaserExplorationView({
           }
 
           if (Phaser.Input.Keyboard.JustDown(this.keyPause)) {
-            onPauseRef.current?.();
+            if (this.playerInOracleAltarZone) {
+              // Intercept Space while inside the Oracle altar zone — React decides whether
+              // to open the Oracle sequence (mq-201 active) or pass through to normal Scroll.
+              console.log('[LH_ORACLE_ALTAR] scroll open intercepted');
+              window.dispatchEvent(new CustomEvent('lh:oracle-altar-scroll-open'));
+            } else {
+              onPauseRef.current?.();
+            }
             return;
           }
 
@@ -5061,9 +5205,78 @@ export function PhaserExplorationView({
             if ((m.activation_mode ?? 'interaction') !== 'interaction') return false;
             // Never show the prompt for portal-like or encounter triggers.
             if (m.kind === 'maia_portal') return false;
+            // oracle_altar_zone is proximity-only — no Enter prompt.
+            if (m.kind === 'oracle_altar_zone') return false;
+            // oracle_encounter is demoted to visual-only when an oracle_altar_zone exists in the map.
+            if (m.kind === 'oracle_encounter' && _hasOracleAltarZone) return false;
             if (Boolean(_completionById.current.get(m.interactable_id))) return false;
             return true;
           })?.meta;
+
+          // ── Oracle Altar Zone proximity detection ─────────────────────────────
+          // Detect whether the player is inside any oracle_altar_zone trigger rect.
+          // Fires lh:oracle-altar-zone-enter / lh:oracle-altar-zone-exit window events on state changes.
+          // Reminder text appears after ~5 s in zone: "Press Space to open the Scroll here."
+          if (_hasOracleAltarZone) {
+            const inAltarZoneNow = _triggers.some((t) => {
+              if (t.kind !== 'oracle_altar_zone') return false;
+              const tzRect = this.scratchTriggerGeom;
+              tzRect.setTo(t.x, t.y, t.w, t.h);
+              return Phaser.Geom.Intersects.RectangleToRectangle(pGeom, tzRect);
+            });
+            if (inAltarZoneNow && !this.playerInOracleAltarZone) {
+              this.playerInOracleAltarZone = true;
+              this.oracleAltarZoneEnteredAt = this.time.now;
+              this.oracleAltarReminderShown = false;
+              console.log('[LH_ORACLE_ALTAR] entered zone');
+              window.dispatchEvent(new CustomEvent('lh:oracle-altar-zone-enter'));
+            } else if (!inAltarZoneNow && this.playerInOracleAltarZone) {
+              this.playerInOracleAltarZone = false;
+              this.oracleAltarReminderShown = false;
+              this.oracleAltarReminderText?.setVisible(false);
+              console.log('[LH_ORACLE_ALTAR] exited zone');
+              window.dispatchEvent(new CustomEvent('lh:oracle-altar-zone-exit'));
+            }
+            // Show reminder text ~5 s after entering zone (once per visit).
+            if (
+              this.playerInOracleAltarZone &&
+              !this.oracleAltarReminderShown &&
+              this.time.now - this.oracleAltarZoneEnteredAt > 5000
+            ) {
+              this.oracleAltarReminderShown = true;
+              if (!this.oracleAltarReminderText) {
+                // Create text anchored at the Oracle altar zone center of the first altar rect.
+                const altarTr = _triggers.find((t) => t.kind === 'oracle_altar_zone');
+                const rx = altarTr ? altarTr.x + altarTr.w / 2 : px;
+                const ry = altarTr ? altarTr.y - 28 : py - 80;
+                this.oracleAltarReminderText = this.add.text(rx, ry,
+                  'The Scroll stirs in your satchel…\nPress Space to open it here.',
+                  {
+                    fontSize: '11px',
+                    fontFamily: 'serif',
+                    color: '#f5e7c8',
+                    backgroundColor: '#1e0a3c',
+                    padding: { x: 8, y: 5 },
+                    align: 'center',
+                    wordWrap: { width: 200 },
+                  },
+                );
+                this.oracleAltarReminderText.setAlpha(0);
+                this.oracleAltarReminderText.setOrigin(0.5, 1);
+                this.oracleAltarReminderText.setDepth(9000);
+                this.oracleAltarReminderText.setScrollFactor(1);
+              }
+              this.oracleAltarReminderText.setVisible(true);
+              this.tweens.add({
+                targets: this.oracleAltarReminderText,
+                alpha: { from: 0, to: 1 },
+                duration: 600,
+                ease: 'Sine.easeIn',
+              });
+              console.log('[LH_ORACLE_ALTAR] reminder shown');
+            }
+          }
+          // ─────────────────────────────────────────────────────────────────────
 
           const nearSessionSpawn =
             Phaser.Math.Distance.Between(
@@ -5073,9 +5286,63 @@ export function PhaserExplorationView({
               this.explorationSpawnFootY,
             ) < INTERACTION_PROMPT_SUPPRESS_NEAR_SPAWN_PX;
 
-          if (promptHit && !dialogueOpen && !nearSessionSpawn) {
+          // mq-105 Knowledge Echo proximity — player must press Enter to engage (never auto-fires).
+          // Uses mq105EchoActive (not mq105EchoSprite?.active) so the fallback marker path works too.
+          const mq105NearEcho =
+            this.mq105EchoActive &&
+            this.time.now >= this.mq105EchoInteractableAfter &&
+            Phaser.Math.Distance.Between(px, py, this.mq105EchoX, this.mq105EchoY) < 90;
+          if (mq105NearEcho && !dialogueOpen) {
+            this.interactionPromptText?.setText('Press Enter to face the Knowledge Echo');
+            const padX = 10;
+            const padY = 6;
+            const textW = Math.max(1, this.interactionPromptText?.width ?? 1);
+            const textH = Math.max(1, this.interactionPromptText?.height ?? 1);
+            const boxW = Math.round(textW + padX * 2);
+            const boxH = Math.round(textH + padY * 2);
+            this.interactionPromptBg?.clear();
+            this.interactionPromptBg?.fillStyle(0x1e0a3c, 0.80);
+            this.interactionPromptBg?.lineStyle(2, 0xc084fc, 0.95);
+            this.interactionPromptBg?.fillRoundedRect(-boxW / 2, -boxH, boxW, boxH, 10);
+            this.interactionPromptBg?.strokeRoundedRect(-boxW / 2, -boxH, boxW, boxH, 10);
+            this.interactionPromptBg?.lineStyle(6, 0xa855f7, 0.12);
+            this.interactionPromptBg?.strokeRoundedRect(-boxW / 2, -boxH, boxW, boxH, 12);
+            this.interactionPromptRoot?.setPosition(this.mq105EchoX, this.mq105EchoY - 20);
+            this.interactionPromptRoot?.setVisible(true);
+            if (
+              Phaser.Input.Keyboard.JustDown(this.keyInteract) ||
+              Phaser.Input.Keyboard.JustDown(this.keyInteractEnter)
+            ) {
+              // Dispatch window event — React listener launches the knowledge combat overlay.
+              window.dispatchEvent(new CustomEvent('lh:mq105-echo-interact'));
+              // Deactivate immediately so a second Enter press can't re-trigger.
+              this.mq105EchoActive = false;
+              // Fade out and destroy whichever visual is present (sprite or fallback marker).
+              const echoVisual: Phaser.GameObjects.GameObject | null =
+                this.mq105EchoSprite ?? this.mq105EchoFallbackMarker;
+              if (echoVisual) {
+                this.tweens.add({
+                  targets: echoVisual,
+                  alpha: 0,
+                  duration: 400,
+                  onComplete: () => {
+                    echoVisual.destroy();
+                    if (echoVisual === this.mq105EchoSprite) this.mq105EchoSprite = null;
+                    if (echoVisual === this.mq105EchoFallbackMarker) this.mq105EchoFallbackMarker = null;
+                  },
+                });
+              }
+            }
+          } else if (promptHit && !dialogueOpen && !nearSessionSpawn) {
             const cx = promptHit.x + promptHit.w / 2;
             const y = promptHit.y - 10;
+            // Oracle proximity log — fires once when the player first enters the Oracle trigger zone.
+            const isOraclePrompt =
+              promptHit.kind === 'oracle_encounter' ||
+              (promptHit.kind === 'npc_dialogue' && promptHit.npc_id === 'oracle_veiled');
+            if (isOraclePrompt) {
+              console.log('[LH_ORACLE] player in range', { interactable_id: promptHit.interactable_id });
+            }
             let label =
               promptHit.kind === 'npc_dialogue'
                 ? 'Press Enter to Speak'
@@ -5102,7 +5369,7 @@ export function PhaserExplorationView({
             this.interactionPromptBg?.strokeRoundedRect(-boxW / 2, -boxH, boxW, boxH, 12);
             this.interactionPromptRoot?.setPosition(cx, y);
             this.interactionPromptRoot?.setVisible(true);
-          } else {
+          } else if (!mq105NearEcho) {
             this.interactionPromptRoot?.setVisible(false);
           }
 
@@ -5165,6 +5432,11 @@ export function PhaserExplorationView({
               ih.tiled_name === LOST_ECHO_TRIGGER_NAME &&
               !_kcBeaten.current;
             if (ih && (!interactDone || lostEchoVisitedRecover)) {
+              // When the map has an oracle_altar_zone, oracle_encounter is visual-only; the player uses
+              // Space (Scroll open) at the altar instead. Suppress Enter/E activation.
+              if (ih.kind === 'oracle_encounter' && _hasOracleAltarZone) return;
+              // oracle_altar_zone never fires on Enter — proximity-only.
+              if (ih.kind === 'oracle_altar_zone') return;
               if (ih.kind === 'npc_dialogue') {
                 this.playTravelerOneShot('cast', 520);
               }

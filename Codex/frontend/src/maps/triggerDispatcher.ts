@@ -72,6 +72,27 @@ export function dispatchLhTrigger(trigger: ParsedLhTrigger, ctx: TriggerDispatch
     };
   }
 
+  // oracle_altar_zone — proximity-only zone around the Oracle shrine. No Enter/E interaction fires;
+  // the player presses Space (Scroll open) while in this zone to start the Oracle awakening sequence.
+  if (kind === 'oracle_altar_zone') {
+    return { handled: false, reason: 'proximity_only' };
+  }
+
+  // oracle_encounter — the Tiled statue trigger kind. Routes to oracle_veiled dialogue so that
+  // mq-201 (The Oracle's Summons) can resolve correctly regardless of which trigger kind the map uses.
+  if (kind === 'oracle_encounter') {
+    if (typeof console !== 'undefined') {
+      console.log('[LH_ORACLE] interaction fired (oracle_encounter trigger → oracle_veiled dialogue)');
+    }
+    return {
+      handled: true,
+      nextPlayer: ctx.player,
+      nextQuests: ctx.quests,
+      markVisited: false,
+      openNpcDialogue: { npcId: 'oracle_veiled' },
+    };
+  }
+
   if (kind === 'combat_encounter' || kind === 'vocab_battle') {
     return {
       handled: true,

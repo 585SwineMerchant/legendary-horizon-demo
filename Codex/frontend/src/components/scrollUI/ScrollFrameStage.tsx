@@ -17,9 +17,16 @@ type Props = {
   children: ReactNode;
   zIndex?: number;
   variant?: 'hub' | 'submenu';
+  /**
+   * Override the scroll image opacity. Default 1. Used by ScrollRevealSequence
+   * to start with the parchment hidden and fade it in after stats materialise.
+   */
+  imageOpacity?: number;
+  /** CSS transition string applied to the scroll image. */
+  imageTransition?: string;
 };
 
-export function ScrollFrameStage({ children, zIndex = 8500, variant = 'hub' }: Props) {
+export function ScrollFrameStage({ children, zIndex = 8500, variant = 'hub', imageOpacity, imageTransition }: Props) {
   const imgSrc = variant === 'submenu' ? SCROLL_ASSETS.submenu : SCROLL_ASSETS.hub;
 
   return (
@@ -60,6 +67,8 @@ export function ScrollFrameStage({ children, zIndex = 8500, variant = 'hub' }: P
             objectFit: 'fill',
             userSelect: 'none',
             pointerEvents: 'none',
+            opacity: imageOpacity ?? 1,
+            transition: imageTransition,
           }}
           onError={(e) => {
             // Blank scroll not yet added → fall back to hub image gracefully

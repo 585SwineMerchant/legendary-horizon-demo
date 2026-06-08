@@ -3,6 +3,13 @@ import type { PlayerSave, QuestDefinition, RealmDefinition } from '../domain/lh-
 
 import { lineMatchesConditions, type DialogueEvalContext } from './dialogueConditions';
 
+// NARRATION ATTACHMENT POINT (future work — do not implement yet):
+// Optional high-quality Scribe/NPC read-aloud for reading support should attach at the
+// `resolveNpcDialogueBody` return value in `resolveNpcDialogueBody()` and at the `body` field
+// produced here in `interpolateLhDialogueTemplate()`. The `DialogueBox` component receives the
+// final `body` string — a `data-lh-narrate` attribute or `aria-live` region on the dialogue
+// panel is the right DOM-level hook. Audio assets would be keyed by `line.line_id`.
+
 export function interpolateLhDialogueTemplate(text: string, ctx: DialogueEvalContext): string {
   const { player, realm } = ctx;
   let out = text

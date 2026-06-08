@@ -429,14 +429,23 @@ class LhAudioDirector {
       musicAttr: document.documentElement.dataset.lhMusic,
     });
 
-    // If audio (or music specifically) is muted, keep lane intent but stop runners to prevent hidden playback.
+    this.lane = next;
+
+    // If audio (or music specifically) is muted, keep lane intent but stop runners.
+    // Exception: for battle, pre-create the runner at volume 0 so the autoplay-retry
+    // gesture listener is registered. When the user un-mutes (M key), refreshAudibility
+    // will ramp the volume immediately without needing a second gesture.
     if (!isMusicEnabled()) {
-      this.lane = next;
-      this.stopRunners(700);
+      if (next === 'battle') {
+        this.title?.stop({ durationMs: 700 }); this.title = null;
+        this.exploration?.stop({ durationMs: 700 }); this.exploration = null;
+        this.ensureBattle();         // registers retry listener; volume stays 0
+        this.applyVolumes(400);      // battle target = 0 while muted
+      } else {
+        this.stopRunners(700);
+      }
       return;
     }
-
-    this.lane = next;
 
     if (next === 'title') {
       this.ensureTitle();

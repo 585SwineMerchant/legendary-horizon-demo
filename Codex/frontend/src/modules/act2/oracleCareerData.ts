@@ -403,3 +403,26 @@ export const ORACLE_CAREER_DATA: OracleCareerEntry[] = [
 export function getOracleCareerEntry(id: number): OracleCareerEntry | undefined {
   return ORACLE_CAREER_DATA.find((e) => e.prophecy_id === id);
 }
+
+/**
+ * Resolve the most relevant oracle career entry from a list of foretold signpost realm IDs.
+ * Iterates the realm_id list in order (most significant first) and returns the first match.
+ * Falls back to prophecy_id 1 (Sky-Ship Architect / STEM) when no match is found.
+ */
+export function resolveOracleProphecyFromRealmIds(realmIds: readonly string[]): OracleCareerEntry {
+  for (const realmId of realmIds) {
+    const match = ORACLE_CAREER_DATA.find((e) => e.realm_id === realmId);
+    if (match) return match;
+  }
+  // No signpost realm matched a known career entry. This should not happen in
+  // production — it means the player's foretold_signpost_realm_ids are empty or
+  // contain only realm IDs not yet represented in ORACLE_CAREER_DATA.
+  if (typeof console !== 'undefined') {
+    console.warn(
+      '[LH_ORACLE] resolveOracleProphecyFromRealmIds — no match for signpost realm IDs; ' +
+        'falling back to Sky-Ship Architect (prophecy #1). Provided IDs:',
+      [...realmIds],
+    );
+  }
+  return ORACLE_CAREER_DATA[0]; // safe fallback — prophecy #1
+}

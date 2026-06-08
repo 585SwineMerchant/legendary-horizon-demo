@@ -41,6 +41,11 @@ export type DemoGuidanceStateV1 = {
 export const LH_DEMO_BASE_STAMINA_MS = 2400;
 export const LH_DEMO_REWARDED_STAMINA_MS = 4200;
 
+/** Tiled trigger name for the mq-105 Knowledge Echo encounter. */
+export const MQ105_KNOWLEDGE_ECHO_TRIGGER_NAME = 'knowledge_combat_mq105';
+/** Tiled trigger name for the Oracle NPC dialogue (Act II opening). */
+export const ORACLE_NPC_TRIGGER_NAME = 'oracle_veiled_shrine';
+
 const STAGE_OBJECTIVES: Record<DemoGuidanceStageId, string> = {
   demo_awakened: 'Speak with the Master Scribe',
   demo_seek_maia: 'Enter the Mirror of Maia',
@@ -232,21 +237,50 @@ export function isLostEchoDemoSuppressedByStage(stage_id: DemoGuidanceStageId): 
 }
 
 export function buildDemoGuidanceMap(parsedMap: ParsedLhMap): ParsedLhMap {
-  if (!import.meta.env.DEV) return parsedMap;
-
   const hasMasterScribe = parsedMap.triggers.some(
     (trigger) => trigger.kind === 'npc_dialogue' && trigger.npc_id === LH_NPC_ID_MASTER_SCRIBE,
   );
   const hasLostEcho = parsedMap.triggers.some((trigger) => isLostEchoDemoTrigger(trigger));
-  const maia = parsedMap.triggers.find((trigger) => trigger.kind === 'maia_portal');
-  const baseX = maia ? maia.bounds.x + maia.bounds.width / 2 : parsedMap.footprint.width_px / 2;
-  const baseY = maia ? maia.bounds.y + maia.bounds.height + 150 : parsedMap.footprint.height_px / 2;
+  // Detect oracle triggers separately:
+  //   hasOracleNpcDialogue — a proper npc_dialogue trigger with oracle_veiled; Phaser renders a
+  //                          visual NPC sprite at its position. No synthetic needed.
+  //   oracle_encounter zone — a large activation zone; when a real altar NPC exists, this zone
+  //                           creates a duplicate interaction point. Filter it from the map.
+  const hasOracleNpcDialogue = parsedMap.triggers.some(
+    (trigger) => trigger.kind === 'npc_dialogue' && trigger.npc_id === 'oracle_veiled',
+  );
+  const hasKnowledgeEchoMq105 = parsedMap.triggers.some(
+    (trigger) => trigger.kind === 'combat_encounter' && trigger.tiled_name === MQ105_KNOWLEDGE_ECHO_TRIGGER_NAME,
+  );
+
+  // When a real Oracle altar NPC sprite exists in the map, the oracle_encounter zone becomes a
+  // duplicate interaction point. Remove it so only the altar NPC activates the Oracle sequence.
+  const effectiveTriggers = hasOracleNpcDialogue
+    ? parsedMap.triggers.filter((t) => t.kind !== 'oracle_encounter')
+    : parsedMap.triggers;
+
+  if (hasOracleNpcDialogue && effectiveTriggers.length < parsedMap.triggers.length) {
+    if (import.meta.env.DEV) {
+      console.log('[LH_ORACLE] oracle_encounter zone removed — manual altar NPC handles activation');
+    }
+  }
+
+  // Work from the filtered trigger list for all remaining decisions.
+  const effectiveMap: ParsedLhMap = hasOracleNpcDialogue
+    ? { ...parsedMap, triggers: effectiveTriggers }
+    : parsedMap;
+
+  const maia = effectiveMap.triggers.find((trigger) => trigger.kind === 'maia_portal');
+  const baseX = maia ? maia.bounds.x + maia.bounds.width / 2 : effectiveMap.footprint.width_px / 2;
+  const baseY = maia ? maia.bounds.y + maia.bounds.height + 150 : effectiveMap.footprint.height_px / 2;
   const synthetic: ParsedLhTrigger[] = [];
 
   if (!hasMasterScribe) {
-    console.warn(
-      '[DEV] buildDemoGuidanceMap: no master_scribe npc_dialogue trigger found in map — injecting synthetic fallback. Add the trigger in Tiled to remove this warning.',
-    );
+    if (import.meta.env.DEV) {
+      console.warn(
+        '[DEV] buildDemoGuidanceMap: no master_scribe npc_dialogue trigger in map — injecting synthetic fallback.',
+      );
+    }
     synthetic.push({
       tiled_object_id: 9001,
       tiled_name: 'demo_master_scribe_intro',
@@ -258,12 +292,15 @@ export function buildDemoGuidanceMap(parsedMap: ParsedLhMap): ParsedLhMap {
       interaction_label_active: 'Speak',
       interaction_label_complete: 'Speak with the Master Scribe',
     });
+
   }
 
   if (!hasLostEcho) {
-    console.warn(
-      '[DEV] buildDemoGuidanceMap: no knowledge_combat_first trigger found in map — injecting synthetic fallback. Add the trigger in Tiled to remove this warning.',
-    );
+    if (import.meta.env.DEV) {
+      console.warn(
+        '[DEV] buildDemoGuidanceMap: no knowledge_combat_first trigger in map — injecting synthetic fallback.',
+      );
+    }
     synthetic.push({
       tiled_object_id: LH_DEMO_LOST_ECHO_INTERACTABLE_OBJECT_ID,
       tiled_name: 'knowledge_combat_first',
@@ -276,9 +313,77 @@ export function buildDemoGuidanceMap(parsedMap: ParsedLhMap): ParsedLhMap {
     });
   }
 
-  if (!synthetic.length) return parsedMap;
+  if (!hasKnowledgeEchoMq105) {
+    // mq-105 Knowledge Echo — player must interact (not overlap_auto) to start knowledge combat.
+    synthetic.push({
+      tiled_object_id: 9005,
+      tiled_name: MQ105_KNOWLEDGE_ECHO_TRIGGER_NAME,
+      layer_name: 'demo_synthetic_guidance',
+      kind: 'combat_encounter',
+      activation_mode: 'interaction',
+      target_quest_id: 'mq-105',
+      bounds: { x: baseX + 60, y: baseY - 200, width: 72, height: 72 },
+      interaction_label_active: 'Face the Knowledge Echo',
+      interaction_label_complete: 'Knowledge Echo defeated',
+    });
+  }
+
+  // oracle_encounter in the Tiled map routes to oracle_veiled dialogue via triggerDispatcher,
+  // so the synthetic npc_dialogue+oracle_veiled is redundant (and causes a second statue).
+  // Only inject the synthetic oracle when neither source exists.
+  const hasOracleEncounterTiled = parsedMap.triggers.some((t) => t.kind === 'oracle_encounter');
+
+  if (!hasOracleNpcDialogue && !hasOracleEncounterTiled) {
+    // Inject a visual oracle NPC sprite so the player can see and approach the Oracle.
+    // Priority:
+    //   1. VITE_LH_ORACLE_X / VITE_LH_ORACLE_Y env-var override (for precise tuning)
+    //   2. Centre of the existing oracle_encounter zone in the Tiled map (most accurate)
+    //   3. Footprint-relative fallback (70% × 28%) when no zone exists
+    // NOTE: when hasOracleNpcDialogue=true this block is skipped and oracle_encounter zones
+    // have already been filtered out above, so this lookup correctly returns undefined.
+    const oracleEncounterZone = effectiveMap.triggers.find((t) => t.kind === 'oracle_encounter');
+    const rawOX = (import.meta.env.VITE_LH_ORACLE_X as string | undefined)?.trim();
+    const rawOY = (import.meta.env.VITE_LH_ORACLE_Y as string | undefined)?.trim();
+    const oracleX = rawOX && !Number.isNaN(Number(rawOX))
+      ? Number(rawOX)
+      : oracleEncounterZone
+        // Offset slightly left of centre so the NPC sits in the front-centre of the shrine zone
+        ? Math.round(oracleEncounterZone.bounds.x + oracleEncounterZone.bounds.width * 0.45 - 28)
+        : Math.round(parsedMap.footprint.width_px * 0.70);
+    const oracleY = rawOY && !Number.isNaN(Number(rawOY))
+      ? Number(rawOY)
+      : oracleEncounterZone
+        // Place in the lower-third of the zone (player approaches from below on most maps)
+        ? Math.round(oracleEncounterZone.bounds.y + oracleEncounterZone.bounds.height * 0.60 - 40)
+        : Math.round(effectiveMap.footprint.height_px * 0.28);
+    if (import.meta.env.DEV) {
+      console.log('[LH_ORACLE] synthetic oracle NPC sprite placed', {
+        source: rawOX
+          ? 'env-var (VITE_LH_ORACLE_X/Y)'
+          : oracleEncounterZone
+            ? `oracle_encounter zone centre (tiled id ${oracleEncounterZone.tiled_object_id})`
+            : 'footprint-relative (0.70w, 0.28h)',
+        x: oracleX,
+        y: oracleY,
+        tip: 'Set VITE_LH_ORACLE_X / VITE_LH_ORACLE_Y in .env.local to pin exact shrine coords.',
+      });
+    }
+    synthetic.push({
+      tiled_object_id: 9006,
+      tiled_name: ORACLE_NPC_TRIGGER_NAME,
+      layer_name: 'demo_synthetic_guidance',
+      kind: 'npc_dialogue',
+      activation_mode: 'interaction',
+      npc_id: 'oracle_veiled',
+      bounds: { x: oracleX, y: oracleY, width: 56, height: 80 },
+      interaction_label_active: 'Press Enter to speak with the Oracle',
+      interaction_label_complete: 'The Oracle has spoken',
+    });
+  }
+
+  if (!synthetic.length) return effectiveMap;
   return {
-    ...parsedMap,
-    triggers: [...parsedMap.triggers, ...synthetic],
+    ...effectiveMap,
+    triggers: [...effectiveMap.triggers, ...synthetic],
   };
 }

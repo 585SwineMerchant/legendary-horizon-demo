@@ -10,9 +10,22 @@ import {
 } from '../lib/lhAccessibilityPrefs';
 
 export function useLhAccessibilityPrefs() {
-  const [prefs, setPrefs] = useState<LhAccessibilityPrefsV1>(() => loadLhAccessibilityPrefs());
+  const [prefs, setPrefs] = useState<LhAccessibilityPrefsV1>(() => {
+    const loaded = loadLhAccessibilityPrefs();
+    // Apply synchronously so data-lh-music is set on the DOM root BEFORE any React
+    // effects run (including the music-lane effect in App.tsx).  Without this, if
+    // music_muted=true was persisted from a previous session, the attribute would
+    // only be set in the useEffect below — AFTER exploration audio had already
+    // started and AFTER the battle music lane check runs, leaving battle music
+    // silent until the user presses M.
+    if (typeof document !== 'undefined') {
+      applyLhAccessibilityPrefsToDocument(loaded);
+    }
+    return loaded;
+  });
 
   useEffect(() => {
+    // Re-apply on every subsequent pref change (e.g. M-key toggle, settings panel).
     applyLhAccessibilityPrefsToDocument(prefs);
     saveLhAccessibilityPrefs(prefs);
   }, [prefs]);

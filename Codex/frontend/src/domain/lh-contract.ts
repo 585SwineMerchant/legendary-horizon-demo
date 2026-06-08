@@ -351,6 +351,40 @@ export type ExplorationLoopState = {
    * Anchors Act II/III comparison and exploration guidance; empty until Act I manifest completion.
    */
   foretold_signpost_realm_ids?: string[];
+  /**
+   * Set to true when the Scroll Reveal Ceremony has been performed and dismissed.
+   * Gates whether signpost data is visible in the ScrollOfDestinyDisplay (pause menu).
+   * Until true, the scroll shows no destiny/signpost information — preserving the ceremony reveal.
+   */
+  scroll_reveal_performed?: boolean;
+
+  // ── Oracle Prophecy brand (Act II opening) ────────────────────────────────
+  /** Prophecy number (1–41) selected by the Oracle for this player. Set on OracleProphecyReveal completion. */
+  oracle_prophecy_id?: number;
+  /** Canon realm_id the selected prophecy maps to (from ORACLE_CAREER_DATA). */
+  oracle_prophecy_realm_id?: string;
+  /** Fantasy title of the oracle prophecy (e.g. "Digital Runeweaver"). */
+  oracle_prophecy_title?: string;
+  /**
+   * Real-world CareerOneStop / BLS research URL burned into the Scroll by the Oracle.
+   * Rendered as a clickable link in the Scroll of Destiny after the prophecy sequence.
+   */
+  oracle_prophecy_career_url?: string;
+
+  // ── Quest of Fate — Google Drive sync (Act II, stub) ─────────────────────
+  /** Google Drive file ID of the player's Quest of Fate document. Absent until teacher creates it. */
+  quest_of_fate_drive_file_id?: string;
+  /** Direct view/edit URL for the player's Quest of Fate Google Doc. */
+  quest_of_fate_drive_url?: string;
+  /**
+   * Drive sync status.
+   * 'pending' — teacher has not yet created the player's copy.
+   * 'synced'  — Drive file exists and URL is available.
+   * 'error'   — sync attempt failed; contact teacher.
+   */
+  quest_of_fate_sync_status?: 'pending' | 'synced' | 'error';
+  /** ISO timestamp of last confirmed Drive sync. */
+  quest_of_fate_last_synced_at_iso?: string;
 
   // ── Resolve tracking (System 4) — session-only, synced with PlayerSave ────
   /** Current Resolve for active session. Mirrored to/from PlayerSave.resolve_current on save. */

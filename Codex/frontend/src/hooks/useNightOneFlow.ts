@@ -105,7 +105,8 @@ import {
 } from '../exploration/guildGt102OutcomeCopy';
 import { emptyLedgerDraft, ritualDraftsFromLedgerDraft } from '../exploration/comparisonLedger';
 import { selectCampfirePrompt, addUsedPromptId, parseUsedPromptIds } from '../services/campfirePromptEngine';
-import { parseSatchelInventory } from '../data/itemCatalog';
+import { parseSatchelInventory, grantMemento } from '../data/itemCatalog';
+import { resolveOracleProphecyFromRealmIds } from '../modules/act2/oracleCareerData';
 import { applyResolveDamage, rollResolveDamage, restoreResolveToFull } from '../services/resolveSystem';
 import { normalizeForetoldSignpostRealmIds, signpostLedgerMilestone } from '../exploration/foretoldSignposts';
 import {
@@ -282,27 +283,30 @@ function resolveAct1MasterScribeDialogue(quests: readonly QuestDefinition[]): st
   let branch = 'fallback';
   let line: string;
 
-  // MQ-202: The Runes Become Legible — Scribe reads signposts, gives Quest of Fate
+  // MQ-202: The Runes Become Legible — Scribe reads signposts, explains oracle brand + Quest of Fate
   if (isActive('mq-202')) {
     branch = 'mq-202';
     line =
-      'You heard the Oracle.\n\nThen the prophecy is awake.\n\nLet me see the Scroll.' +
-      '\n\nAh...\n\nYes.\n\nThe runes have settled.\n\nNow they may be read.' +
-      '\n\nThese are your Foretold Signposts.\n\nThey are not your destiny.\n\nThey are the first roads asking to be explored.' +
-      '\n\nA careless Traveler sees a signpost and calls it fate.\n\nA wise Traveler gathers evidence.' +
-      '\n\nThat is your next task.\n\nYou will investigate one prophecy path first.\n\nNot to choose it.\n\nTo learn how a Traveler studies a road before walking it.' +
-      '\n\nI have placed the Quest of Fate in your Field Journal.\n\nOpen the Scroll of Destiny.\n\nFind your Field Journal.\n\nThen open Work Files.\n\nYour document will be waiting there.';
+      'You heard the Oracle.\n\nThe Runes have settled — and they may now be read.\n\n' +
+      'Three Foretold Signposts are sealed on your Scroll.\n\nThey are not your destiny.\n\nThey are not a verdict.\n\nThey are the first roads asking to be examined.\n\n' +
+      'The Oracle also burned a mark into your Scroll.\n\n' +
+      "That mark is a link — a real-world research source about one of your signpost paths.\n\n" +
+      "Open your Scroll of Destiny and look for the Oracle's brand.\n\nClick it.\n\nRead.\n\nTake notes.\n\n" +
+      'That is your next task: not choosing a career, but learning how a Traveler studies a road before walking it.\n\n' +
+      'I have placed the Quest of Fate in your Field Journal.\n\n' +
+      'Open the Scroll of Destiny → Field Journal → Work Files.\n\nYour document will be waiting there.\n\n' +
+      'When your teacher creates your personal copy in Google Drive, you will find a link in Work Files as well.';
   // MQ-201: The Oracle's Summons — Scribe sends player to Oracle Shrine
   } else if (isActive('mq-201')) {
     branch = 'mq-201';
     line = 'The Oracle Shrine lies beyond the Grey Commons.\n\nSeek it.\n\nThe Scroll has awakened — but only the Oracle can make its runes legible.';
   // MQ-109: The Scroll Awakens — Act I finale, Oracle handoff
+  // Two beats only; the Scroll reveal cinematic interrupts after these lines.
+  // Post-reveal reaction ("This should not be here…") opens in the RPG dialogue
+  // box after the cinematic via dismissScrollReveal → setNpcDialogue.
   } else if (isActive('mq-109')) {
     branch = 'mq-109';
-    line =
-      'The Scroll has awakened.\n\nYour first signs are written here...\n\nbut they are not yet readable.' +
-      '\n\nI can record what the Scroll reveals.\n\nI cannot always interpret what it means.\n\nFor that, we need the Oracle.' +
-      '\n\nTravel to the Oracle Shrine.\n\nListen carefully.\n\nThe Oracle does not speak often.\n\nAnd never without purpose.';
+    line = 'The Scroll has awakened.\n\nWait…';
   // MQ-108: The Foretold Signposts — send to Maia IV
   } else if (isActive('mq-108')) {
     branch = 'mq-108';
@@ -318,7 +322,13 @@ function resolveAct1MasterScribeDialogue(quests: readonly QuestDefinition[]): st
   // MQ-105: The Echo That Questions — knowledge combat tutorial
   } else if (isActive('mq-105')) {
     branch = 'mq-105';
-    line = 'A different Echo waits ahead.\n\nThis one does not strike first.\n\nIt questions.\n\nListen carefully, then answer with what you know.';
+    line =
+      'Well done, Traveler.\n\nYou drove back the Echoes of doubt.' +
+      '\n\nBut there is one more you must face.\n\nThis Echo is different.' +
+      '\n\nSteel alone will not scatter it.\n\nForce will not help you here.' +
+      '\n\nThis Echo questions.\n\nIt tests what you know — not how hard you can strike.' +
+      '\n\nApproach it and press Enter.\n\nAnswer with what you have learned.' +
+      '\n\nThe Echo glows nearby.\n\nFind it when you are ready.';
   // MQ-104: Hidden Strengths — send to Maia II
   } else if (isActive('mq-104')) {
     branch = 'mq-104';
@@ -373,11 +383,13 @@ function resolveAct1OracleDialogue(quests: readonly QuestDefinition[]): string {
   }
 
   if (isActive('mq-201')) {
+    // Player approached via Enter — guide them to the Scroll activation path.
+    // The cinematic only fires through lh:oracle-altar-scroll-open (Spacebar on Scroll near altar).
     return (
       'Traveler of the Grey Commons...\n\nYour first signs have awakened.' +
       '\n\nThree runes burn upon your Scroll.\n\nNot answers.\n\nNot chains.\n\nSignposts.' +
       '\n\nDo not choose from wonder.\n\nDo not choose from fear.\n\nChoose only after seeking evidence.' +
-      '\n\nReturn to the Scribe.\n\nThe runes will open for him now.'
+      '\n\nI do not speak my visions.\n\nI reveal them through the Scroll.\n\nOpen it here, at this altar.'
     );
   }
   // Fallback after mq-201 is complete
@@ -410,6 +422,9 @@ export function useNightOneFlow() {
   const [screen, setScreen] = useState<Screen>('title');
   const [player, setPlayer] = useState<PlayerSave | null>(null);
   const [quests, setQuests] = useState<QuestDefinition[]>(() => seededQuestSeed.map(deepClone));
+  // Ref mirrors quests state so window event handlers registered once can read current quest state.
+  const questsRef = useRef<QuestDefinition[]>(quests);
+  useEffect(() => { questsRef.current = quests; }, [quests]);
 
   const [visitedInteractableIds, setVisitedInteractableIds] = useState<string[]>([]);
 
@@ -484,6 +499,13 @@ export function useNightOneFlow() {
   const [moduleHostOpen, setModuleHostOpen] = useState(false);
   const [activeModuleId, setActiveModuleId] = useState<string | null>(null);
   const [scrollRevealOpen, setScrollRevealOpen] = useState(false);
+  // Ref set when mq-109 completes during a Scribe interaction. The reveal is
+  // deferred until the player dismisses the RPG dialogue box, so the cinematic
+  // starts AFTER the Scribe's final line — not simultaneously with it.
+  const scrollRevealPendingRef = useRef(false);
+  const [oracleProphecyOpen, setOracleProphecyOpen] = useState(false);
+  const [oracleCinematicOpen, setOracleCinematicOpen] = useState(false);
+  const [preRevealCheckpointOpen, setPreRevealCheckpointOpen] = useState(false);
   const [bootstrapPhase, setBootstrapPhase] = useState<'idle' | 'loading' | 'error'>('idle');
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [realmProgress, setRealmProgress] = useState<RealmProgressMap>({});
@@ -734,10 +756,22 @@ export function useNightOneFlow() {
             }
             const xp = getQuestXpReward(q, id);
             if (xp > 0) setPlayer((p) => (p ? { ...p, xp_total: p.xp_total + xp } : p));
-            const next = markQuestCompleted(q, id);
+            let next = markQuestCompleted(q, id);
             if (typeof console !== 'undefined') {
               const unlocked = next.find((nq) => nq.quest_id !== id && q.find((oq) => oq.quest_id === nq.quest_id && oq.status === 'locked') && nq.status === 'available');
               console.log('[LH_ACT1_DEBUG] Quest completed:', id, '— next unlocked:', unlocked?.quest_id ?? 'none');
+            }
+            // Auto-skip mq-107 (Blank Scroll tutorial) if it just unlocked.
+            // The Scroll Reveal ceremony fires later via the Scribe; asking the player
+            // to open the Scroll first would spoil the reveal moment.
+            const mq107 = next.find((nq) => nq.quest_id === 'mq-107');
+            if (mq107 && (mq107.status === 'active' || mq107.status === 'available')) {
+              if (typeof console !== 'undefined') {
+                console.log('[LH_ACT_FLOW_DEBUG] Maia close — auto-completing mq-107 (Blank Scroll) to preserve reveal ceremony');
+              }
+              const xp107 = getQuestXpReward(next, 'mq-107');
+              if (xp107 > 0) setPlayer((p) => (p ? { ...p, xp_total: p.xp_total + xp107 } : p));
+              next = markQuestCompleted(next, 'mq-107');
             }
             return next;
           }
@@ -752,6 +786,120 @@ export function useNightOneFlow() {
     window.addEventListener('lh:maia-handoff-closed', handler);
     return () => window.removeEventListener('lh:maia-handoff-closed', handler);
   }, []); // registered once — uses functional setQuests to always read current state
+
+  // ── Maia Assessment Reconciliation ─────────────────────────────────────────
+  // When foretold_signpost_realm_ids exists in saved state (Maia completed in a
+  // prior session or via direct assessment import), any of mq-102/104/106/108
+  // still in active/available are stale. Complete them so the Scribe never
+  // re-routes the player to Maia when the assessment data already exists.
+  const maiaReconcileRan = useRef(false);
+  useEffect(() => {
+    if (maiaReconcileRan.current) return;
+    const signposts = exploration.foretold_signpost_realm_ids;
+    if (!signposts || signposts.length === 0) {
+      if (typeof console !== 'undefined') {
+        console.log('[LH_MAIA_RECONCILE] no action needed — no assessment data yet');
+      }
+      return;
+    }
+    maiaReconcileRan.current = true;
+    if (typeof console !== 'undefined') {
+      console.log('[LH_MAIA_RECONCILE] assessment found', { signposts: [...signposts] });
+    }
+    setQuests((q) => {
+      const MAIA_QUEST_IDS = ['mq-102', 'mq-104', 'mq-106', 'mq-108'] as const;
+      let next = q;
+      let advanced = false;
+      for (const id of MAIA_QUEST_IDS) {
+        const quest = next.find((qx) => qx.quest_id === id);
+        if (quest && (quest.status === 'active' || quest.status === 'available')) {
+          if (typeof console !== 'undefined') {
+            console.log('[LH_MAIA_RECONCILE] stale quest advanced', { id, was: quest.status });
+          }
+          const xp = getQuestXpReward(next, id);
+          if (xp > 0) setPlayer((p) => (p ? { ...p, xp_total: p.xp_total + xp } : p));
+          next = markQuestCompleted(next, id);
+          advanced = true;
+        }
+      }
+      if (!advanced && typeof console !== 'undefined') {
+        console.log('[LH_MAIA_RECONCILE] no action needed — quests already current');
+      }
+      return next;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exploration.foretold_signpost_realm_ids]);
+
+  // ── Part 1: Audio — prime battle music from native keydown context ─────────
+  // Phaser detects Enter via JustDown in its rAF update loop — NOT from within the
+  // native DOM keydown handler. Chrome's autoplay policy requires audio.play() to be
+  // called from within the actual DOM event handler call stack. Solution: when the
+  // mq-105 Knowledge Echo spawns, add a native keydown listener; the very next Enter
+  // press primes battle music in the correct gesture context before Phaser even
+  // processes it.
+  useEffect(() => {
+    let enterListenerCleanup: (() => void) | null = null;
+
+    const onEchoSpawned = () => {
+      const onEnter = (ev: KeyboardEvent) => {
+        if (ev.code !== 'Enter' && ev.key !== 'Enter') return;
+        if (typeof console !== 'undefined') {
+          console.log('[LH_AUDIO] Enter near echo — priming battle music from native keydown');
+        }
+        getLhAudioDirector().primeBattleMusicFromUserGesture();
+      };
+      window.addEventListener('keydown', onEnter, { capture: true });
+
+      // Remove as soon as the echo interact fires (or the effect cleans up)
+      const onInteract = () => {
+        window.removeEventListener('keydown', onEnter, true);
+        enterListenerCleanup = null;
+      };
+      window.addEventListener('lh:mq105-echo-interact', onInteract, { once: true });
+
+      enterListenerCleanup = () => {
+        window.removeEventListener('keydown', onEnter, true);
+        window.removeEventListener('lh:mq105-echo-interact', onInteract);
+      };
+    };
+
+    window.addEventListener('lh:spawn-mq105-echo', onEchoSpawned);
+    return () => {
+      window.removeEventListener('lh:spawn-mq105-echo', onEchoSpawned);
+      enterListenerCleanup?.();
+    };
+  }, []);
+
+  // ── Part 2: Pre-reveal checkpoint — show when mq-108 completes this session ──
+  // The checkpoint is a brief overlay prompting the player to return to the Scribe.
+  // We mark the ref on mount if mq-108 is already complete (loaded from a prior
+  // session) so we only show it when the quest completes *during* this session.
+  const preRevealCheckpointShownRef = useRef(false);
+  useEffect(() => {
+    // Mark as already-shown if mq-108 was complete at session start
+    const mq108onLoad = quests.find((q) => q.quest_id === 'mq-108');
+    if (mq108onLoad?.status === 'completed') {
+      preRevealCheckpointShownRef.current = true;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // mount only
+
+  useEffect(() => {
+    if (preRevealCheckpointShownRef.current) return;
+    if (exploration.scroll_reveal_performed) return;
+    const mq108 = quests.find((q) => q.quest_id === 'mq-108');
+    const mq109 = quests.find((q) => q.quest_id === 'mq-109');
+    if (
+      mq108?.status === 'completed' &&
+      mq109 && (mq109.status === 'active' || mq109.status === 'available')
+    ) {
+      preRevealCheckpointShownRef.current = true;
+      setPreRevealCheckpointOpen(true);
+      if (typeof console !== 'undefined') {
+        console.log('[LH_ACT_FLOW_DEBUG] mq-108 complete — showing pre-reveal checkpoint overlay');
+      }
+    }
+  }, [quests, exploration.scroll_reveal_performed]);
 
   /** Production-shaped: show GT-101 on Pause only after in-map manager unlock + HQ context. */
   const pauseCanOpenGt101 = useMemo(() => {
@@ -1058,6 +1206,17 @@ export function useNightOneFlow() {
     setNpcDialogue(null);
     // Act I: Master Scribe dialogue dismissal no longer advances demo stage state.
     // Quest progression is handled by the quest engine based on player actions.
+
+    // Act I Scroll reveal: if mq-109 just completed (flag set in onActivateHotspot),
+    // open the cinematic NOW — after the player has seen the Scribe's final line in
+    // the RPG dialogue box, not simultaneously with it.
+    if (scrollRevealPendingRef.current) {
+      scrollRevealPendingRef.current = false;
+      setScrollRevealOpen(true);
+      if (typeof console !== 'undefined') {
+        console.log('[LH_ACT_FLOW_DEBUG] Scribe dialogue dismissed — opening Scroll reveal cinematic');
+      }
+    }
   }, [npcDialogue]);
 
   // MQ-103 completion: Phaser fires this after all 4 tutorial echoes are defeated.
@@ -1080,6 +1239,58 @@ export function useNightOneFlow() {
     window.addEventListener('lh:mq103-echoes-cleared', handler);
     return () => window.removeEventListener('lh:mq103-echoes-cleared', handler);
   }, []); // registered once — uses functional setQuests
+
+  // MQ-105: player interacted with the Knowledge Echo sprite → launch knowledge combat overlay.
+  useEffect(() => {
+    const handler = () => {
+      setQuests((q) => {
+        const mq105 = q.find((quest) => quest.quest_id === 'mq-105');
+        if (mq105 && (mq105.status === 'active' || mq105.status === 'available')) {
+          if (typeof console !== 'undefined') {
+            console.log('[LH_ACT1_DEBUG] lh:mq105-echo-interact — launching jrpg_knowledge encounter for mq-105');
+          }
+          getLhAudioDirector().primeBattleMusicFromUserGesture();
+          setActiveEncounter({
+            kind: 'combat_encounter',
+            interactableId: 'act1_tutorial_echo_mq105',
+            target_quest_id: 'mq-105',
+            title: 'The Echo That Questions',
+            presentation: 'jrpg_knowledge',
+            enemyTemplateId: 'lost_echo',
+          });
+        }
+        return q; // quest state unchanged — encounter win handler completes mq-105
+      });
+    };
+    window.addEventListener('lh:mq105-echo-interact', handler);
+    return () => window.removeEventListener('lh:mq105-echo-interact', handler);
+  }, []); // registered once — setActiveEncounter reads from ref, setQuests is functional
+
+  // ── Oracle Altar Zone ────────────────────────────────────────────────────────
+  // Phaser fires lh:oracle-altar-zone-enter/exit when the player walks in/out of the altar proximity zone.
+  // Phaser fires lh:oracle-altar-scroll-open when the player presses Space inside the altar zone.
+  // React decides whether to start the Oracle cinematic (mq-201 active) or pass through to normal Scroll.
+  useEffect(() => {
+    const onAltarScrollOpen = () => {
+      const mq201 = questsRef.current.find((q) => q.quest_id === 'mq-201');
+      const mq201Active = mq201?.status === 'active' || mq201?.status === 'available';
+      const mq201Complete = mq201 ? isTerminalQuestStatus(mq201.status) : false;
+      console.log('[LH_ORACLE_ALTAR] scroll open intercepted', { mq201_status: mq201?.status ?? 'absent' });
+      if (mq201Active && !mq201Complete) {
+        // Start the Oracle awakening sequence — same path as the old oracle_veiled NPC interaction.
+        console.log('[LH_ORACLE_ALTAR] sequence started');
+        setNpcDialogue(null);
+        setOracleCinematicOpen(true);
+      } else {
+        // mq-201 not active or already done — pass through to normal Scroll of Destiny.
+        console.log('[LH_ORACLE_ALTAR] passthrough — mq-201 not active; opening normal Scroll');
+        window.dispatchEvent(new CustomEvent('lh:oracle-altar-scroll-passthrough'));
+      }
+    };
+    window.addEventListener('lh:oracle-altar-scroll-open', onAltarScrollOpen);
+    return () => window.removeEventListener('lh:oracle-altar-scroll-open', onAltarScrollOpen);
+  }, []); // registered once — reads from questsRef (always current)
+  // ────────────────────────────────────────────────────────────────────────────
 
   // Act I: spawn mq-103 roaming echoes when the Master Scribe dialogue closes.
   const lastNpcDialogueIdRef = useRef<string | null>(null);
@@ -1105,21 +1316,12 @@ export function useNightOneFlow() {
 
     const mq105 = quests.find((q) => q.quest_id === 'mq-105');
     if (mq105 && (mq105.status === 'active' || mq105.status === 'available')) {
-      // mq-105: The Echo That Questions — knowledge combat tutorial.
-      // Uses jrpg_knowledge (KnowledgeJrpgBattleOverlay) — the full battle screen.
-      // TODO: when a "Knowledge Echo" sprite/template distinct from the Lost Echo exists, update enemyTemplateId.
+      // mq-105: The Echo That Questions — spawn a Knowledge Echo the player must interact with.
+      // Does NOT auto-fire the overlay; player must approach the echo and press Enter.
       if (typeof console !== 'undefined') {
-        console.log('[LH_ACT_FLOW_DEBUG] mq-105 active — spawning knowledge battle encounter (jrpg_knowledge, target=mq-105)');
+        console.log('[LH_ACT_FLOW_DEBUG] mq-105 active — spawning Knowledge Echo via Phaser (player must interact)');
       }
-      getLhAudioDirector().primeBattleMusicFromUserGesture();
-      setActiveEncounter({
-        kind: 'combat_encounter',
-        interactableId: 'act1_tutorial_echo_mq105',
-        target_quest_id: 'mq-105',
-        title: 'The Echo That Questions',
-        presentation: 'jrpg_knowledge',
-        enemyTemplateId: 'lost_echo',
-      });
+      window.dispatchEvent(new CustomEvent('lh:spawn-mq105-echo'));
     }
   }, [npcDialogue, quests]);
 
@@ -1212,21 +1414,70 @@ export function useNightOneFlow() {
         ? { ...playerAfterEnc, xp_total: playerAfterEnc.xp_total + act1Xp }
         : playerAfterEnc;
 
-      setPlayer(finalEncPlayer);
+      // ── Loot Grant ─────────────────────────────────────────────────────────
+      // Award memento items when quests complete. Duplicate-safe: grantMemento no-ops if the
+      // item_id is already in satchel.mementos, and the quest-transition guard (was active →
+      // now completed) ensures we only fire once per encounter win.
+      //
+      // Item IDs:
+      //   SAT-LOR-001  Torn Journal Page  (mq-103 roaming echo win)
+      //   SAT-LOR-002  Echo Crystal       (mq-105 knowledge combat win)
+      let lootItemId: string | null = null;
+      let lootLabel: string | null = null;
+      if (cur.target_quest_id === 'mq-103') {
+        const wasActive = sqEnc.nextQuests.find((q) => q.quest_id === 'mq-103');
+        const nowDone = act1Quests.find((q) => q.quest_id === 'mq-103');
+        if (wasActive && nowDone?.status === 'completed') {
+          lootItemId = 'SAT-LOR-001';
+          lootLabel = 'Torn Journal Page';
+        }
+      } else if (cur.target_quest_id === 'mq-105') {
+        const wasActive = sqEnc.nextQuests.find((q) => q.quest_id === 'mq-105');
+        const nowDone = act1Quests.find((q) => q.quest_id === 'mq-105');
+        if (wasActive && nowDone?.status === 'completed') {
+          lootItemId = 'SAT-LOR-002';
+          lootLabel = 'Echo Crystal';
+        }
+      }
+
+      // Apply memento grant if loot was earned this encounter.
+      let playerWithLoot = finalEncPlayer;
+      if (lootItemId && finalEncPlayer) {
+        const satchel = parseSatchelInventory(finalEncPlayer.satchel_inventory_json);
+        const updatedMementos = grantMemento(satchel.mementos, lootItemId);
+        const updatedSatchel = { ...satchel, mementos: updatedMementos };
+        playerWithLoot = {
+          ...finalEncPlayer,
+          satchel_inventory_json: JSON.stringify(updatedSatchel),
+        };
+      }
+
+      setPlayer(playerWithLoot);
       setQuests(act1Quests);
       setExploration(nextE);
       setVisitedInteractableIds((ids) => (ids.includes(cur.interactableId) ? ids : [...ids, cur.interactableId]));
       setActiveEncounter(null);
+      const isKnowledgeCombat = cur.presentation === 'jrpg_knowledge';
       if (capAward.capped) {
+        const lootSuffix = lootLabel ? ` · Found: ${lootLabel}` : '';
         setSaveFeedback({
           tone: 'success',
-          text: `Encounter cleared — granted ${capAward.xpGranted} XP (session encounter cap reached).`,
+          text: `Victory! +${capAward.xpGranted} XP (session cap reached)${lootSuffix}`,
         });
       } else if (cur.kind === 'combat_encounter') {
-        setSaveFeedback({
-          tone: 'success',
-          text: 'Lost Echo defeated. Continue onward.',
-        });
+        if (isKnowledgeCombat) {
+          const lootSuffix = lootLabel ? ` · Received: ${lootLabel}` : '';
+          setSaveFeedback({
+            tone: 'success',
+            text: `The Echo yields. Knowledge prevails.\n+${capAward.xpGranted} XP${lootSuffix}`,
+          });
+        } else {
+          const lootSuffix = lootLabel ? ` · Found: ${lootLabel}` : '';
+          setSaveFeedback({
+            tone: 'success',
+            text: `Lost Echo defeated!\n+${capAward.xpGranted} XP${lootSuffix}`,
+          });
+        }
       }
     },
     [player, quests, exploration],
@@ -1584,8 +1835,13 @@ export function useNightOneFlow() {
       setQuests(result.nextQuests);
 
       if (result.openEncounter) {
+        // jrpg_knowledge presentation for: (a) the first knowledge_combat_first Lost Echo trigger,
+        // or (b) any combat_encounter tagged mq-105 (the Knowledge Echo tutorial).
         const jrpgLostEcho =
-          result.openEncounter.kind === 'combat_encounter' && isFirstKnowledgeCombatTrigger(triggerMeta);
+          result.openEncounter.kind === 'combat_encounter' && (
+            isFirstKnowledgeCombatTrigger(triggerMeta) ||
+            result.openEncounter.target_quest_id === 'mq-105'
+          );
         if (jrpgLostEcho) {
           getLhAudioDirector().primeBattleMusicFromUserGesture();
         }
@@ -1634,13 +1890,48 @@ export function useNightOneFlow() {
           (isMasterScribe
             ? `${import.meta.env.BASE_URL}assets/npcs/master-scribe/old_wizard-idle.png`
             : '');
-        setNpcDialogue({
-          npcId,
-          title: npc?.card_title ?? 'A moment together',
-          speakerLabel: formatNpcSpeakerLabel(npc),
-          body,
-          portraitUrl: portraitUrl || undefined,
-        });
+
+        // ── Oracle sequence gate ────────────────────────────────────────────
+        // Three possible states:
+        //   mq-201 active/available → open cinematic (first-time prophecy reveal)
+        //   mq-201 terminal (completed/turned_in) → Oracle dormant; ignore interaction
+        //   mq-201 absent / locked → show Oracle dialogue as normal NPC
+        let oracleCinematicTriggered = false;
+        let oracleDormant = false;
+        if (isOracle) {
+          const mq201check = quests.find((q) => q.quest_id === 'mq-201');
+          if (typeof console !== 'undefined') {
+            console.log('[LH_ORACLE] Oracle NPC triggered', { mq201_status: mq201check?.status ?? '?' });
+          }
+          if (mq201check && isTerminalQuestStatus(mq201check.status)) {
+            // Prophecy already delivered — Oracle is dormant, no interaction at all.
+            oracleDormant = true;
+            if (typeof console !== 'undefined') {
+              console.log('[LH_ORACLE] Oracle dormant — prophecy already complete, ignoring interaction');
+            }
+          } else if (mq201check && (mq201check.status === 'active' || mq201check.status === 'available')) {
+            // The Oracle cinematic is only triggered by opening the Scroll of Destiny
+            // at the altar (lh:oracle-altar-scroll-open — Spacebar path), not by
+            // pressing Enter on the NPC directly.  Here we give the player the
+            // guidance they need to find the correct activation.
+            if (typeof console !== 'undefined') {
+              console.log('[LH_ORACLE] oracle NPC approached via Enter — showing guidance, not cinematic (use Scroll at altar)');
+            }
+            // oracleCinematicTriggered stays false → falls through to normal dialogue below
+          }
+        }
+
+        // Show the NPC dialogue box for Scribe and all non-Oracle NPCs.
+        // For Oracle: skip when cinematic triggered or Oracle is dormant.
+        if (!oracleCinematicTriggered && !oracleDormant) {
+          setNpcDialogue({
+            npcId,
+            title: npc?.card_title ?? 'A moment together',
+            speakerLabel: formatNpcSpeakerLabel(npc),
+            body,
+            portraitUrl: portraitUrl || undefined,
+          });
+        }
 
         // Advance quests whose progression is gated on NPC dialogue firing.
         // Dialogue body already resolved above → advance takes effect on the NEXT interaction.
@@ -1654,26 +1945,18 @@ export function useNightOneFlow() {
                 console.log(`[LH_ACT_FLOW_DEBUG] Scribe dialogue — completing ${id}`);
               }
               completeQuestWithXp(id);
-              // mq-109 finale: also open the Scroll reveal so signposts are shown.
+              // mq-109 finale: mark the Scroll reveal as pending.
+              // It opens only after the player dismisses the RPG dialogue box
+              // (see dismissNpcDialogue below), so the cinematic starts AFTER
+              // the Scribe's final spoken line — not simultaneously with it.
               if (id === 'mq-109') {
-                setScrollRevealOpen(true);
+                scrollRevealPendingRef.current = true;
                 if (typeof console !== 'undefined') {
-                  console.log('[LH_ACT_FLOW_DEBUG] mq-109 complete — Scroll reveal opened, mq-201 (Oracle\'s Summons) unlocked');
+                  console.log('[LH_ACT_FLOW_DEBUG] mq-109 complete — Scroll reveal pending until Scribe dialogue dismissed');
                 }
               }
               break;
             }
-          }
-        }
-
-        // Oracle advances mq-201 when the player first speaks to her.
-        if (isOracle) {
-          const mq201 = quests.find((q) => q.quest_id === 'mq-201');
-          if (mq201 && (mq201.status === 'active' || mq201.status === 'available')) {
-            if (typeof console !== 'undefined') {
-              console.log('[LH_ACT_FLOW_DEBUG] Oracle dialogue — completing mq-201 (Oracle\'s Summons), unlocking mq-202 (Runes Become Legible)');
-            }
-            completeQuestWithXp('mq-201');
           }
         }
       }
@@ -2180,7 +2463,9 @@ export function useNightOneFlow() {
           }));
         }
       }
-      setScrollRevealOpen(true);
+      // Scroll reveal fires from mq-109 Scribe dialogue completion (not here) so the
+      // ceremony moment is the Scribe revealing the scroll — not the survey submission.
+      // setScrollRevealOpen is intentionally omitted.
     }
 
     if (
@@ -2694,14 +2979,9 @@ export function useNightOneFlow() {
     resumeToExplore: () => setScreen('explore'),
     openPause: () => {
       setPauseOpen(true);
-      // MQ-107 (The Blank Scroll): complete on first Scroll of Destiny open while active.
-      const mq107 = quests.find((q) => q.quest_id === 'mq-107');
-      if (mq107 && (mq107.status === 'active' || mq107.status === 'available')) {
-        if (typeof console !== 'undefined') {
-          console.log('[LH_ACT_FLOW_DEBUG] Scroll opened — completing mq-107 (The Blank Scroll)');
-        }
-        completeQuestWithXp('mq-107');
-      }
+      // mq-107 (The Blank Scroll) is auto-completed in the Maia handoff close handler
+      // to preserve the Scroll Reveal ceremony. Do NOT complete it here on Scroll open —
+      // that would expose signpost data before the ceremony fires.
       // MQ-203 (The Quest of Fate): MVP stub — completes when Scroll opens while active.
       // TODO: replace with detection of the actual Work Files / Quest of Fate document being opened.
       const mq203 = quests.find((q) => q.quest_id === 'mq-203');
@@ -2897,7 +3177,74 @@ export function useNightOneFlow() {
     moduleHostOpen,
     activeModuleId,
     scrollRevealOpen,
-    dismissScrollReveal: () => setScrollRevealOpen(false),
+    dismissScrollReveal: (committedSignpostIds: readonly string[]) => {
+      setScrollRevealOpen(false);
+      setExploration((e) => ({
+        ...e,
+        scroll_reveal_performed: true,
+        // Commit the signpost IDs shown during the reveal so the hub displays the
+        // same runes immediately when the player opens their scroll after returning
+        // to Scribe.  Only overwrite if IDs were not already set by the quest flow.
+        foretold_signpost_realm_ids: e.foretold_signpost_realm_ids?.length
+          ? e.foretold_signpost_realm_ids
+          : [...committedSignpostIds],
+      }));
+      // Scribe's post-reveal reaction: four beats in the normal RPG dialogue box
+      // (not inside the cinematic) so the player reads them after returning to
+      // the exploration view. Each \n\n is a separate click-through page.
+      setNpcDialogue({
+        npcId: LH_NPC_ID_MASTER_SCRIBE,
+        title: 'Master Scribe',
+        speakerLabel: 'Master Scribe',
+        body: 'This should not be here.\n\nYour first signs are clear… but something else has marked the Scroll.\n\nI can record what the Scroll reveals. I cannot interpret what has awakened beneath it.\n\nThe Oracle must see this. Find the shrine beyond the path, and return to me when her vision is complete.',
+        portraitUrl: undefined,
+      });
+    },
+    oracleCinematicOpen,
+    dismissOracleCinematic: () => {
+      if (typeof console !== 'undefined') {
+        console.log('[LH_ORACLE] cinematic ended — opening book-shelf prophecy reveal');
+      }
+      setOracleCinematicOpen(false);
+      setOracleProphecyOpen(true);
+    },
+    preRevealCheckpointOpen,
+    dismissPreRevealCheckpoint: () => {
+      setPreRevealCheckpointOpen(false);
+    },
+    oracleProphecyOpen,
+    dismissOracleProphecy: () => {
+      if (typeof console !== 'undefined') {
+        console.log('[LH_ORACLE] prophecy reveal completed');
+        console.log('[LH_ORACLE_ALTAR] sequence completed');
+      }
+      setOracleProphecyOpen(false);
+      // Complete mq-201 now that the player has witnessed the prophecy reveal.
+      completeQuestWithXp('mq-201');
+      if (typeof console !== 'undefined') {
+        console.log('[LH_ORACLE] mq-201 completed — mq-202 (Runes Become Legible) unlocking');
+      }
+      // Part 7: Brand the Scroll with the oracle prophecy and mark Drive sync pending.
+      const realmIds = exploration.foretold_signpost_realm_ids ?? [];
+      const prophecyEntry = resolveOracleProphecyFromRealmIds(realmIds);
+      if (typeof console !== 'undefined') {
+        console.log('[LH_ORACLE] branding Scroll', {
+          prophecyId: prophecyEntry.prophecy_id,
+          title: prophecyEntry.title,
+          realmId: prophecyEntry.realm_id,
+          url: prophecyEntry.oracle_url,
+        });
+      }
+      setExploration((e) => ({
+        ...e,
+        oracle_prophecy_id: prophecyEntry.prophecy_id,
+        oracle_prophecy_realm_id: prophecyEntry.realm_id,
+        oracle_prophecy_title: prophecyEntry.title,
+        oracle_prophecy_career_url: prophecyEntry.oracle_url,
+        // Part 8: Drive sync starts in 'pending' state; teacher creates the file separately.
+        quest_of_fate_sync_status: e.quest_of_fate_sync_status ?? 'pending',
+      }));
+    },
     bootstrapPhase,
     bootstrapError,
     allRealms,

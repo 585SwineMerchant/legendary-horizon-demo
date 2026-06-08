@@ -31,13 +31,23 @@ export function getLhDevVitePublicBaseUrl(): string {
   return ensureTrailingSlash(`${window.location.origin}${path}`);
 }
 
-/** Absolute URL for a path under the LH media base (or pass-through for full URLs). */
+/** Absolute URL for a path under the LH media base (or pass-through for full URLs).
+ *
+ * In dev, audio/SFX files resolve to the local Vite server (window.origin + BASE_URL)
+ * so locally-added assets in public/ work immediately without a CDN push.
+ * In prod, they resolve to the GitHub Pages CDN (or VITE_LH_MEDIA_BASE_URL override).
+ */
 export function resolveLhAssetUrl(path: string): string {
   const trimmed = path.trim();
   if (!trimmed) return trimmed;
   if (/^(https?:|data:|blob:)/i.test(trimmed)) return trimmed;
 
   const clean = trimmed.replace(/^\/+/, '');
+  // In local dev, serve from the Vite dev server so files in public/ are immediately
+  // available without waiting for a GitHub Pages deployment.
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    return `${getLhDevVitePublicBaseUrl()}${clean}`;
+  }
   return `${getLhMediaBaseUrl()}${clean}`;
 }
 

@@ -62,9 +62,9 @@ type Props = {
 // viewport size. The scroll image has prepared blank regions; match these
 // coordinates to the actual blank areas in Scroll_Of_Destiny_ready.png.
 
-const SCROLL_REF = { w: 1280, h: 720 } as const;
+export const SCROLL_REF = { w: 1280, h: 720 } as const;
 
-const SCROLL_LAYOUT = {
+export const SCROLL_LAYOUT = {
   // ── Calibrated 2026-06-03 via ?lh_scroll_layout_debug=1 (pass 5) ───────
   portrait:  { left: 578, top: 131, width: 130, height: 130 },
   name:      { left: 548, top: 238, width: 188, height:  21 },
@@ -84,7 +84,7 @@ const SCROLL_LAYOUT = {
 } as const;
 
 /** Convert a SCROLL_LAYOUT region to absolute-% CSS within the scroll container. */
-function toOverlayCss(
+export function toOverlayCss(
   r: { left: number; top: number; width: number; height: number },
 ): React.CSSProperties {
   return {
@@ -136,6 +136,7 @@ function ScrollHubView({
   foretoldSignpostRealmIds,
   allRealms,
   riasecScores,
+  exploration,
   onClose,
   onOpenQuestLog,
   onOpenRealmAtlas,
@@ -148,6 +149,7 @@ function ScrollHubView({
   foretoldSignpostRealmIds: readonly string[];
   allRealms: readonly RealmDefinition[];
   riasecScores?: RiasecScores | null;
+  exploration?: ExplorationLoopState | null;
   onClose: () => void;
   onOpenQuestLog?: () => void;
   onOpenRealmAtlas?: () => void;
@@ -168,6 +170,21 @@ function ScrollHubView({
     foretoldSignpostRealmIds[2] ?? null,
   ] as const;
   const sigilRegions = [SCROLL_LAYOUT.sigil1, SCROLL_LAYOUT.sigil2, SCROLL_LAYOUT.sigil3] as const;
+
+  if (import.meta.env.DEV) {
+    console.log('[LH_SCROLL_HUB] foretoldSignpostRealmIds at render', {
+      ids: [...foretoldSignpostRealmIds],
+      count: foretoldSignpostRealmIds.length,
+      scroll_reveal_performed: exploration?.scroll_reveal_performed ?? false,
+      note: foretoldSignpostRealmIds.length === 0
+        ? 'empty — runes will show placeholder text. Check exploration.scroll_reveal_performed and foretold_signpost_realm_ids.'
+        : 'populated — rune glyphs should render',
+    });
+  }
+
+  // Oracle prophecy brand — shown in the Oracle's Prophecy banner when sealed
+  const oracleBrandTitle = exploration?.oracle_prophecy_title ?? null;
+  const oracleBrandUrl   = exploration?.oracle_prophecy_career_url ?? null;
 
   return (
     <ScrollFrameStage zIndex={8500} variant="hub">
@@ -381,7 +398,9 @@ function ScrollHubView({
       </div>
 
       {/* ── ORACLE'S PROPHECY BANNER — major title, centered x+y ──────── */}
-      {/* Spans the decorative horizontal band between content and sigils.     */}
+      {/* When a prophecy brand exists: shows the sealed career title as ink-  */}
+      {/* on-parchment text with a CareerOneStop link icon. When no brand yet: */}
+      {/* shows the decorative "Oracle's Prophecy" heading placeholder.        */}
       <div
         style={{
           position: 'absolute',
@@ -399,9 +418,80 @@ function ScrollHubView({
         <div aria-hidden style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, transparent, rgba(28,15,0,0.30))' }} />
         <span aria-hidden style={{ width: 5, height: 5, background: GOLD_INK, transform: 'rotate(45deg)', flexShrink: 0, opacity: 0.7 }} />
 
-        <p style={{ margin: 0, fontSize: '0.84em', fontWeight: 700, fontFamily: 'var(--lh-guild-display, "Cinzel", serif)', textTransform: 'uppercase', letterSpacing: '0.20em', color: GOLD_INK, lineHeight: 1, whiteSpace: 'nowrap' }}>
-          Oracle's Prophecy
-        </p>
+        {oracleBrandTitle ? (
+          /* Branded — show burned-in prophecy sigil PNG + career title inscription */
+          <>
+            {/* Oracle sigil PNG — burned in by the Oracle sequence */}
+            {oracleBrandUrl ? (
+              <a
+                href={oracleBrandUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open career research source"
+                style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                aria-label={`Open career research: ${oracleBrandTitle}`}
+              >
+                <img
+                  src="assets/oracle/prophecy_sigil.png"
+                  alt="Oracle prophecy sigil"
+                  style={{
+                    width: 20,
+                    height: 'auto',
+                    filter: 'drop-shadow(0 1px 3px rgba(120,70,0,0.45)) sepia(0.6) saturate(1.4)',
+                    display: 'block',
+                  }}
+                  draggable={false}
+                />
+              </a>
+            ) : (
+              <img
+                src="assets/oracle/prophecy_sigil.png"
+                alt="Oracle prophecy sigil"
+                style={{
+                  width: 20,
+                  height: 'auto',
+                  flexShrink: 0,
+                  filter: 'drop-shadow(0 1px 3px rgba(120,70,0,0.45)) sepia(0.6) saturate(1.4)',
+                  display: 'block',
+                }}
+                draggable={false}
+              />
+            )}
+            {oracleBrandUrl ? (
+              <a
+                href={oracleBrandUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open career research source"
+                style={{
+                  margin: 0,
+                  fontSize: '0.82em',
+                  fontWeight: 700,
+                  fontFamily: 'var(--lh-guild-display, "Cinzel", serif)',
+                  color: GOLD_INK,
+                  lineHeight: 1,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: '60%',
+                  textDecoration: 'none',
+                  letterSpacing: '0.06em',
+                }}
+              >
+                {oracleBrandTitle} ↗
+              </a>
+            ) : (
+              <p style={{ margin: 0, fontSize: '0.82em', fontWeight: 700, fontFamily: 'var(--lh-guild-display, "Cinzel", serif)', color: GOLD_INK, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '60%', letterSpacing: '0.06em' }}>
+                {oracleBrandTitle}
+              </p>
+            )}
+          </>
+        ) : (
+          /* Unbranded — decorative placeholder */
+          <p style={{ margin: 0, fontSize: '0.84em', fontWeight: 700, fontFamily: 'var(--lh-guild-display, "Cinzel", serif)', textTransform: 'uppercase', letterSpacing: '0.20em', color: GOLD_INK, lineHeight: 1, whiteSpace: 'nowrap' }}>
+            Oracle's Prophecy
+          </p>
+        )}
 
         <span aria-hidden style={{ width: 5, height: 5, background: GOLD_INK, transform: 'rotate(45deg)', flexShrink: 0, opacity: 0.7 }} />
         {/* Right decorative rule */}
@@ -454,16 +544,18 @@ function ScrollHubView({
 // ── Journal Tab Components ─────────────────────────────────────────────────
 
 function RuneGlyph({ guildId }: { guildId: string }) {
+  const [imgError, setImgError] = useState(false);
   const runeAsset = RUNE_ASSETS[guildId];
 
-  // Prefer the PNG rune medallion asset when available
-  if (runeAsset) {
+  // Prefer the PNG rune medallion asset when available and not broken
+  if (runeAsset && !imgError) {
     return (
       <img
         src={runeAsset}
         alt=""
         aria-hidden
         draggable={false}
+        onError={() => setImgError(true)}
         style={{
           width: '85%',
           height: '85%',
@@ -502,9 +594,26 @@ interface WorkFileEntry {
   btnLabel: string;
 }
 
-function buildWorkFiles(player: PlayerSave | null): WorkFileEntry[] {
+function buildWorkFiles(
+  player: PlayerSave | null,
+  quests: readonly QuestDefinition[],
+): WorkFileEntry[] {
   const hasSave    = player !== null;
   const hasStarted = hasSave && (player.xp_total > 0 || player.current_act > 1);
+
+  // Quest of Fate unlocks when mq-202 (Runes Become Legible) completes, which
+  // triggers mq-203 (The Quest of Fate) to become available. Check both so the
+  // document appears as soon as the Scribe says it's there.
+  const questOfFateUnlocked = quests.some(
+    (q) =>
+      (['mq-203', 'mq-202'].includes(q.quest_id)) &&
+      (q.status === 'active' || q.status === 'available' || q.status === 'completed'),
+  );
+  if (typeof console !== 'undefined') {
+    console.log('[LH_WORKFILES] eligibility checked', { questOfFateUnlocked });
+    if (questOfFateUnlocked) console.log('[LH_WORKFILES] visible — Quest of Fate Worksheet unlocked');
+  }
+
   return [
     {
       id: 'scroll_of_destiny',
@@ -529,9 +638,9 @@ function buildWorkFiles(player: PlayerSave | null): WorkFileEntry[] {
       fantasyTitle: 'Quest of Fate Worksheet',
       realTitle: 'Career Research Worksheet',
       loreDesc: 'First guided career prophecy research — your initial path inquiry.',
-      status: 'locked',
-      lockLabel: 'Locked — Act II',
-      btnLabel: 'Coming Soon',
+      status: questOfFateUnlocked ? 'available' : 'locked',
+      lockLabel: questOfFateUnlocked ? null : 'Locked — Complete the Oracle\'s Summons',
+      btnLabel: questOfFateUnlocked ? 'Open' : 'Coming Soon',
     },
     {
       id: 'comparison_ledger',
@@ -590,13 +699,83 @@ function buildWorkFiles(player: PlayerSave | null): WorkFileEntry[] {
   ];
 }
 
-function WorkFilesTab({ player }: { player: PlayerSave | null }) {
-  const files = buildWorkFiles(player);
+function WorkFilesTab({
+  player,
+  quests,
+  exploration,
+  onOpenQuestOfFateWorksheet,
+}: {
+  player: PlayerSave | null;
+  quests: readonly QuestDefinition[];
+  exploration?: ExplorationLoopState | null;
+  onOpenQuestOfFateWorksheet?: () => void;
+}) {
+  const files = buildWorkFiles(player, quests);
+
+  function handleFileOpen(file: WorkFileEntry) {
+    if (file.status === 'locked') return;
+    if (file.id === 'quest_of_fate') {
+      if (typeof console !== 'undefined') {
+        console.log('[LH_WORKFILES] opened', { id: file.id, module: 'mod_quest_of_fate_worksheet' });
+      }
+      onOpenQuestOfFateWorksheet?.();
+    }
+  }
+
+  const driveUrl   = exploration?.quest_of_fate_drive_url;
+  const syncStatus = exploration?.quest_of_fate_sync_status;
+
   return (
     <div style={{ padding: '14px 20px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
       <p style={{ margin: '0 0 10px', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.55)' }}>
         Document Shelf — Assignment Archive
       </p>
+
+      {/* Part 8: Drive sync status — shown on Quest of Fate if status is pending/error */}
+      {syncStatus && !driveUrl ? (
+        <div
+          style={{
+            padding: '10px 16px',
+            background: 'rgba(255,160,0,0.06)',
+            border: '1px solid rgba(255,160,0,0.22)',
+            borderRadius: 4,
+            marginBottom: 4,
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,200,80,0.8)', lineHeight: 1.5 }}>
+            {syncStatus === 'error'
+              ? '⚠ Drive sync error — contact your teacher to create your Quest of Fate document.'
+              : '⏳ Drive copy pending — your teacher will create your personal Quest of Fate document.'}
+          </p>
+        </div>
+      ) : null}
+      {driveUrl ? (
+        <div
+          style={{
+            padding: '10px 16px',
+            background: 'rgba(134,239,172,0.07)',
+            border: '1px solid rgba(134,239,172,0.25)',
+            borderRadius: 4,
+            marginBottom: 4,
+          }}
+        >
+          <p style={{ margin: '0 0 6px', fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(134,239,172,0.6)' }}>
+            ✓ Google Drive Copy Ready
+          </p>
+          <a
+            href={driveUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: 11, color: '#86efac', fontFamily: 'serif',
+              textDecoration: 'none', letterSpacing: '0.04em',
+            }}
+          >
+            Open my Quest of Fate document ↗
+          </a>
+        </div>
+      ) : null}
+
       {files.map((file) => {
         const locked = file.status === 'locked';
         return (
@@ -642,6 +821,7 @@ function WorkFilesTab({ player }: { player: PlayerSave | null }) {
               <button
                 type="button"
                 disabled={locked}
+                onClick={() => handleFileOpen(file)}
                 style={{
                   padding: '5px 14px',
                   background: locked ? 'rgba(255,255,255,0.03)' : 'rgba(212,160,23,0.12)',
@@ -779,7 +959,6 @@ function MementosTab({ player }: { player: PlayerSave | null }) {
   if (!player) return <div style={{ padding: '20px 24px' }}><p style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>No player loaded.</p></div>;
   const inventory    = parseSatchelInventory(player.satchel_inventory_json);
   const { unlocked_titles, unlocked_badges } = inventory.cosmetics;
-  const streak      = player.campfire_streak ?? 0;
   const activeTitle = player.active_title ?? inventory.cosmetics.active_title;
   const hasMementos = unlocked_titles.length > 0 || unlocked_badges.length > 0 || inventory.mementos.length > 0;
 
@@ -794,25 +973,6 @@ function MementosTab({ player }: { player: PlayerSave | null }) {
           </div>
         </section>
       ) : null}
-
-      <section>
-        <h2 style={{ margin: '0 0 10px', fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.7)' }}>Campfire Streak Milestones</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {CAMPFIRE_STREAK_MILESTONES.map((m) => {
-            const earned = streak >= m.streak;
-            return (
-              <div key={m.streak} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: earned ? 'rgba(212,160,23,0.06)' : 'rgba(255,255,255,0.02)', border: earned ? '1px solid rgba(212,160,23,0.2)' : '1px solid rgba(255,255,255,0.05)', borderRadius: 3, opacity: earned ? 1 : 0.4 }}>
-                <span style={{ fontSize: 18 }} aria-hidden>{earned ? '✅' : '○'}</span>
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: 12, color: earned ? '#f0dfa0' : 'rgba(232,220,200,0.5)', fontWeight: 700 }}>{m.reward_label}</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{m.description}</p>
-                </div>
-                <span style={{ fontSize: 11, color: 'rgba(212,160,23,0.6)' }}>Streak {m.streak}</span>
-              </div>
-            );
-          })}
-        </div>
-      </section>
 
       {(unlocked_titles.length > 0 || unlocked_badges.length > 0) ? (
         <section>
@@ -883,6 +1043,24 @@ function ReflectionArchiveTab({ player }: { player: PlayerSave | null }) {
         </div>
       </section>
       <section>
+        <h2 style={{ margin: '0 0 10px', fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.7)' }}>Campfire Streak Milestones</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {CAMPFIRE_STREAK_MILESTONES.map((m) => {
+            const earned = streak >= m.streak;
+            return (
+              <div key={m.streak} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: earned ? 'rgba(212,160,23,0.06)' : 'rgba(255,255,255,0.02)', border: earned ? '1px solid rgba(212,160,23,0.2)' : '1px solid rgba(255,255,255,0.05)', borderRadius: 3, opacity: earned ? 1 : 0.4 }}>
+                <span style={{ fontSize: 18 }} aria-hidden>{earned ? '✅' : '○'}</span>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: 12, color: earned ? '#f0dfa0' : 'rgba(232,220,200,0.5)', fontWeight: 700 }}>{m.reward_label}</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{m.description}</p>
+                </div>
+                <span style={{ fontSize: 11, color: 'rgba(212,160,23,0.6)' }}>Streak {m.streak}</span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+      <section>
         <h2 style={{ margin: '0 0 10px', fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.7)' }}>About the Codex</h2>
         <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', lineHeight: 1.6, margin: 0 }}>
           Your campfire reflections are recorded in the Codex and reviewed by your teacher. A strong reflection
@@ -897,7 +1075,8 @@ function ReflectionArchiveTab({ player }: { player: PlayerSave | null }) {
 // ── Journal Shell (tabs view) ─────────────────────────────────────────────
 
 function JournalShell({
-  player, allRealms, exploration, realmProgress,
+  player, quests, allRealms, exploration, realmProgress,
+  onOpenQuestOfFateWorksheet,
   onBackToScroll,
 }: Props & { onBackToScroll: () => void }) {
   const [activeTab, setActiveTab] = useState<FieldJournalTab>('work_files');
@@ -939,7 +1118,12 @@ function JournalShell({
       {/* Tab content */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {activeTab === 'work_files' ? (
-          <WorkFilesTab player={player} />
+          <WorkFilesTab
+            player={player}
+            quests={quests}
+            exploration={exploration}
+            onOpenQuestOfFateWorksheet={onOpenQuestOfFateWorksheet}
+          />
         ) : null}
         {activeTab === 'journey_review'     ? <JourneyReviewTab player={player} exploration={exploration} /> : null}
         {activeTab === 'enemy_records'      ? <EnemyRecordsTab  exploration={exploration} /> : null}
@@ -974,6 +1158,7 @@ export function ScrollOfDestinyDisplay(props: Props) {
       foretoldSignpostRealmIds={props.foretoldSignpostRealmIds}
       allRealms={props.allRealms}
       riasecScores={props.riasecScores}
+      exploration={props.exploration}
       onClose={props.onClose}
       onOpenQuestLog={props.onOpenQuestLog}
       onOpenRealmAtlas={props.onOpenRealmAtlas}

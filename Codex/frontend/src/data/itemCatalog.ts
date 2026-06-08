@@ -17,6 +17,7 @@ import type {
   FieldKitToolV1,
   CosmeticsV1,
   SatchelInventoryV1,
+  MementoEntryV1,
 } from '../domain/lh-contract';
 
 // ─── Satchel Consumable Definitions ────────────────────────────────────────
@@ -130,6 +131,36 @@ export const FIELD_KIT_DEFS: readonly FieldKitItemDef[] = [
     icon_emoji: '📖',
     iconAssetPath: 'assets/maps/items-books_3.png',
     effect_description: 'Unlocks all 6 tabs in the Field Journal (pause menu).',
+  },
+] as const;
+
+// ─── Memento Item Definitions ────────────────────────────────────────────────
+
+/**
+ * Catalog metadata for collectible memento items awarded as loot.
+ * These are unique story/world collectibles — not consumables — and are stored
+ * in `SatchelInventoryV1.mementos` as `MementoEntryV1` entries.
+ */
+export type MementoItemDef = {
+  item_id: string;
+  label: string;
+  description: string;
+  icon_emoji: string;
+};
+
+/** Act I story loot mementos — awarded on first completion of their respective quests. */
+export const ACT1_LOOT_MEMENTO_DEFS: readonly MementoItemDef[] = [
+  {
+    item_id: 'SAT-LOR-001',
+    label: 'Torn Journal Page',
+    description: 'A fragment of a forgotten Traveler\'s notes, recovered from a scattered Lost Echo.',
+    icon_emoji: '📄',
+  },
+  {
+    item_id: 'SAT-LOR-002',
+    label: 'Echo Crystal',
+    description: 'A crystallized memory left behind by a Knowledge Echo. It hums faintly with remembered answers.',
+    icon_emoji: '💎',
   },
 ] as const;
 
@@ -303,6 +334,28 @@ export function grantConsumable(
 /** Grants a Field Kit tool (sets owned: true). */
 export function grantFieldKitTool(field_kit: FieldKitToolV1[], itemId: string): FieldKitToolV1[] {
   return field_kit.map((t) => (t.item_id === itemId ? { ...t, owned: true } : t));
+}
+
+/**
+ * Appends a memento to the mementos array. No-ops if `item_id` already present —
+ * mementos are unique collectibles, not stackable. Records `acquired_at_iso` as the
+ * current UTC timestamp. Looks up metadata from `ACT1_LOOT_MEMENTO_DEFS`; returns
+ * the original array unchanged if the item is not in the catalog.
+ */
+export function grantMemento(mementos: MementoEntryV1[], itemId: string): MementoEntryV1[] {
+  if (mementos.some((m) => m.item_id === itemId)) return mementos;
+  const def = ACT1_LOOT_MEMENTO_DEFS.find((d) => d.item_id === itemId);
+  if (!def) return mementos;
+  return [
+    ...mementos,
+    {
+      item_id: def.item_id,
+      label: def.label,
+      description: def.description,
+      icon_emoji: def.icon_emoji,
+      acquired_at_iso: new Date().toISOString(),
+    },
+  ];
 }
 
 // ─── Streak Milestone Processing ─────────────────────────────────────────────

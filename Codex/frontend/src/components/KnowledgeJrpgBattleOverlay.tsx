@@ -12,7 +12,6 @@ import {
   dispatchKnowledgeBattlePresentation,
   dispatchKnowledgeCombatVisual,
 } from '../lib/lhKnowledgeCombatBridge';
-import { getLhAudioDirector } from '../lib/lhAudioDirector';
 import { playLhSfx } from '../lib/lhSfx';
 
 import type { EncounterLaunchPayload } from './EncounterOverlay';
@@ -66,13 +65,11 @@ export function KnowledgeJrpgBattleOverlay({ payload, onWin, onRetreat }: Props)
       enemyTemplateId: payload.enemyTemplateId,
     });
     dispatchKnowledgeCombatVisual({ interactableId: payload.interactableId, phase: 'start' });
-    const dir = getLhAudioDirector();
-    dir.setLane('battle');
-    dir.refreshAudibility(400);
-    const onFirstGesture = () => dir.refreshAudibility(300);
-    window.addEventListener('pointerdown', onFirstGesture, { once: true, capture: true });
+    // Audio lane is fully owned by App.tsx (activeEncounter effect → setLane('battle')).
+    // The overlay must not register any gesture-unlock listeners here — they race with App.tsx's
+    // M-key mute toggle (both fire capture-phase on window, same event) and corrupt the mute state.
+    // Autoplay unlock is handled by the internal retry listeners inside createLoopingHtmlMusic.
     return () => {
-      window.removeEventListener('pointerdown', onFirstGesture, true);
       if (!explicitExitDone.current) {
         dispatchKnowledgeBattlePresentation({ action: 'exit', victory: false });
       }

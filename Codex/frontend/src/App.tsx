@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { ScrollOfDestinyDisplay } from './components/ScrollOfDestinyDisplay';
 import { ScrollRevealSequence } from './modules/act1/ScrollRevealSequence';
+import { SCROLL_ASSETS } from './components/scrollUI/scrollAssets';
+import { OracleProphecyReveal } from './screens/OracleProphecyReveal';
+import { OracleCinematicPlayer } from './screens/OracleCinematicPlayer';
+import { resolveOracleProphecyFromRealmIds } from './modules/act2/oracleCareerData';
 import { RealmAtlasOverlay } from './components/RealmAtlasOverlay';
 import { WorldMapOverlay } from './components/WorldMapOverlay';
 import { AcademicWorksheetsOverlay } from './components/AcademicWorksheetsOverlay';
@@ -113,6 +117,10 @@ export function App() {
     activeModuleId,
     scrollRevealOpen,
     dismissScrollReveal,
+    oracleCinematicOpen,
+    dismissOracleCinematic,
+    oracleProphecyOpen,
+    dismissOracleProphecy,
     getModuleDraft,
     patchModuleDraft,
     clearModuleDraft,
@@ -176,6 +184,11 @@ export function App() {
       dir.setLane('title');
       return;
     }
+    // Oracle cinematic + prophecy reveal: full silence — the ceremony carries its own weight
+    if (screen === 'explore' && (oracleCinematicOpen || oracleProphecyOpen)) {
+      dir.setLane(null);
+      return;
+    }
     if (screen === 'explore' && activeEncounter) {
       dir.setLane('battle');
       dir.refreshAudibility(400);
@@ -186,7 +199,7 @@ export function App() {
       return;
     }
     dir.setLane(null);
-  }, [teacherDashboardOpen, screen, activeEncounter]);
+  }, [teacherDashboardOpen, screen, activeEncounter, oracleCinematicOpen, oracleProphecyOpen]);
 
   useEffect(() => {
     const dir = getLhAudioDirector();
@@ -234,7 +247,13 @@ export function App() {
       }
       if ((k === 'm' || k === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
-        a11y.setMusicMuted(!a11y.musicMuted);
+        const nextMuted = !a11y.musicMuted;
+        a11y.setMusicMuted(nextMuted);
+        // Synchronously update data-lh-music so the audio director sees the correct
+        // state right now, while we are still inside the keydown gesture call stack.
+        // Without this, the React state update is deferred and refreshAudibility below
+        // reads the OLD value — meaning unmuting via M does not start music immediately.
+        document.documentElement.dataset.lhMusic = nextMuted ? 'muted' : 'on';
         getLhAudioDirector().refreshAudibility(200);
         return;
       }
@@ -286,6 +305,13 @@ export function App() {
     if ([r, i, a, s, e, c].every((v) => v === 0)) return null;
     return { r, i, a, s, e, c };
   }, [exploration.module_drafts?.mod_master_scribe_survey]);
+
+  // Resolve the oracle prophecy from the player's foretold signpost realm IDs.
+  // Used to pass the correct prophecyId / title to OracleProphecyReveal.
+  const oracleProphecyDef = useMemo(
+    () => resolveOracleProphecyFromRealmIds(exploration.foretold_signpost_realm_ids ?? []),
+    [exploration.foretold_signpost_realm_ids],
+  );
 
   const vaultRitualComplete = useMemo(
     () => quests.some((q) => q.quest_id === 'mq-203' && isTerminalQuestStatus(q.status)),
@@ -421,7 +447,7 @@ export function App() {
         allRealms={allRealms}
         exploration={exploration}
         realmProgress={realmProgress}
-        foretoldSignpostRealmIds={exploration.foretold_signpost_realm_ids ?? []}
+        foretoldSignpostRealmIds={exploration.scroll_reveal_performed ? (exploration.foretold_signpost_realm_ids ?? []) : []}
         oracleDraft={exploration.module_drafts?.mod_oracle_of_fate}
         riasecScores={surveyRiasecScores}
         onSave={handleManualSave}
@@ -542,12 +568,36 @@ export function App() {
           navigate.closeModule();
         }}
       /> : null}
-      {!teacherDashboardOpen && scrollRevealOpen && surveyRiasecScores ? (
+      {!teacherDashboardOpen && scrollRevealOpen ? (
         <ScrollRevealSequence
           foretoldSignpostRealmIds={exploration.foretold_signpost_realm_ids ?? []}
-          riasecScores={surveyRiasecScores}
+          // Use saved RIASEC scores; fall back to equal weights so the ceremony
+          // always shows even if the module draft was not persisted to the session.
+          riasecScores={surveyRiasecScores ?? { r: 5, i: 5, a: 5, s: 5, e: 5, c: 5 }}
           allRealms={allRealms}
           onDismiss={dismissScrollReveal}
+          // Pass the actual in-game scroll asset so it fades in behind the stats and
+          // signposts at stage 9 — the player sees their manifest materialise on the
+          // real Scroll of Destiny, not a colour gradient stand-in.
+          scrollBgImage={SCROLL_ASSETS.hub}
+        />
+      ) : null}
+      {/* Part 5: Oracle cinematic plays before the book-shelf prophecy reveal */}
+      {!teacherDashboardOpen && oracleCinematicOpen ? (
+        <OracleCinematicPlayer
+          allowSkip={Boolean(exploration.oracle_prophecy_id)}
+          onComplete={dismissOracleCinematic}
+        />
+      ) : null}
+
+      {/* Part 6: Oracle prophecy book-shelf reveal (after cinematic) */}
+      {!teacherDashboardOpen && oracleProphecyOpen ? (
+        <OracleProphecyReveal
+          prophecyId={oracleProphecyDef.prophecy_id}
+          prophecyTitle={oracleProphecyDef.title}
+          foretoldSignpostRealmIds={exploration.foretold_signpost_realm_ids ?? []}
+          prophecyUrl={oracleProphecyDef.oracle_url}
+          onComplete={dismissOracleProphecy}
         />
       ) : null}
       </main>

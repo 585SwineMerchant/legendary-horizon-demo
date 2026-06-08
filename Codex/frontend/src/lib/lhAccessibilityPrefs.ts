@@ -16,7 +16,8 @@ export type LhAccessibilityPrefsV1 = {
   audio_muted: boolean;
   /**
    * Independent music-only mute. When true, background music lanes (title / exploration / battle) are silenced
-   * but SFX still play. Persisted across sessions (the broader `audio_muted` resets on load by classroom policy).
+   * but SFX still play. Resets to false on every page load (same classroom policy as `audio_muted`) so each
+   * new session begins with music enabled — the player mutes within the session if they choose to.
    */
   music_muted: boolean;
 };
@@ -44,7 +45,7 @@ function normalize(raw: unknown): LhAccessibilityPrefsV1 {
     motion: motion as LhMotionPreference,
     low_clutter: Boolean(o.low_clutter),
     audio_muted: false,
-    music_muted: Boolean(o.music_muted),
+    music_muted: false,   // always resets on load — each session starts with music enabled
   };
 }
 
