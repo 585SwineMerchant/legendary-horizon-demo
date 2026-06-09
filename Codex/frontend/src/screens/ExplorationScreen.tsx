@@ -85,6 +85,8 @@ type Props = {
   lostEchoDiagVisitedTriggerIds?: readonly string[];
   /** Override the tilemap JSON URL Phaser loads (used by the stable/backup map variant selector). */
   tileMapUrl?: string;
+  /** When true, suppress all Phaser keyboard input (overlay covers the canvas). */
+  overlayBlocksInput?: boolean;
 };
 
 export function ExplorationScreen({
@@ -119,6 +121,7 @@ export function ExplorationScreen({
   signpostStrip,
   lostEchoDiagVisitedTriggerIds,
   tileMapUrl,
+  overlayBlocksInput = false,
 }: Props) {
   useEscapeToClose(Boolean(npcDialogue), onDismissNpcDialogue ?? (() => undefined));
   const jrpgKnowledgeEncounter = activeEncounter?.presentation === 'jrpg_knowledge';
@@ -182,6 +185,7 @@ export function ExplorationScreen({
           resolveShaken={player.resolve_shaken ?? false}
           restedReadinessMultiplier={getRestedMultiplier(player.rested_readiness_tier)}
           hasAmberFlame={hasAmberFlameVisual(parseSatchelInventory(player.satchel_inventory_json).cosmetics)}
+          overlayBlocksInput={overlayBlocksInput}
         />
       ) : null}
 

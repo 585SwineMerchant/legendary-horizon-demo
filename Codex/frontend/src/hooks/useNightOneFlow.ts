@@ -1212,6 +1212,9 @@ export function useNightOneFlow() {
     // the RPG dialogue box, not simultaneously with it.
     if (scrollRevealPendingRef.current) {
       scrollRevealPendingRef.current = false;
+      // Stop exploration music for the reveal ceremony.
+      // STUB: play scroll_reveal_music here once the track is added.
+      getLhAudioDirector().setLane(null);
       setScrollRevealOpen(true);
       if (typeof console !== 'undefined') {
         console.log('[LH_ACT_FLOW_DEBUG] Scribe dialogue dismissed — opening Scroll reveal cinematic');
@@ -3179,6 +3182,8 @@ export function useNightOneFlow() {
     scrollRevealOpen,
     dismissScrollReveal: (committedSignpostIds: readonly string[]) => {
       setScrollRevealOpen(false);
+      // Restore exploration music after the scroll reveal ceremony ends.
+      getLhAudioDirector().setLane('exploration');
       setExploration((e) => ({
         ...e,
         scroll_reveal_performed: true,

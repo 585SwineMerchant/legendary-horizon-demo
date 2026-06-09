@@ -101,6 +101,12 @@ type Props = {
    * When set, campfire node fire sprites are tinted with a warm amber hue (0xE8A020).
    */
   hasAmberFlame?: boolean;
+  /**
+   * When true, suppress all Phaser keyboard input — overlay screens (module documents,
+   * scroll reveal, oracle cinematic, oracle prophecy) are covering the canvas.
+   * This prevents game keys from firing while students type in documents.
+   */
+  overlayBlocksInput?: boolean;
 };
 
 type TriggerRect = {
@@ -353,6 +359,7 @@ const TILESET_IMAGES = [
   'stronghold - gate - left section - on grass',
   'watchtower - front',
   'Atlas-Props',
+  'Atlas-Props-sheet2',
   'Ancient-Temple-whole structure',
   'tent 1 - on grass',
   'tent 1 - small - on grass',
@@ -469,8 +476,9 @@ const EXPLORATION_TRAVELER_FRAME_SCREEN_PX_W = 50;
 /** Exploration Traveler (`lh_traveler_*`) display scale. JRPG battle Traveler uses its own scale in `enterKnowledgeBattlePresentation`. */
 const EXPLORATION_TRAVELER_DISPLAY_SCALE =
   EXPLORATION_TRAVELER_FRAME_SCREEN_PX_W / (TRAVELER_FRAME.width * EXPLORATION_CAMERA_ZOOM);
-/** Hide the floating "E / Enter" bubble while the player stays within this radius of the session spawn (portal demo). */
-const INTERACTION_PROMPT_SUPPRESS_NEAR_SPAWN_PX = 120;
+/** Hide the floating "E / Enter" bubble while the player stays within this radius of the session spawn.
+ *  Set to 0 — the Master Scribe spawns adjacent to the player and new players need to see the prompt immediately. */
+const INTERACTION_PROMPT_SUPPRESS_NEAR_SPAWN_PX = 0;
 
 /** Sprint (hold R while moving). Fuel drains only during sprint movement; cooldown starts when fuel hits 0. */
 const TRAVELER_SPRINT_SPEED_PX = 188;
@@ -1054,6 +1062,7 @@ export function PhaserExplorationView({
   resolveShaken = false,
   restedReadinessMultiplier = 1.0,
   hasAmberFlame = false,
+  overlayBlocksInput = false,
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
@@ -1069,6 +1078,7 @@ export function PhaserExplorationView({
   const resolveShakenRef = useRef<boolean>(resolveShaken);
   const restedReadinessMultiplierRef = useRef<number>(restedReadinessMultiplier);
   const hasAmberFlameRef = useRef<boolean>(hasAmberFlame);
+  const overlayBlocksInputRef = useRef<boolean>(overlayBlocksInput);
 
   useEffect(() => {
     lostEchoDiagVisitedRef.current = lostEchoDiagVisitedTriggerIds ?? [];
@@ -1103,6 +1113,10 @@ export function PhaserExplorationView({
   }, [hasAmberFlame]);
 
   useEffect(() => {
+    overlayBlocksInputRef.current = overlayBlocksInput;
+  }, [overlayBlocksInput]);
+
+  useEffect(() => {
     dialogueNpcIdRef.current = dialogueNpcId;
   }, [dialogueNpcId]);
 
@@ -1132,6 +1146,7 @@ export function PhaserExplorationView({
       const _resolveShaken = resolveShakenRef;
       const _restedReadinessMultiplier = restedReadinessMultiplierRef;
       const _hasAmberFlame = hasAmberFlameRef;
+      const _overlayBlocksInput = overlayBlocksInputRef;
       const _dialogueNpcId = dialogueNpcIdRef;
       const _onActivate = (interactableId: string) => onActivateHotspotRef.current(interactableId);
       const _lostEchoDiagVisited = lostEchoDiagVisitedRef;
@@ -3315,6 +3330,29 @@ export function PhaserExplorationView({
               shadow_hooks: shadowHooks,
               light_hooks: lightHooks,
             });
+
+            // Oracle sprite diagnostic: warn if oracle/altar objects exist as geometry
+            // (no gid) instead of tile objects (with gid). addTiledTileObjectDecor only
+            // renders objects that carry a gid. If the oracle sprite is missing from the
+            // world, the map likely has the oracle sprite placed in a tile LAYER or as a
+            // non-tile object. Fix: in Tiled, place the sprite as an Object in an Object
+            // Layer (Insert → Tile Object), then re-export the map JSON.
+            const allObjLayers = (map as unknown as { objects?: TiledObjectLayerRuntime[] }).objects ?? [];
+            const oracleGeomObjects = allObjLayers
+              .flatMap((l) => l.objects ?? [])
+              .filter((o) => {
+                const name = (o.name ?? '').toLowerCase();
+                const type = (o.type ?? '').toLowerCase();
+                return (name.includes('oracle') || name.includes('altar') || type.includes('oracle') || type.includes('altar'))
+                  && typeof o.gid !== 'number';
+              });
+            if (oracleGeomObjects.length > 0) {
+              console.warn(
+                '[LhScene] Oracle/altar objects found as geometry (no gid) — they will NOT render as sprites. ' +
+                'In Tiled: select the oracle sprite, drag it to an Object Layer as a Tile Object (not a tile in a tile layer), then re-export.',
+                oracleGeomObjects.map((o) => ({ name: o.name, type: o.type, x: o.x, y: o.y })),
+              );
+            }
           }
         }
 
@@ -4684,6 +4722,18 @@ export function PhaserExplorationView({
           const { hit } = this.guildResearchPendingExit;
           this.guildResearchPendingExit = null;
           this.runGuildResearchExitWalk(hit);
+
+          // DEV: verify crops + windmill state survived the guild hub visit.
+          // If crops/windmill disappear after returning from Aethelwood or another
+          // guild hub, these values tell you whether the records were cleared or
+          // whether the timer was lost — check the console after a full guild run.
+          if (import.meta.env.DEV) {
+            console.info('[LhScene][CropDebug] guild-research-exit — crops & windmill state', {
+              crop_tile_records: this.cropTileRecords.length,
+              windmill_groups: this.windmillAnimGroups.length,
+              windmill_timer_active: this.windmillAnimTimer ? !this.windmillAnimTimer.hasDispatched : 'no-timer',
+            });
+          }
         };
 
         private lostEchoDiagActivateGate(hit: TriggerRect, gate: string, detail?: Record<string, unknown>): void {
@@ -5002,6 +5052,16 @@ export function PhaserExplorationView({
           this.updateRoamingLostEchoes(this.time.now);
 
           if (this.triggerTransitionLocked) {
+            this.player?.setAcceleration(0, 0);
+            this.player?.setVelocity(0, 0);
+            this.interactionPromptRoot?.setVisible(false);
+            return;
+          }
+
+          // A React full-screen overlay (module document, scroll reveal, oracle cinematic, prophecy)
+          // is covering the canvas — freeze all Phaser keyboard input so game keys don't fire while
+          // the student is typing in a document or watching a cinematic.
+          if (_overlayBlocksInput.current) {
             this.player?.setAcceleration(0, 0);
             this.player?.setVelocity(0, 0);
             this.interactionPromptRoot?.setVisible(false);
