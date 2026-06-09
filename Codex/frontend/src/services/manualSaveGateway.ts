@@ -249,6 +249,40 @@ export function coerceExplorationLoop(raw: unknown): ExplorationLoopState | null
     if (ids.length) base.foretold_signpost_realm_ids = ids;
   }
 
+  // scroll_reveal_performed — gates signpost visibility; must survive round-trip
+  if (o.scroll_reveal_performed === true) base.scroll_reveal_performed = true;
+
+  // oracle prophecy brand (Act II) — title/sigil/URL burned onto the Scroll
+  const opId = o.oracle_prophecy_id;
+  if (typeof opId === 'number' && Number.isFinite(opId) && opId > 0)
+    base.oracle_prophecy_id = opId;
+  if (typeof o.oracle_prophecy_realm_id === 'string' && o.oracle_prophecy_realm_id.trim())
+    base.oracle_prophecy_realm_id = o.oracle_prophecy_realm_id.trim();
+  if (typeof o.oracle_prophecy_title === 'string' && o.oracle_prophecy_title.trim())
+    base.oracle_prophecy_title = o.oracle_prophecy_title.trim();
+  if (typeof o.oracle_prophecy_career_url === 'string' && o.oracle_prophecy_career_url.trim())
+    base.oracle_prophecy_career_url = o.oracle_prophecy_career_url.trim();
+
+  // quest_of_fate drive sync fields
+  if (typeof o.quest_of_fate_drive_file_id === 'string' && o.quest_of_fate_drive_file_id.trim())
+    base.quest_of_fate_drive_file_id = o.quest_of_fate_drive_file_id.trim();
+  if (typeof o.quest_of_fate_drive_url === 'string' && o.quest_of_fate_drive_url.trim())
+    base.quest_of_fate_drive_url = o.quest_of_fate_drive_url.trim();
+  const qofStatus = o.quest_of_fate_sync_status;
+  if (qofStatus === 'pending' || qofStatus === 'synced' || qofStatus === 'error')
+    base.quest_of_fate_sync_status = qofStatus;
+  if (typeof o.quest_of_fate_last_synced_at_iso === 'string' && o.quest_of_fate_last_synced_at_iso.trim())
+    base.quest_of_fate_last_synced_at_iso = o.quest_of_fate_last_synced_at_iso.trim();
+
+  // resolve / safe-camp tracking
+  const rc = o.resolve_current;
+  if (typeof rc === 'number' && Number.isFinite(rc)) base.resolve_current = Math.max(0, rc);
+  if (o.resolve_shaken === true) base.resolve_shaken = true;
+  const cx = o.last_safe_camp_x;
+  const cy = o.last_safe_camp_y;
+  if (typeof cx === 'number' && Number.isFinite(cx)) base.last_safe_camp_x = cx;
+  if (typeof cy === 'number' && Number.isFinite(cy)) base.last_safe_camp_y = cy;
+
   return base;
 }
 

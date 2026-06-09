@@ -2,6 +2,12 @@
 
 /** Injected by `vite.config.ts` `define` for production intro video URL. */
 declare const __LH_INTRO_RELEASE_VIDEO__: string;
+/** Short git commit hash of this build (e.g. `"3b81647"`). */
+declare const __LH_BUILD_COMMIT__: string;
+/** ISO build timestamp truncated to the minute (e.g. `"2026-06-09 14:32 UTC"`). */
+declare const __LH_BUILD_DATE__: string;
+/** Vite mode string: `"development"` or `"production"`. */
+declare const __LH_BUILD_MODE__: string;
 
 interface ImportMetaEnv {
   /** Full Web App URL (…/macros/s/…/exec). When set, manual save POSTs here instead of simulating. */

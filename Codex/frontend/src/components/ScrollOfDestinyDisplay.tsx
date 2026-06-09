@@ -1028,6 +1028,14 @@ function ReflectionArchiveTab({ player }: { player: PlayerSave | null }) {
   const lastScore = player?.last_campfire_score;
   const tier     = player?.rested_readiness_tier;
 
+  // If the student has submitted a campfire reflection but the teacher has not yet graded it,
+  // show a clear "Awaiting teacher review" state rather than a bare dash.
+  const rrValue = tier
+    ? tier.replace(/_/g, ' ')
+    : lastIso
+      ? 'Awaiting teacher review'
+      : '—';
+
   return (
     <div style={{ padding: '20px 24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
       <section>
@@ -1037,7 +1045,7 @@ function ReflectionArchiveTab({ player }: { player: PlayerSave | null }) {
             { label: 'Current Streak', value: streak > 0 ? `🔥 ${streak}` : '—' },
             { label: 'Last Session',   value: lastIso ? new Date(lastIso).toLocaleDateString() : '—' },
             { label: 'Last Reflection', value: lastScore != null ? `${lastScore}/5` : '—' },
-            { label: 'Rested Readiness', value: tier ? tier.replace(/_/g, ' ') : '—' },
+            { label: 'Rested Readiness', value: rrValue },
           ].map((stat) => (
             <div key={stat.label} style={{ padding: '10px 12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 3 }}>
               <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.60)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{stat.label}</p>

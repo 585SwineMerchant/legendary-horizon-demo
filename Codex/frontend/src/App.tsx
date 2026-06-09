@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { BuildDebugStamp } from './components/BuildDebugStamp';
 import { ScrollOfDestinyDisplay } from './components/ScrollOfDestinyDisplay';
 import { ScrollRevealSequence } from './modules/act1/ScrollRevealSequence';
 import { SCROLL_ASSETS } from './components/scrollUI/scrollAssets';
@@ -602,6 +603,7 @@ export function App() {
         />
       ) : null}
       </main>
+      <BuildDebugStamp tileMapUrl={tileMapUrl} mapVariant={mapVariant} />
     </div>
   );
 }
