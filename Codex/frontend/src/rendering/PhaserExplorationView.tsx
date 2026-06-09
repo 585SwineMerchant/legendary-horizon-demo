@@ -197,6 +197,19 @@ type WindmillAnimTile = {
   rowInFrame: number;
 };
 
+/**
+ * One tile sprite from the `structures` object layer that uses `Windmill_baked_anim`.
+ * Animated by updating its texture frame each timer tick (vs. `putTileAt` for tile layers).
+ */
+type WindmillDecorSprite = {
+  spec: WindmillAnimSpec;
+  sprite: Phaser.GameObjects.Image;
+  colInFrame: number;
+  rowInFrame: number;
+  tileW: number;
+  tileH: number;
+};
+
 type WindmillAnimGroup = {
   spec: WindmillAnimSpec;
   animFrame: number;
@@ -377,6 +390,8 @@ const TILESET_IMAGES = [
   'wall-5-2-premade corners',
   'wall-5 - 2 tiles tall',
   'golden statues_12',
+  // ── Oracle altar area (guild_hq_floor_2 layer uses this tileset) ────────
+  'Atlas-props-mountain',
 ] as const;
 
 const PRELOAD_TILESET_KEYS = new Set<string>(TILESET_IMAGES);
@@ -1114,6 +1129,11 @@ export function PhaserExplorationView({
 
   useEffect(() => {
     overlayBlocksInputRef.current = overlayBlocksInput;
+    // Notify Phaser scene to toggle keyboard capture so HTML text fields work normally
+    // when an overlay (module document, scroll reveal, cinematic) is covering the canvas.
+    window.dispatchEvent(
+      new CustomEvent('lh:overlay-keyboard-block', { detail: { block: overlayBlocksInput } }),
+    );
   }, [overlayBlocksInput]);
 
   useEffect(() => {
@@ -1256,6 +1276,10 @@ export function PhaserExplorationView({
         private reactiveGrassDecor: ReactiveGrassDecor[] = [];
         private cropTileRecords: CropTileRecord[] = [];
         private windmillAnimGroups: WindmillAnimGroup[] = [];
+        /** Object-layer windmill sprites (structures layer) animated via setFrame(). */
+        private windmillDecorSprites: WindmillDecorSprite[] = [];
+        /** Shared animation frame counter for windmillDecorSprites (0-based). */
+        private windmillDecorAnimFrame = 0;
         private windmillAnimTimer: Phaser.Time.TimerEvent | null = null;
         private nextReactiveGrassScanAt = 0;
         private maiaHandoffPaused = false;
@@ -2927,6 +2951,26 @@ export function PhaserExplorationView({
           onPauseRef.current?.();
         };
 
+        /**
+         * Toggle Phaser keyboard global capture based on whether a React overlay is open.
+         * When an overlay is open (module document, scroll reveal, oracle cinematic, etc.),
+         * Phaser should NOT call preventDefault on keyboard events — every key must reach
+         * HTML text fields normally. When the overlay closes, restore capture so gameplay
+         * controls (arrows, space, WASD) are handled by Phaser again.
+         *
+         * Implementation: input ownership / focus routing, NOT global key suppression.
+         * The Phaser scene still receives key events via its own handlers; it simply stops
+         * intercepting them at the DOM level while an overlay owns the keyboard.
+         */
+        private handleOverlayKeyboardBlock = (e: Event) => {
+          const block = (e as CustomEvent<{ block: boolean }>).detail?.block ?? false;
+          if (block) {
+            this.input.keyboard?.disableGlobalCapture();
+          } else {
+            this.input.keyboard?.enableGlobalCapture();
+          }
+        };
+
         private maybeAddTiledShadowHook(
           obj: { x?: number; y?: number; width?: number; height?: number; properties?: TiledPropertyRuntime[]; id?: number; name?: string },
           baseX: number,
@@ -3045,8 +3089,10 @@ export function PhaserExplorationView({
           }
 
           this.windmillAnimGroups = [...groupMap.values()];
-          if (!this.windmillAnimGroups.length) return;
-
+          // Always start the timer — it also drives windmillDecorSprites (object-layer
+          // windmill sprites from the `structures` layer, populated by addTiledTileObjectDecor
+          // which runs immediately after this method in create()).  If there are no
+          // tile-layer groups AND no decor sprites, the timer callback is a no-op.
           if (this.windmillAnimTimer) {
             this.windmillAnimTimer.remove(false);
             this.windmillAnimTimer = null;
@@ -3055,6 +3101,7 @@ export function PhaserExplorationView({
             delay: WINDMILL_FRAME_MS,
             loop: true,
             callback: () => {
+              // ── Tile-layer windmill groups (crops layer) ──────────────────────
               for (const group of this.windmillAnimGroups) {
                 group.animFrame = (group.animFrame + 1) % group.spec.frameCount;
                 for (const t of group.tiles) {
@@ -3066,6 +3113,33 @@ export function PhaserExplorationView({
                     t.rowInFrame,
                   );
                   t.layer.putTileAt(group.spec.firstGid + localId, t.x, t.y);
+                }
+              }
+              // ── Object-layer windmill decor sprites (structures layer) ────────
+              // These are Phaser.GameObjects.Image objects created by addTiledTileObjectDecor.
+              // They are static by default (frame never changes), so we drive them here via
+              // setFrame() — exactly analogous to putTileAt for the tile-layer groups above.
+              if (this.windmillDecorSprites.length > 0) {
+                const frameCount = this.windmillDecorSprites[0].spec.frameCount;
+                this.windmillDecorAnimFrame = (this.windmillDecorAnimFrame + 1) % frameCount;
+                for (const ds of this.windmillDecorSprites) {
+                  if (!ds.sprite.active) continue;
+                  const localId = windmillLocalIndex(
+                    ds.spec,
+                    this.windmillDecorAnimFrame,
+                    ds.colInFrame,
+                    ds.rowInFrame,
+                  );
+                  const newGid = ds.spec.firstGid + localId;
+                  const frameName = `gid_${newGid}`;
+                  // Lazily add the frame to the texture atlas if it hasn't been seen before.
+                  if (!ds.sprite.texture.has(frameName)) {
+                    const cols = ds.spec.sheetCols;
+                    const sx = (localId % cols) * ds.tileW;
+                    const sy = Math.floor(localId / cols) * ds.tileH;
+                    ds.sprite.texture.add(frameName, 0, sx, sy, ds.tileW, ds.tileH);
+                  }
+                  ds.sprite.setFrame(frameName);
                 }
               }
             },
@@ -3195,6 +3269,7 @@ export function PhaserExplorationView({
           if (!tileObjectLayers.length) return;
 
           this.reactiveGrassDecor = [];
+          this.windmillDecorSprites = [];
           const flipMask = 0x80000000 | 0x40000000 | 0x20000000;
           let added = 0;
           let baseSorted = 0;
@@ -3299,6 +3374,27 @@ export function PhaserExplorationView({
                   lastRustleAt: 0,
                 });
               }
+              // Collect windmill object-layer sprites for frame animation by the windmill timer.
+              // The structures layer places 44 tile objects using Windmill_baked_anim; without this
+              // they remain static (frame never changes). The timer in registerWindmillBakedTileAnimations
+              // drives these via setFrame() in sync with the tile-layer windmill tiles.
+              if (key === WINDMILL_BAKED_TILESET_NAME) {
+                const windmillBaked = map.getTileset(WINDMILL_BAKED_TILESET_NAME);
+                if (windmillBaked) {
+                  const wSpec = inferWindmillAnimSpec(windmillBaked);
+                  const wParsed = parseWindmillLocalIndex(wSpec, localId);
+                  if (wParsed) {
+                    this.windmillDecorSprites.push({
+                      spec: wSpec,
+                      sprite,
+                      colInFrame: wParsed.colInFrame,
+                      rowInFrame: wParsed.rowInFrame,
+                      tileW,
+                      tileH,
+                    });
+                  }
+                }
+              }
               added += 1;
               if (EXPLORATION_AUTHORING_DEBUG) {
                 console.info('[LhAuthoring] tile object classification', {
@@ -3326,6 +3422,7 @@ export function PhaserExplorationView({
               layers: tileObjectLayers.map((layer) => layer.name ?? '(unnamed)'),
               objects: added,
               reactive_grass: this.reactiveGrassDecor.length,
+              windmill_decor_sprites: this.windmillDecorSprites.length,
               base_sorted: baseSorted,
               shadow_hooks: shadowHooks,
               light_hooks: lightHooks,
@@ -3694,6 +3791,12 @@ export function PhaserExplorationView({
               }
               if (abovePlayer) {
                 layer.setDepth(ABOVE_PLAYER_LAYER_DEPTH);
+              } else if (layerName === 'crops') {
+                // Crops must render above guild_hq_ground (which has tiles in the same area
+                // and is created later in the display list, so it would otherwise occlude crops).
+                // Depth 10 is above all default-depth (0) layers but well below the player
+                // y-sort range (~1376-2560 in the crops area), so the player still walks on top.
+                layer.setDepth(10);
               }
               this.jrpgExplorationDimTargets.push(layer);
               if (layer instanceof Phaser.Tilemaps.TilemapLayer) allTileLayers.push(layer);
@@ -3733,6 +3836,33 @@ export function PhaserExplorationView({
           this.registerWindmillBakedTileAnimations(map, allTileLayers);
           this.registerInteractiveCropTiles(map);
           this.addTiledTileObjectDecor(map);
+          // Fallback: if the tile-layer windmill scan found nothing (windmillAnimTimer not started)
+          // but the object-layer has windmill decor sprites, start the timer now so they animate.
+          if (!this.windmillAnimTimer && this.windmillDecorSprites.length > 0) {
+            const frameCount = this.windmillDecorSprites[0].spec.frameCount;
+            this.windmillAnimTimer = this.time.addEvent({
+              delay: WINDMILL_FRAME_MS,
+              loop: true,
+              callback: () => {
+                this.windmillDecorAnimFrame = (this.windmillDecorAnimFrame + 1) % frameCount;
+                for (const ds of this.windmillDecorSprites) {
+                  if (!ds.sprite.active) continue;
+                  const localId = windmillLocalIndex(ds.spec, this.windmillDecorAnimFrame, ds.colInFrame, ds.rowInFrame);
+                  const newGid = ds.spec.firstGid + localId;
+                  const frameName = `gid_${newGid}`;
+                  if (!ds.sprite.texture.has(frameName)) {
+                    const sx = (localId % ds.spec.sheetCols) * ds.tileW;
+                    const sy = Math.floor(localId / ds.spec.sheetCols) * ds.tileH;
+                    ds.sprite.texture.add(frameName, 0, sx, sy, ds.tileW, ds.tileH);
+                  }
+                  ds.sprite.setFrame(frameName);
+                }
+              },
+            });
+            if (import.meta.env.DEV) {
+              console.info('[LhScene] Windmill decor-only fallback timer started', { decor_sprites: this.windmillDecorSprites.length });
+            }
+          }
 
           if (tilesets.length === 0 || createdLayers.length === 0) {
             const cam = this.cameras.main;
@@ -4239,6 +4369,7 @@ export function PhaserExplorationView({
           window.addEventListener(LH_WINDOW_ORACLE_BUILDUP_START, this.handleOracleBuildupStart);
           window.addEventListener(LH_WINDOW_ORACLE_RETURN_TRANSITION, this.handleOracleReturnTransition);
           window.addEventListener('lh:oracle-altar-scroll-passthrough', this.handleOracleAltarPassthrough);
+          window.addEventListener('lh:overlay-keyboard-block', this.handleOverlayKeyboardBlock);
           // ── VFX event bridge (dispatched via dispatchVfx in lhVfxManager) ──
           this._vfxUnsub = subscribeToPhaserVfx((payload) => this.handleVfxEvent(payload));
           this.scale.on('resize', this.handleKnowledgeBattleResize);
@@ -4252,6 +4383,7 @@ export function PhaserExplorationView({
             window.removeEventListener(LH_WINDOW_ORACLE_BUILDUP_START, this.handleOracleBuildupStart);
             window.removeEventListener(LH_WINDOW_ORACLE_RETURN_TRANSITION, this.handleOracleReturnTransition);
             window.removeEventListener('lh:oracle-altar-scroll-passthrough', this.handleOracleAltarPassthrough);
+            window.removeEventListener('lh:overlay-keyboard-block', this.handleOverlayKeyboardBlock);
             window.removeEventListener('lh:spawn-mq103-echoes', this.handleMq103SpawnEchoes);
             window.removeEventListener('lh:spawn-mq105-echo', this.handleMq105SpawnEcho);
             this._vfxUnsub?.();

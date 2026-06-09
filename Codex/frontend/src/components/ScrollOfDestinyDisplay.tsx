@@ -397,10 +397,12 @@ function ScrollHubView({
         ) : null}
       </div>
 
-      {/* ── ORACLE'S PROPHECY BANNER — major title, centered x+y ──────── */}
-      {/* When a prophecy brand exists: shows the sealed career title as ink-  */}
-      {/* on-parchment text with a CareerOneStop link icon. When no brand yet: */}
-      {/* shows the decorative "Oracle's Prophecy" heading placeholder.        */}
+      {/* ── ORACLE'S PROPHECY — label row (center) + burned-in sigil (right) ── */}
+      {/* The label row shows "Oracle's Prophecy" or the sealed career title     */}
+      {/* centered in the same horizontal band as the hub's oracle area.         */}
+      {/* When branded, the sigil PNG is also burned in at the exact position    */}
+      {/* used during the Oracle cinematic (right of the rune row, sigil4 slot)  */}
+      {/* so it persists on the scroll exactly where the ceremony burned it.     */}
       <div
         style={{
           position: 'absolute',
@@ -419,44 +421,8 @@ function ScrollHubView({
         <span aria-hidden style={{ width: 5, height: 5, background: GOLD_INK, transform: 'rotate(45deg)', flexShrink: 0, opacity: 0.7 }} />
 
         {oracleBrandTitle ? (
-          /* Branded — show burned-in prophecy sigil PNG + career title inscription */
+          /* Branded — career title as ink inscription; no inline sigil here */
           <>
-            {/* Oracle sigil PNG — burned in by the Oracle sequence */}
-            {oracleBrandUrl ? (
-              <a
-                href={oracleBrandUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Open career research source"
-                style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}
-                aria-label={`Open career research: ${oracleBrandTitle}`}
-              >
-                <img
-                  src="assets/oracle/prophecy_sigil.png"
-                  alt="Oracle prophecy sigil"
-                  style={{
-                    width: 20,
-                    height: 'auto',
-                    filter: 'drop-shadow(0 1px 3px rgba(120,70,0,0.45)) sepia(0.6) saturate(1.4)',
-                    display: 'block',
-                  }}
-                  draggable={false}
-                />
-              </a>
-            ) : (
-              <img
-                src="assets/oracle/prophecy_sigil.png"
-                alt="Oracle prophecy sigil"
-                style={{
-                  width: 20,
-                  height: 'auto',
-                  flexShrink: 0,
-                  filter: 'drop-shadow(0 1px 3px rgba(120,70,0,0.45)) sepia(0.6) saturate(1.4)',
-                  display: 'block',
-                }}
-                draggable={false}
-              />
-            )}
             {oracleBrandUrl ? (
               <a
                 href={oracleBrandUrl}
@@ -473,7 +439,7 @@ function ScrollHubView({
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  maxWidth: '60%',
+                  maxWidth: '80%',
                   textDecoration: 'none',
                   letterSpacing: '0.06em',
                 }}
@@ -481,7 +447,7 @@ function ScrollHubView({
                 {oracleBrandTitle} ↗
               </a>
             ) : (
-              <p style={{ margin: 0, fontSize: '0.82em', fontWeight: 700, fontFamily: 'var(--lh-guild-display, "Cinzel", serif)', color: GOLD_INK, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '60%', letterSpacing: '0.06em' }}>
+              <p style={{ margin: 0, fontSize: '0.82em', fontWeight: 700, fontFamily: 'var(--lh-guild-display, "Cinzel", serif)', color: GOLD_INK, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '80%', letterSpacing: '0.06em' }}>
                 {oracleBrandTitle}
               </p>
             )}
@@ -497,6 +463,44 @@ function ScrollHubView({
         {/* Right decorative rule */}
         <div aria-hidden style={{ flex: 1, height: 1, background: 'linear-gradient(270deg, transparent, rgba(28,15,0,0.30))' }} />
       </div>
+
+      {/* ── ORACLE SIGIL — burned-in at the ceremony position (right of rune row) */}
+      {/* Positioned at the same coordinates used in OracleProphecyReveal.tsx so  */}
+      {/* the sigil persists exactly where it was sealed during the cinematic.     */}
+      {/* mix-blend-mode: multiply is a TEMPORARY workaround for the white         */}
+      {/* background in prophecy_sigil.png — re-export with transparency to fix.  */}
+      {oracleBrandTitle ? (
+        <div
+          style={{
+            position: 'absolute',
+            left:   `${(910  / SCROLL_REF.w) * 100}%`,
+            top:    `${(530  / SCROLL_REF.h) * 100}%`,
+            width:  `${(150  / SCROLL_REF.w) * 100}%`,
+            height: `${(130  / SCROLL_REF.h) * 100}%`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+          }}
+          aria-hidden
+        >
+          <img
+            src="assets/oracle/prophecy_sigil.png"
+            alt=""
+            draggable={false}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              display: 'block',
+              filter: 'drop-shadow(0 2px 6px rgba(120,70,0,0.50)) sepia(0.4) saturate(1.3)',
+              // TEMPORARY: remove once prophecy_sigil.png is re-exported with a transparent background
+              mixBlendMode: 'multiply',
+              userSelect: 'none',
+            }}
+          />
+        </div>
+      ) : null}
 
       {/* ── BOTTOM CIRCLES — Foretold Signposts ─────────────────── */}
       {signposts.map((realmId, i) => {

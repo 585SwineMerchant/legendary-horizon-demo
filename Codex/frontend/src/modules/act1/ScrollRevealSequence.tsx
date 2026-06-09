@@ -320,7 +320,7 @@ export function ScrollRevealSequence({
           style={{
             position: 'absolute',
             left:   `${(340  / SCROLL_REF.w) * 100}%`,
-            top:    `${(496  / SCROLL_REF.h) * 100}%`,
+            top:    `${(504  / SCROLL_REF.h) * 100}%`,
             width:  `${(600  / SCROLL_REF.w) * 100}%`,
             height: `${(42   / SCROLL_REF.h) * 100}%`,
             display: 'flex',
