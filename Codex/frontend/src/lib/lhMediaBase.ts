@@ -33,9 +33,13 @@ export function getLhDevVitePublicBaseUrl(): string {
 
 /** Absolute URL for a path under the LH media base (or pass-through for full URLs).
  *
- * In dev, audio/SFX files resolve to the local Vite server (window.origin + BASE_URL)
- * so locally-added assets in public/ work immediately without a CDN push.
- * In prod, they resolve to the GitHub Pages CDN (or VITE_LH_MEDIA_BASE_URL override).
+ * Resolution order:
+ *  1. DEV mode (Vite dev server) → local Vite server so public/ assets work immediately.
+ *  2. localhost in production mode (vite preview) → derive base from document.baseURI
+ *     so Phaser loads maps/tilesets/audio from the local preview server, NOT the CDN.
+ *     Note: vite-plugin-singlefile bakes import.meta.env.BASE_URL as "./" so we cannot
+ *     use it here — document.baseURI reflects the actual serving URL.
+ *  3. Otherwise (real GitHub Pages deploy) → DEFAULT_PROD_MEDIA_BASE (CDN).
  */
 export function resolveLhAssetUrl(path: string): string {
   const trimmed = path.trim();
@@ -43,11 +47,27 @@ export function resolveLhAssetUrl(path: string): string {
   if (/^(https?:|data:|blob:)/i.test(trimmed)) return trimmed;
 
   const clean = trimmed.replace(/^\/+/, '');
-  // In local dev, serve from the Vite dev server so files in public/ are immediately
-  // available without waiting for a GitHub Pages deployment.
-  if (import.meta.env.DEV && typeof window !== 'undefined') {
-    return `${getLhDevVitePublicBaseUrl()}${clean}`;
+
+  if (typeof window !== 'undefined') {
+    // DEV: use the Vite dev server (has HMR, correct base path from config)
+    if (import.meta.env.DEV) {
+      return `${getLhDevVitePublicBaseUrl()}${clean}`;
+    }
+
+    // LOCAL PRODUCTION PREVIEW: localhost in production build.
+    // document.baseURI = window.location.href when no <base> tag is present.
+    // This gives us the real serving base (e.g. http://localhost:4173/ or
+    // http://localhost:4173/legendary-horizon-demo/) regardless of what
+    // vite-plugin-singlefile baked into import.meta.env.BASE_URL.
+    const { hostname } = window.location;
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]') {
+      const docBase = document.baseURI; // e.g. http://localhost:4173/legendary-horizon-demo/
+      const dir = docBase.endsWith('/') ? docBase : docBase.slice(0, docBase.lastIndexOf('/') + 1);
+      return `${dir}${clean}`;
+    }
   }
+
+  // Production / GitHub Pages: use CDN (or VITE_LH_MEDIA_BASE_URL override).
   return `${getLhMediaBaseUrl()}${clean}`;
 }
 

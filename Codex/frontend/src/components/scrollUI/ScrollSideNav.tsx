@@ -57,7 +57,7 @@ const FALLBACK_RUNE: Record<string, string> = {
   '__':  'M6 20V9.5A6 6 0 0118 9.5V20 M4 20h16 M10 20v-6a2 2 0 014 0v6',
 };
 
-function TabletFallback({ label, icon }: { label: string; icon?: string }) {
+function TabletFallback({ label, icon, onClick }: { label: string; icon?: string; onClick?: () => void }) {
   const [hovered, setHovered] = useState(false);
   const rune = FALLBACK_RUNE[icon ?? ''] ?? FALLBACK_RUNE['__'];
   const c = hovered ? '#f5d060' : 'rgba(200,150,35,0.85)';
@@ -65,6 +65,8 @@ function TabletFallback({ label, icon }: { label: string; icon?: string }) {
     <div
       role="button"
       tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.(); } }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -109,7 +111,7 @@ function MedallionButton({
   const [hovered, setHovered] = useState(false);
   const [imgError, setImgError] = useState(false);
 
-  if (imgError) return <TabletFallback label={label} icon={icon} />;
+  if (imgError) return <TabletFallback label={label} icon={icon} onClick={onClick} />;
 
   return (
     // ── <div role="button"> completely avoids all browser button UA styles ──
@@ -206,7 +208,7 @@ export function ScrollSideNavButton({ label, icon, onClick, layoutRect, scrollRe
   // Wrap in absolute-positioned container when layout rect is provided
   const inner = assetUrl
     ? <MedallionButton label={label} icon={icon} assetUrl={assetUrl} onClick={onClick} />
-    : <TabletFallback label={label} icon={icon} />;
+    : <TabletFallback label={label} icon={icon} onClick={onClick} />;
 
   if (layoutRect && scrollRef) {
     return (

@@ -28,9 +28,30 @@ After `npm run build` succeeds:
    - `commit` — 7-char short hash matching `git rev-parse --short HEAD`
    - `built` — today's date/time
    - `env` — `production`
-   - `base` — `/legendary-horizon-demo/`
-   - `save mode` — `simulated (no Apps Script URL)` (unless `.env.local` sets the URL)
+   - `BASE_URL` — `./` ← **expected** (vite-plugin-singlefile always bakes `"./"` into the
+     bundle; the configured `/legendary-horizon-demo/` only controls vite preview's server base)
+   - `href` — `http://localhost:4173/` or `http://localhost:4173/legendary-horizon-demo/`
+   - `baseURI` — same as href (used by resolveLhAssetUrl to locate Phaser assets locally)
+   - `save mode` — `simulated (no Apps Script URL)` if no `.env.local`; `remote → Apps Script`
+     if `.env.local` is present (it gets baked in at build time)
    - `map url` — path to `Legendary_Horizon_Map.json`
+   - Asset probes all show **✓** (green). Any **✗** (red) means a 404 — investigate before deploying.
+
+### Why BASE_URL is "./" — not a bug
+
+`vite-plugin-singlefile` overrides `config.base = "./"` so that the inlined bundle uses
+relative paths that work when the HTML file is opened directly (file://) or served from any
+path prefix. This is intentional. The actual serving URL is always in `window.location.href`
+and `document.baseURI`, which the stamp shows explicitly.
+
+### Local preview vs. GitHub Pages
+
+| What | Local Preview | GitHub Pages |
+|------|--------------|-------------|
+| Serving URL | `http://localhost:4173/[legendary-horizon-demo/]` | `https://585swinemerchant.github.io/legendary-horizon-demo/` |
+| Phaser assets | Served from localhost (resolveLhAssetUrl localhost bypass) | Served from GitHub Pages CDN |
+| Scroll/rune/nav PNGs | `./assets/...` relative — served from localhost | `./assets/...` relative — served from GitHub Pages |
+| Save mode | Depends on .env.local at build time | `simulated` (CI has no .env.local) |
 
 ---
 

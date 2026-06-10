@@ -1,3 +1,5 @@
+import { SCROLL_ASSETS } from '../../components/scrollUI/scrollAssets';
+
 /** Minimal realm shape needed for Foretold Signpost medallion lookups. */
 type RealmLike = {
   realm_id: string;
@@ -157,7 +159,7 @@ export type ScrollOfDestinyViewerProps = {
   titleDesignation?: string;
   /** Oracle prophecy or True Path summary shown in large center area */
   prophecySummary?: string;
-  /** Path to the scroll PNG — defaults to /assets/scroll/Scroll_Of_Destiny_ready.png */
+  /** Path to the scroll PNG — defaults to SCROLL_ASSETS.hub (base-path safe) */
   scrollImageSrc?: string;
 };
 
@@ -185,7 +187,7 @@ export function ScrollOfDestinyViewer({
   skills = '',
   titleDesignation = '',
   prophecySummary = '',
-  scrollImageSrc = '/assets/scroll/Scroll_Of_Destiny_ready.png',
+  scrollImageSrc = SCROLL_ASSETS.hub,
 }: ScrollOfDestinyViewerProps) {
   const realmMap = new Map(allRealms.map((r) => [r.realm_id, r]));
 

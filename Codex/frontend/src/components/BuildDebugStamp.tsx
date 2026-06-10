@@ -1,9 +1,20 @@
 /**
  * BuildDebugStamp — in-game overlay showing build/environment diagnostics.
  *
- * Activated by appending `?lh_build_debug=1` to the URL (or in DEV mode always visible).
- * Shows: commit hash, build date, env mode, asset base path, save mode, map URL, backend mode.
+ * Activated by appending `?lh_build_debug=1` to the URL (or always in DEV mode).
+ *
+ * Shows:
+ *  - Commit hash, build date, env mode
+ *  - window.location.href  (the actual serving URL — not the baked BASE_URL)
+ *  - import.meta.env.BASE_URL  (baked at build time; "./" in singlefile builds)
+ *  - document.baseURI  (real base used for relative URL resolution)
+ *  - Save mode, backend mode, map URL, map variant
+ *  - Per-asset probe: scroll bg, rune, nav button, sigil — ok/fail/pending
  */
+
+import { useState, useEffect } from 'react';
+import { SCROLL_ASSETS, RUNE_ASSETS, NAV_BTN_ASSETS } from './scrollUI/scrollAssets';
+import { resolveLhAssetUrl } from '../lib/lhMediaBase';
 
 const WEBAPP_URL = import.meta.env.VITE_LH_APPS_SCRIPT_WEBAPP_URL;
 
@@ -19,6 +30,43 @@ function backendMode(): string {
   return spreadsheetId ? `sheet: ${spreadsheetId}` : 'no spreadsheet id';
 }
 
+// ── Asset probe ────────────────────────────────────────────────────────────
+
+type ProbeStatus = 'pending' | 'ok' | 'fail';
+
+interface AssetProbe {
+  label: string;
+  url: string;
+  status: ProbeStatus;
+}
+
+async function headCheck(url: string): Promise<ProbeStatus> {
+  // Skip data: or blob: URLs — they're inline and always "ok"
+  if (/^(data:|blob:)/i.test(url)) return 'ok';
+  try {
+    const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+    return res.ok ? 'ok' : 'fail';
+  } catch {
+    return 'fail';
+  }
+}
+
+// Key assets to probe (representative sample — scroll bg, one rune, one nav, sigil)
+function buildProbeList(): Omit<AssetProbe, 'status'>[] {
+  // Sigil uses a relative path (not through resolveLhAssetUrl) — normalise it here.
+  const sigilUrl = (import.meta.env.BASE_URL as string).replace(/\/$/, '') + '/assets/oracle/prophecy_sigil.png';
+
+  return [
+    { label: 'scroll-bg',   url: SCROLL_ASSETS.hub },
+    { label: 'rune-01',     url: RUNE_ASSETS['realm_aethelwood'] ?? '' },
+    { label: 'nav-journal', url: NAV_BTN_ASSETS.fieldJournal },
+    { label: 'sigil',       url: sigilUrl },
+    { label: 'phaser-map',  url: resolveLhAssetUrl('assets/maps/Legendary_Horizon_Map.json') },
+  ].filter(p => !!p.url);
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
+
 type Props = {
   tileMapUrl?: string | null;
   mapVariant?: string | null;
@@ -29,13 +77,32 @@ export function BuildDebugStamp({ tileMapUrl, mapVariant }: Props) {
     import.meta.env.DEV ||
     new URLSearchParams(window.location.search).get('lh_build_debug') === '1';
 
+  const [probes, setProbes] = useState<AssetProbe[]>(() =>
+    buildProbeList().map(p => ({ ...p, status: 'pending' as ProbeStatus }))
+  );
+
+  useEffect(() => {
+    if (!active) return;
+    const list = buildProbeList();
+    Promise.all(list.map(p => headCheck(p.url))).then(results => {
+      setProbes(list.map((p, i) => ({ ...p, status: results[i] })));
+    });
+  }, [active]);
+
   if (!active) return null;
 
-  const rows: { label: string; value: string }[] = [
+  const statusColor = (s: ProbeStatus) =>
+    s === 'ok' ? '#6dff6d' : s === 'fail' ? '#ff6060' : '#aaa';
+  const statusIcon  = (s: ProbeStatus) =>
+    s === 'ok' ? '✓' : s === 'fail' ? '✗' : '…';
+
+  const rows: { label: string; value: string; valueColor?: string }[] = [
     { label: 'commit',     value: __LH_BUILD_COMMIT__ },
     { label: 'built',      value: __LH_BUILD_DATE__ },
     { label: 'env',        value: __LH_BUILD_MODE__ },
-    { label: 'base',       value: import.meta.env.BASE_URL },
+    { label: 'href',       value: window.location.href },
+    { label: 'BASE_URL',   value: import.meta.env.BASE_URL },
+    { label: 'baseURI',    value: document.baseURI },
     { label: 'save mode',  value: saveMode() },
     { label: 'backend',    value: backendMode() },
     { label: 'map url',    value: tileMapUrl ?? '—' },
@@ -49,7 +116,7 @@ export function BuildDebugStamp({ tileMapUrl, mapVariant }: Props) {
         bottom: 6,
         right: 6,
         zIndex: 99999,
-        background: 'rgba(0,0,0,0.82)',
+        background: 'rgba(0,0,0,0.88)',
         color: '#d4f7a0',
         fontFamily: 'monospace',
         fontSize: 10,
@@ -59,18 +126,37 @@ export function BuildDebugStamp({ tileMapUrl, mapVariant }: Props) {
         border: '1px solid rgba(212,247,160,0.25)',
         pointerEvents: 'none',
         userSelect: 'none',
-        maxWidth: 360,
+        maxWidth: 420,
       }}
       aria-hidden
     >
-      {rows.map(({ label, value }) => (
+      {/* Static rows */}
+      {rows.map(({ label, value, valueColor }) => (
         <div key={label} style={{ display: 'flex', gap: 6 }}>
-          <span style={{ color: 'rgba(212,247,160,0.55)', minWidth: 76, textAlign: 'right', flexShrink: 0 }}>
+          <span style={{ color: 'rgba(212,247,160,0.55)', minWidth: 84, textAlign: 'right', flexShrink: 0 }}>
             {label}
           </span>
-          <span style={{ color: '#d4f7a0', wordBreak: 'break-all' }}>{value}</span>
+          <span style={{ color: valueColor ?? '#d4f7a0', wordBreak: 'break-all' }}>{value}</span>
         </div>
       ))}
+
+      {/* Asset probe section */}
+      <div style={{ borderTop: '1px solid rgba(212,247,160,0.18)', marginTop: 4, paddingTop: 4 }}>
+        <div style={{ color: 'rgba(212,247,160,0.45)', marginBottom: 2 }}>— asset probes —</div>
+        {probes.map(p => (
+          <div key={p.label} style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+            <span style={{ color: 'rgba(212,247,160,0.55)', minWidth: 84, textAlign: 'right', flexShrink: 0 }}>
+              {p.label}
+            </span>
+            <span style={{ color: statusColor(p.status), flexShrink: 0 }}>
+              {statusIcon(p.status)}
+            </span>
+            <span style={{ color: 'rgba(212,247,160,0.55)', wordBreak: 'break-all', fontSize: 9 }}>
+              {p.url}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
