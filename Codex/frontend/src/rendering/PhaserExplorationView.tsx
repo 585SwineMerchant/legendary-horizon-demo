@@ -3795,14 +3795,25 @@ export function PhaserExplorationView({
           const solidLayers: Array<Phaser.Tilemaps.TilemapLayer | Phaser.Tilemaps.TilemapGPULayer> = [];
           // Prefer dynamic creation (tolerates changes in the Tiled file).
           for (const layerData of map.layers ?? []) {
-            const ld = layerData as unknown as { name?: string; type?: string; properties?: Array<{ name: string; value: unknown }> };
+            const ld = layerData as unknown as {
+              name?: string; type?: string;
+              offsetx?: number; offsety?: number;
+              properties?: Array<{ name: string; value: unknown }>;
+            };
             const layerName = ld?.name;
             const layerType = ld?.type;
             if (!layerName) continue;
             if (layerType && layerType !== 'tilelayer') continue;
             const abovePlayer = ld?.properties?.some((p) => p.name === 'lh_above_player' && p.value === true) ?? false;
+            // Apply Tiled layer pixel offsets. Phaser does NOT do this automatically — calling
+            // createLayer(name, tilesets, 0, 0) always places the layer at world origin.
+            // The crops layer has offsetx=33 offsety=611, so without this fix every crop tile
+            // renders 33 px left and 611 px above its intended Tiled position.
+            // guild_hq_ground has offsetx=4 offsety=-32 and is also corrected here.
+            const layerOffsetX = ld?.offsetx ?? 0;
+            const layerOffsetY = ld?.offsety ?? 0;
             try {
-              const layer = map.createLayer(layerName, tilesets, 0, 0);
+              const layer = map.createLayer(layerName, tilesets, layerOffsetX, layerOffsetY);
               if (!layer) {
                 console.warn(`[LhScene] Layer "${layerName}" returned null`);
                 continue;
