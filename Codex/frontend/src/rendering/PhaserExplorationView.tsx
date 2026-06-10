@@ -3750,10 +3750,28 @@ export function PhaserExplorationView({
           for (const name of TILESET_IMAGES) {
             try {
               const t = map.addTilesetImage(name, name);
-              if (t) tilesets.push(t);
+              if (t) {
+                tilesets.push(t);
+              } else {
+                // Dev-logging: null return means tileset name not found in map JSON or texture not loaded.
+                const texLoaded = this.textures.exists(name);
+                console.warn(`[LhScene:tileset] addTilesetImage null — name="${name}" textureLoaded=${texLoaded}`);
+              }
             } catch (e) {
               console.warn(`[LhScene] Could not add tileset "${name}":`, e);
             }
+          }
+          // Temporary crops dev logging (B-012): report texture load status for all crop tilesets.
+          {
+            const cropNames = TILESET_IMAGES.filter(n => n.startsWith('crops-'));
+            const cropLoaded = cropNames.filter(n => this.textures.exists(n));
+            const cropMissing = cropNames.filter(n => !this.textures.exists(n));
+            console.log('[LhScene:crops-debug] Crop texture status', {
+              total: cropNames.length,
+              loaded: cropLoaded.length,
+              missing: cropMissing.length,
+              missingNames: cropMissing,
+            });
           }
 
           // Tiled may embed multiple tilesets with the same `name` (duplicate embeds). Phaser's
@@ -3797,6 +3815,27 @@ export function PhaserExplorationView({
                 // Depth 10 is above all default-depth (0) layers but well below the player
                 // y-sort range (~1376-2560 in the crops area), so the player still walks on top.
                 layer.setDepth(10);
+                // Temporary crops dev logging (B-012)
+                {
+                  const ld2 = map.getLayer('crops');
+                  const nonEmpty = ld2?.data
+                    ? ld2.data.reduce((s, row) => s + row.filter((t) => t && t.index > 0).length, 0)
+                    : -1;
+                  // Sample a tile we know is in the crop area (tile coords ~50,55)
+                  const sampleTile = layer.getTileAt(50, 55);
+                  console.log('[LhScene:crops-debug] crops layer after setDepth(10)', {
+                    depth: layer.depth,
+                    alpha: layer.alpha,
+                    visible: layer.visible,
+                    active: layer.active,
+                    x: layer.x, y: layer.y,
+                    sceneActive: this.scene?.isActive?.() ?? 'unknown',
+                    nonEmptyTiles: nonEmpty,
+                    sampleTile_50_55: sampleTile ? { index: sampleTile.index, x: sampleTile.pixelX, y: sampleTile.pixelY } : null,
+                    // Check that crop textures are actually in the WebGL renderer
+                    cropsInTilesets: tilesets.filter(ts => ts.name.startsWith('crops-')).map(ts => ts.name),
+                  });
+                }
               }
               this.jrpgExplorationDimTargets.push(layer);
               if (layer instanceof Phaser.Tilemaps.TilemapLayer) allTileLayers.push(layer);
@@ -3833,6 +3872,20 @@ export function PhaserExplorationView({
           }
 
           console.log(`[LhScene] Layers created: ${createdLayers.length ? createdLayers.join(', ') : '(none)'}`);
+          // Temporary crops dev logging (B-012): report all tile layers sorted by depth so we can
+          // see what covers crops (depth 10) and what doesn't.
+          {
+            const layerReport = allTileLayers
+              .map(l => ({ name: l.layer?.name ?? '?', depth: l.depth, alpha: l.alpha, visible: l.visible }))
+              .sort((a, b) => a.depth - b.depth);
+            console.log('[LhScene:crops-debug] All tile layers by depth:', layerReport);
+            const coveringCrops = layerReport.filter(l => l.depth > 10);
+            if (coveringCrops.length > 0) {
+              console.warn('[LhScene:crops-debug] Layers ABOVE crops (depth>10):', coveringCrops);
+            } else {
+              console.log('[LhScene:crops-debug] No tile layers above crops — crops should be topmost tile layer');
+            }
+          }
           this.registerWindmillBakedTileAnimations(map, allTileLayers);
           this.registerInteractiveCropTiles(map);
           this.addTiledTileObjectDecor(map);
