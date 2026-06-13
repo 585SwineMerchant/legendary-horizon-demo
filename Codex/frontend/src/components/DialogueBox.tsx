@@ -108,6 +108,7 @@ function RpgDialogueBox({
       className="lh-rpg-dialogue"
       role="dialog"
       aria-labelledby="lh-rpg-speaker"
+      data-lh-ui-sfx="off"
       onClick={handleAdvance}
     >
       <div className="lh-rpg-dialogue__panel">

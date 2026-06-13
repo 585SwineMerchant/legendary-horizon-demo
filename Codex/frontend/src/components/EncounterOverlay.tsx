@@ -202,7 +202,7 @@ export function EncounterOverlay({ payload, onWin, onRetreat }: Props) {
                 ) : null}
                 <div className="lh-encounter__choices">
                   {currentKnowledge.roundOptions.map((opt, i) => (
-                    <button key={opt} type="button" className="lh-button lh-button--secondary lh-encounter__choice" onClick={() => pickKnowledge(i)}>
+                    <button key={opt} type="button" className="lh-button lh-button--secondary lh-encounter__choice" data-lh-ui-sfx="off" onClick={() => pickKnowledge(i)}>
                       {opt}
                     </button>
                   ))}
@@ -232,7 +232,7 @@ export function EncounterOverlay({ payload, onWin, onRetreat }: Props) {
             {vocabWrong ? <p className="lh-encounter__wrong">Not quite — try another option.</p> : null}
             <div className="lh-encounter__choices">
               {currentVocab.options.map((opt, i) => (
-                <button key={opt} type="button" className="lh-button lh-button--secondary lh-encounter__choice" onClick={() => pickVocab(i)}>
+                <button key={opt} type="button" className="lh-button lh-button--secondary lh-encounter__choice" data-lh-ui-sfx="off" onClick={() => pickVocab(i)}>
                   {opt}
                 </button>
               ))}

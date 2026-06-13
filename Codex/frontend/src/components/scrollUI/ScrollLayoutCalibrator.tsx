@@ -66,6 +66,8 @@ const ZONE_COLORS: Record<string, string> = {
   sigil1:             'rgba(252,211,77,0.50)',
   sigil2:             'rgba(252,211,77,0.50)',
   sigil3:             'rgba(252,211,77,0.50)',
+  bannerRow:          'rgba(251,191,36,0.55)',
+  oracleSigil:        'rgba(239,68,68,0.50)',
   // Nav button zones (hub)
   btnFieldJournal:    'rgba(59,130,246,0.50)',
   btnQuestLog:        'rgba(16,185,129,0.50)',

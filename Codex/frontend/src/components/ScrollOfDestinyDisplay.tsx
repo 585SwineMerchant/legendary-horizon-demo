@@ -66,14 +66,16 @@ export const SCROLL_REF = { w: 1280, h: 720 } as const;
 
 export const SCROLL_LAYOUT = {
   // ── Calibrated 2026-06-03 via ?lh_scroll_layout_debug=1 (pass 5) ───────
-  portrait:  { left: 578, top: 131, width: 130, height: 130 },
-  name:      { left: 548, top: 238, width: 188, height:  21 },
-  leftCol:   { left: 252, top: 246, width: 147, height: 268 },
-  center:    { left: 430, top: 296, width: 423, height: 241 },
-  rightCol:  { left: 881, top: 247, width: 144, height: 265 },
-  sigil1:    { left: 374, top: 538, width: 142, height: 112 },
-  sigil2:    { left: 570, top: 537, width: 142, height: 112 },
-  sigil3:    { left: 757, top: 538, width: 142, height: 112 },
+  portrait:    { left: 578, top: 131, width: 130, height: 130 },
+  name:        { left: 548, top: 238, width: 188, height:  21 },
+  leftCol:     { left: 252, top: 246, width: 147, height: 268 },
+  center:      { left: 430, top: 296, width: 423, height: 241 },
+  rightCol:    { left: 881, top: 247, width: 144, height: 265 },
+  sigil1:      { left: 374, top: 538, width: 142, height: 112 },
+  sigil2:      { left: 570, top: 537, width: 142, height: 112 },
+  sigil3:      { left: 757, top: 538, width: 142, height: 112 },
+  bannerRow:   { left: 394, top: 504, width: 492, height:  34 },
+  oracleSigil: { left: 910, top: 530, width: 150, height: 130 },
   // ── Nav button zones — calibrated via dev tool ────────────────────────
   btnFieldJournal:  { left: -30, top:  95, width: 132, height: 154 },
   btnQuestLog:      { left: -30, top: 300, width: 132, height: 154 },
@@ -406,10 +408,10 @@ function ScrollHubView({
       <div
         style={{
           position: 'absolute',
-          left:  `${(394  / SCROLL_REF.w) * 100}%`,
-          top:   `${(504  / SCROLL_REF.h) * 100}%`,
-          width: `${(492  / SCROLL_REF.w) * 100}%`,
-          height:`${(34   / SCROLL_REF.h) * 100}%`,
+          left:   `${(SCROLL_LAYOUT.bannerRow.left   / SCROLL_REF.w) * 100}%`,
+          top:    `${(SCROLL_LAYOUT.bannerRow.top    / SCROLL_REF.h) * 100}%`,
+          width:  `${(SCROLL_LAYOUT.bannerRow.width  / SCROLL_REF.w) * 100}%`,
+          height: `${(SCROLL_LAYOUT.bannerRow.height / SCROLL_REF.h) * 100}%`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -441,11 +443,8 @@ function ScrollHubView({
           aria-label={oracleBrandUrl ? `Open career research: ${oracleBrandTitle}` : undefined}
           title={oracleBrandUrl ? oracleBrandTitle : undefined}
           style={{
-            position: 'absolute',
-            left:   `${(910  / SCROLL_REF.w) * 100}%`,
-            top:    `${(530  / SCROLL_REF.h) * 100}%`,
-            width:  `${(150  / SCROLL_REF.w) * 100}%`,
-            height: `${(130  / SCROLL_REF.h) * 100}%`,
+            ...toOverlayCss(SCROLL_LAYOUT.oracleSigil),
+            overflow: 'visible',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

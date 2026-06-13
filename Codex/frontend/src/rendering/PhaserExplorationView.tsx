@@ -2834,7 +2834,7 @@ export function PhaserExplorationView({
           }
         }
 
-        /** Place a static golden-statue sprite at the oracle_encounter trigger location. */
+        /** Place a static golden-statue glow-effect sprite at the oracle trigger zone center. */
         private addOracleStatueVisual(hit: TriggerRect): void {
           if (!this.textures.exists(ORACLE_STATUE_KEY)) {
             if (import.meta.env.DEV) {
@@ -2842,8 +2842,9 @@ export function PhaserExplorationView({
             }
             return;
           }
-          const img = this.add.image(hit.x + hit.w / 2, hit.y + hit.h, ORACLE_STATUE_KEY);
-          img.setOrigin(0.5, 1);
+          // Place at center of the trigger zone (oracle tiles are centered in the ellipse).
+          const img = this.add.image(hit.x + hit.w / 2, hit.y + hit.h / 2, ORACLE_STATUE_KEY);
+          img.setOrigin(0.5, 0.5);
           img.setDepth(img.y);
           img.setTint(ORACLE_GLOW_COLOR);
           this.oracleStatueSprites.set(hit.interactable_id, img);
@@ -4048,12 +4049,12 @@ export function PhaserExplorationView({
               this.addLostEchoVisual(tr);
             }
 
-            // Draw Oracle statue for EITHER trigger kind:
-            // - oracle_encounter: the canonical Tiled trigger (dispatcher now routes → oracle_veiled dialogue)
-            // - npc_dialogue + oracle_veiled: synthetic fallback — only when oracle_encounter is absent
-            //   (demoGuidance no longer injects the synthetic when oracle_encounter exists, but guard
-            //   here too so a stale session can't render two statues)
+            // Draw Oracle statue glow target for ANY oracle trigger kind:
+            // - oracle_altar_zone: canonical proximity zone (oracle visual is tiles in guild_hq_floor_2)
+            // - oracle_encounter: legacy trigger type (routes → oracle_veiled dialogue)
+            // - npc_dialogue + oracle_veiled: synthetic fallback only when oracle_encounter is absent
             const isOracleTrigger =
+              tr.kind === 'oracle_altar_zone' ||
               tr.kind === 'oracle_encounter' ||
               (!_hasOracleEncounterTrigger && tr.kind === 'npc_dialogue' && tr.npc_id === 'oracle_veiled');
             if (isOracleTrigger) {

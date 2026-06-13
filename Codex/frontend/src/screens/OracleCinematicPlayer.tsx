@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { publicAssetUrl } from '../lib/publicAssetUrl';
 
 /**
  * Oracle cinematic video player.
@@ -25,6 +26,24 @@ const ORACLE_VIDEO_SRC: string = (() => {
   return override || '/assets/video/oracle_cutscene_v1.mp4';
 })();
 
+const VIDEO_BED_VOLUME = 0.42;
+const VIDEO_DUCKED_VOLUME = 0.16;
+
+const ORACLE_NARRATION_CUES = [
+  { start: 1.2, file: 'oracle_mq_201__p01.mp3' },
+  { start: 3.5, file: 'oracle_mq_201__p02.mp3' },
+  { start: 6.4, file: 'oracle_mq_201__p03.mp3' },
+  { start: 9.5, file: 'oracle_mq_201__p04.mp3' },
+  { start: 10.9, file: 'oracle_mq_201__p05.mp3' },
+  { start: 12.3, file: 'oracle_mq_201__p06.mp3' },
+  { start: 14.8, file: 'oracle_mq_201__p07.mp3' },
+  { start: 17.0, file: 'oracle_mq_201__p08.mp3' },
+  { start: 19.5, file: 'oracle_mq_201__p09.mp3' },
+  { start: 22.5, file: 'oracle_mq_201__p10.mp3' },
+  { start: 25.0, file: 'oracle_mq_201__p11.mp3' },
+  { start: 27.7, file: 'oracle_mq_201__p12.mp3' },
+] as const;
+
 type Props = {
   /** Called when the video ends naturally, or when the player skips (if skip is allowed). */
   onComplete: () => void;
@@ -39,6 +58,8 @@ type Props = {
 export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const completedRef = useRef(false);
+  const narrationRef = useRef<HTMLAudioElement | null>(null);
+  const nextNarrationCueRef = useRef(0);
   const [visible, setVisible] = useState(false);
   const [muted, setMuted] = useState(() => {
     if (typeof document === 'undefined') return false;
@@ -46,11 +67,64 @@ export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) 
   });
 
   // ── single-fire completion guard ───────────────────────────────────────────
+  const stopNarration = useCallback(() => {
+    const narration = narrationRef.current;
+    if (narration) {
+      narration.onended = null;
+      narration.pause();
+      narrationRef.current = null;
+    }
+    if (videoRef.current) videoRef.current.volume = VIDEO_BED_VOLUME;
+  }, []);
+
   const handleFinished = useCallback(() => {
     if (completedRef.current) return;
     completedRef.current = true;
+    stopNarration();
     onComplete();
-  }, [onComplete]);
+  }, [onComplete, stopNarration]);
+
+  const playNarrationCue = useCallback((file: string) => {
+    stopNarration();
+
+    const video = videoRef.current;
+    const narration = new Audio(publicAssetUrl(`assets/dialogue/narration/${file}`));
+    narration.preload = 'auto';
+    narration.volume = 0.95;
+    narration.muted = muted;
+    narrationRef.current = narration;
+    if (video) video.volume = VIDEO_DUCKED_VOLUME;
+
+    narration.onended = () => {
+      if (narrationRef.current !== narration) return;
+      narrationRef.current = null;
+      if (videoRef.current) videoRef.current.volume = VIDEO_BED_VOLUME;
+    };
+    void narration.play().catch((err) => {
+      if (import.meta.env.DEV) {
+        console.warn('[OracleCinematicPlayer] Narration play() rejected for', file, err);
+      }
+      if (narrationRef.current === narration) {
+        narrationRef.current = null;
+        if (videoRef.current) videoRef.current.volume = VIDEO_BED_VOLUME;
+      }
+    });
+  }, [muted, stopNarration]);
+
+  const handleTimeUpdate = useCallback(() => {
+    const currentTime = videoRef.current?.currentTime ?? 0;
+    const cue = ORACLE_NARRATION_CUES[nextNarrationCueRef.current];
+    if (!cue || currentTime < cue.start) return;
+    nextNarrationCueRef.current += 1;
+    playNarrationCue(cue.file);
+  }, [playNarrationCue]);
+
+  const handleSeeking = useCallback(() => {
+    const currentTime = videoRef.current?.currentTime ?? 0;
+    stopNarration();
+    nextNarrationCueRef.current = ORACLE_NARRATION_CUES.findIndex((cue) => cue.start >= currentTime);
+    if (nextNarrationCueRef.current < 0) nextNarrationCueRef.current = ORACLE_NARRATION_CUES.length;
+  }, [stopNarration]);
 
   // ── fade in once mounted ───────────────────────────────────────────────────
   useEffect(() => {
@@ -64,8 +138,18 @@ export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) 
     if (!vid) return;
     // Apply mute state before play so autoplay policies are satisfied
     vid.muted = muted;
+    vid.volume = narrationRef.current ? VIDEO_DUCKED_VOLUME : VIDEO_BED_VOLUME;
     void vid.play().catch(() => {
-      // Autoplay blocked — play will start on first user interaction via the video element itself
+      // Unmuted autoplay blocked — retry muted so timeupdate events fire and narration can play.
+      // The in-player toggle lets the user unmute; the MutationObserver keeps global state in sync.
+      if (import.meta.env.DEV) {
+        console.warn('[OracleCinematicPlayer] Unmuted autoplay blocked — retrying muted.');
+      }
+      vid.muted = true;
+      setMuted(true);
+      void vid.play().catch(() => {
+        // Muted autoplay also blocked — cinematic will start on first user tap.
+      });
     });
   }, [muted]);
 
@@ -73,7 +157,10 @@ export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) 
   useEffect(() => {
     const vid = videoRef.current;
     if (vid) vid.muted = muted;
+    if (narrationRef.current) narrationRef.current.muted = muted;
   }, [muted]);
+
+  useEffect(() => stopNarration, [stopNarration]);
 
   // ── also watch the global lhAudio flag so pausing game music mid-cutscene ──
   // propagates to the video automatically
@@ -102,6 +189,8 @@ export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) 
         playsInline
         preload="auto"
         muted={muted}
+        onTimeUpdate={handleTimeUpdate}
+        onSeeking={handleSeeking}
         onEnded={handleFinished}
         onError={() => {
           // If the video fails to load (missing asset, network error), skip through

@@ -44,7 +44,7 @@ const ATLAS_FOG_INTRO_PENDING_SS = 'lh.atlas.introAfterFog';
 
 function readAtlasIntroDismissed(): boolean {
   try {
-    return typeof localStorage !== 'undefined' && localStorage.getItem(ATLAS_FOG_INTRO_DISMISSED_LS) === '1';
+    return typeof sessionStorage !== 'undefined' && sessionStorage.getItem(ATLAS_FOG_INTRO_DISMISSED_LS) === '1';
   } catch {
     return false;
   }
@@ -52,7 +52,7 @@ function readAtlasIntroDismissed(): boolean {
 
 function writeAtlasIntroDismissed() {
   try {
-    localStorage.setItem(ATLAS_FOG_INTRO_DISMISSED_LS, '1');
+    sessionStorage.setItem(ATLAS_FOG_INTRO_DISMISSED_LS, '1');
   } catch {
     /* ignore */
   }

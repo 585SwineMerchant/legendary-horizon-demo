@@ -217,6 +217,7 @@ export function KnowledgeJrpgBattleOverlay({ payload, onWin, onRetreat }: Props)
                     key={`${currentKnowledge.id}-${opt}`}
                     type="button"
                     className="lh-button lh-button--secondary lh-jrpg-choice"
+                    data-lh-ui-sfx="off"
                     disabled={inputLocked}
                     onClick={() => pickKnowledge(i)}
                   >
