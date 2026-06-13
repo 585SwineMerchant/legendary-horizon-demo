@@ -131,14 +131,23 @@ export function QuestOfFateWorksheetModule({ draft, onDraftChange, onSubmitResul
             onClick={() => {
               onDraftChange({ worksheet_saved_iso: nowIso() });
               onSubmitResult({
-                module_id: 'mod_vault_of_runes',
+                module_id: 'mod_quest_of_fate_worksheet',
                 quest_id: 'mq-203',
                 realm_id: 'realm_archives_ascension',
                 status: 'completed',
                 artifacts: {
                   career_name: field('career_name'),
+                  career_summary: field('career_summary'),
+                  responsibilities: field('responsibilities'),
+                  work_environment: field('work_environment'),
                   median_salary: field('median_salary'),
                   min_education: field('min_education'),
+                  credentials: field('credentials'),
+                  pros: field('pros'),
+                  cons: field('cons'),
+                  personal_fit: field('personal_fit'),
+                  prophecy_title: draft.prophecy_title ?? '',
+                  prophecy_id: draft.prophecy_id ?? '',
                 },
                 completed_at_iso: nowIso(),
               });

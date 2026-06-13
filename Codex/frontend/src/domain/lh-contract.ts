@@ -379,10 +379,11 @@ export type ExplorationLoopState = {
   /**
    * Drive sync status.
    * 'pending' — teacher has not yet created the player's copy.
-   * 'synced'  — Drive file exists and URL is available.
+   * 'sending' — submission in-flight to Apps Script backend.
+   * 'synced'  — backend confirmed receipt.
    * 'error'   — sync attempt failed; contact teacher.
    */
-  quest_of_fate_sync_status?: 'pending' | 'synced' | 'error';
+  quest_of_fate_sync_status?: 'pending' | 'sending' | 'synced' | 'error';
   /** ISO timestamp of last confirmed Drive sync. */
   quest_of_fate_last_synced_at_iso?: string;
 

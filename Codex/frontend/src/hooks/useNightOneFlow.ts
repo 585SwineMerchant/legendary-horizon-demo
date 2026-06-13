@@ -39,6 +39,7 @@ import {
   teacherResetActRemote,
   teacherUnlockQuestRemote,
 } from '../services/teacherToolsGateway';
+import { submitQuestOfFateWorksheetRemote } from '../services/questOfFateGateway';
 import {
   buildChronicleSlidesLaunchUrl,
   buildEnrollmentFormLaunchUrl,
@@ -476,7 +477,7 @@ export function useNightOneFlow() {
           before.status !== 'turned_in' &&
           after?.status === 'completed'
         ) {
-          playLhSfx('quest_complete');
+          playLhSfx('quest_complete', { minIntervalMs: 400 });
         }
         return next;
       });
@@ -1223,8 +1224,7 @@ export function useNightOneFlow() {
     // the RPG dialogue box, not simultaneously with it.
     if (scrollRevealPendingRef.current) {
       scrollRevealPendingRef.current = false;
-      // Stop exploration music for the reveal ceremony.
-      // STUB: play scroll_reveal_music here once the track is added.
+      // Stop exploration music; ScrollRevealSequence owns its ceremony cue.
       getLhAudioDirector().setLane(null);
       setScrollRevealOpen(true);
       if (typeof console !== 'undefined') {
@@ -1481,7 +1481,7 @@ export function useNightOneFlow() {
           );
         })
       ) {
-        playLhSfx('quest_complete');
+        playLhSfx('quest_complete', { minIntervalMs: 400 });
       }
       setExploration(nextE);
       setVisitedInteractableIds((ids) => (ids.includes(cur.interactableId) ? ids : [...ids, cur.interactableId]));
@@ -2544,6 +2544,46 @@ export function useNightOneFlow() {
       return;
     }
 
+    // MQ-203 "Quest of Fate" — career worksheet sealed by student.
+    // Submits the full worksheet to the Apps Script teacher backend; falls through to
+    // completeQuestWithXp below to mark the quest complete and award XP.
+    if (payload.module_id === 'mod_quest_of_fate_worksheet' && payload.status === 'completed') {
+      const ws = payload.artifacts ?? {};
+      const pid = player?.player_id ?? '';
+      setSaveFeedback({ tone: 'success', text: 'Worksheet sealed — submitting to teacher dashboard…' });
+      setExploration((e) => ({ ...e, quest_of_fate_sync_status: 'sending' as const }));
+      void submitQuestOfFateWorksheetRemote({
+        player_id: pid,
+        worksheet: {
+          career_name: String(ws.career_name ?? ''),
+          career_summary: String(ws.career_summary ?? ''),
+          responsibilities: String(ws.responsibilities ?? ''),
+          work_environment: String(ws.work_environment ?? ''),
+          median_salary: String(ws.median_salary ?? ''),
+          min_education: String(ws.min_education ?? ''),
+          credentials: String(ws.credentials ?? ''),
+          pros: String(ws.pros ?? ''),
+          cons: String(ws.cons ?? ''),
+          personal_fit: String(ws.personal_fit ?? ''),
+          prophecy_title: String(ws.prophecy_title ?? ''),
+          prophecy_id: String(ws.prophecy_id ?? ''),
+          submitted_at_iso: new Date().toISOString(),
+        },
+      }).then((result) => {
+        if (result.ok) {
+          setExploration((e) => ({ ...e, quest_of_fate_sync_status: 'synced' as const }));
+          setSaveFeedback({ tone: 'success', text: result.message });
+        } else {
+          setExploration((e) => ({ ...e, quest_of_fate_sync_status: 'error' as const }));
+          setSaveFeedback({
+            tone: 'error',
+            text: `Worksheet sealed locally — teacher sync failed: ${result.message}`,
+          });
+        }
+      });
+      // Fall through to completeQuestWithXp below.
+    }
+
     // GT-100 "Face the Guardian" — boss encounter complete.
     // Falls through to generic completeQuestWithXp below (which auto-reconciles prerequisites,
     // unlocking GT-101). We just add a custom victory feedback here first.
@@ -2562,7 +2602,7 @@ export function useNightOneFlow() {
     }
 
     // Guild interview unlock is deferred to `guild_endgame_v1` gates (interview_invited + HQ; deadline affects GT-102 scoring), not GT-101 unlock shortcuts.
-  }, [completeQuestWithXp]);
+  }, [completeQuestWithXp, player]);
 
   const submitLedgerEntry = useCallback(
     (partial: Omit<ComparisonLedgerEntry, 'id' | 'created_iso'>) => {

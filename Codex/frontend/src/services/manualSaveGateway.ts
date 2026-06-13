@@ -269,7 +269,7 @@ export function coerceExplorationLoop(raw: unknown): ExplorationLoopState | null
   if (typeof o.quest_of_fate_drive_url === 'string' && o.quest_of_fate_drive_url.trim())
     base.quest_of_fate_drive_url = o.quest_of_fate_drive_url.trim();
   const qofStatus = o.quest_of_fate_sync_status;
-  if (qofStatus === 'pending' || qofStatus === 'synced' || qofStatus === 'error')
+  if (qofStatus === 'pending' || qofStatus === 'sending' || qofStatus === 'synced' || qofStatus === 'error')
     base.quest_of_fate_sync_status = qofStatus;
   if (typeof o.quest_of_fate_last_synced_at_iso === 'string' && o.quest_of_fate_last_synced_at_iso.trim())
     base.quest_of_fate_last_synced_at_iso = o.quest_of_fate_last_synced_at_iso.trim();
