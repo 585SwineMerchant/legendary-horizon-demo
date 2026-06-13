@@ -75,8 +75,8 @@ export function QuestOfFateWorksheetModule({ draft, onDraftChange, onSubmitResul
   );
 
   return (
-    <div className="lh-world-map__layout">
-      <section className="lh-world-map__realms" aria-label="Quest of Fate Worksheet">
+    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <section style={{ flex: 1, padding: '0 4px' }} aria-label="Quest of Fate Worksheet">
         <h3 className="lh-heading-sm">Career Exploration Worksheet</h3>
         {prophecyTitle ? (
           <p className="lh-world-map__hint">
@@ -123,7 +123,7 @@ export function QuestOfFateWorksheetModule({ draft, onDraftChange, onSubmitResul
           {textArea('personal_fit', 'Personal Fit — is this a career you may look into further? Why?', 4)}
         </div>
 
-        <div className="lh-world-map__actions" style={{ marginTop: 12 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, paddingBottom: 16 }}>
           <button
             type="button"
             className="lh-button lh-button--primary"

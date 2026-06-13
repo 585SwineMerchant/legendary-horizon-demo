@@ -3805,11 +3805,8 @@ export function PhaserExplorationView({
             if (!layerName) continue;
             if (layerType && layerType !== 'tilelayer') continue;
             const abovePlayer = ld?.properties?.some((p) => p.name === 'lh_above_player' && p.value === true) ?? false;
-            // Apply Tiled layer pixel offsets. Phaser does NOT do this automatically — calling
-            // createLayer(name, tilesets, 0, 0) always places the layer at world origin.
-            // The crops layer has offsetx=33 offsety=611, so without this fix every crop tile
-            // renders 33 px left and 611 px above its intended Tiled position.
-            // guild_hq_ground has offsetx=4 offsety=-32 and is also corrected here.
+            // Apply Tiled layer pixel offsets (usually 0; non-zero only for intentional offsets).
+            // Phaser does NOT do this automatically — createLayer always places at world origin.
             const layerOffsetX = ld?.offsetx ?? 0;
             const layerOffsetY = ld?.offsety ?? 0;
             try {

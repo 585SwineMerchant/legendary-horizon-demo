@@ -463,11 +463,22 @@ export function useNightOneFlow() {
   const completeQuestWithXp = useCallback(
     (questId: string) => {
       setQuests((q) => {
+        const before = q.find((quest) => quest.quest_id === questId);
         const xp = getQuestXpReward(q, questId);
         if (xp > 0) {
           setPlayer((p) => (p ? { ...p, xp_total: p.xp_total + xp } : p));
         }
-        return markQuestCompleted(q, questId);
+        const next = markQuestCompleted(q, questId);
+        const after = next.find((quest) => quest.quest_id === questId);
+        if (
+          before &&
+          before.status !== 'completed' &&
+          before.status !== 'turned_in' &&
+          after?.status === 'completed'
+        ) {
+          playLhSfx('quest_complete');
+        }
+        return next;
       });
     },
     [],
@@ -1448,6 +1459,9 @@ export function useNightOneFlow() {
       if (lootItemId && finalEncPlayer) {
         const satchel = parseSatchelInventory(finalEncPlayer.satchel_inventory_json);
         const updatedMementos = grantMemento(satchel.mementos, lootItemId);
+        if (updatedMementos.length > satchel.mementos.length) {
+          window.setTimeout(() => playLhSfx('item_acquired'), 650);
+        }
         const updatedSatchel = { ...satchel, mementos: updatedMementos };
         playerWithLoot = {
           ...finalEncPlayer,
@@ -1457,6 +1471,18 @@ export function useNightOneFlow() {
 
       setPlayer(playerWithLoot);
       setQuests(act1Quests);
+      if (
+        act1Quests.some((nextQuest) => {
+          const previousQuest = quests.find((quest) => quest.quest_id === nextQuest.quest_id);
+          return (
+            nextQuest.status === 'completed' &&
+            previousQuest?.status !== 'completed' &&
+            previousQuest?.status !== 'turned_in'
+          );
+        })
+      ) {
+        playLhSfx('quest_complete');
+      }
       setExploration(nextE);
       setVisitedInteractableIds((ids) => (ids.includes(cur.interactableId) ? ids : [...ids, cur.interactableId]));
       setActiveEncounter(null);
@@ -1580,6 +1606,7 @@ export function useNightOneFlow() {
             setRealmAtlasOpen(true);
             return;
           }
+          playLhSfx('action_blocked');
           setSaveFeedback({
             tone: 'error',
             text: truePathRealm
@@ -1594,6 +1621,7 @@ export function useNightOneFlow() {
 
         // Act I: guild HQ discovery is gated on the first KC being beaten, not on demo stage.
         if (!firstKcBeaten) {
+          playLhSfx('action_blocked');
           setSaveFeedback({
             tone: 'error',
             text: 'The guild roads are not ready. Face the challenge on the path before entering a guild hall.',

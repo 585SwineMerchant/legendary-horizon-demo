@@ -98,6 +98,7 @@ export function KnowledgeJrpgBattleOverlay({ payload, onWin, onRetreat }: Props)
       if (!currentKnowledge || knowledgePhase !== 'question' || inputLocked) return;
 
       if (idx !== currentKnowledge.roundAnswerIndex) {
+        playLhSfx('answer_incorrect');
         setInputLocked(true);
         setResolveHearts((n) => Math.max(0, n - 1));
         setEchoSurge((s) => Math.min(100, s + 22));
@@ -108,6 +109,7 @@ export function KnowledgeJrpgBattleOverlay({ payload, onWin, onRetreat }: Props)
       }
 
       setInputLocked(true);
+      playLhSfx('answer_correct');
       const nextCorrect = knowledgeCorrect + 1;
       setKnowledgeCorrect(nextCorrect);
       dispatchKnowledgeCombatVisual({ interactableId: payload.interactableId, phase: 'correct' });

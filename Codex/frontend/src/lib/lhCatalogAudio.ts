@@ -1,6 +1,7 @@
 import type { MediaAssetRecord } from '../domain/lh-contract';
 import { getAssetRecord, resolveAssetDeliveryUrl } from '../services/assetCatalog';
 
+import { playLhSfx } from './lhSfx';
 import { isAudioMediaKind } from './mediaKinds';
 
 function isAudioUnmutedInDom(): boolean {
@@ -214,6 +215,11 @@ export function tryPlayCatalogAudioAsset(assetId: string, catalog?: readonly Med
 
   if (!isAudioUnmutedInDom()) {
     if (typeof console !== 'undefined') console.warn('[LhAudio] BLOCKED by mute:', assetId);
+    return;
+  }
+
+  if (assetId === 'sfx_save_chime_placeholder') {
+    playLhSfx('save_confirm');
     return;
   }
 

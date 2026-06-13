@@ -420,44 +420,10 @@ function ScrollHubView({
         <div aria-hidden style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, transparent, rgba(28,15,0,0.30))' }} />
         <span aria-hidden style={{ width: 5, height: 5, background: GOLD_INK, transform: 'rotate(45deg)', flexShrink: 0, opacity: 0.7 }} />
 
-        {oracleBrandTitle ? (
-          /* Branded — career title as ink inscription; no inline sigil here */
-          <>
-            {oracleBrandUrl ? (
-              <a
-                href={oracleBrandUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Open career research source"
-                style={{
-                  margin: 0,
-                  fontSize: '0.82em',
-                  fontWeight: 700,
-                  fontFamily: 'var(--lh-guild-display, "Cinzel", serif)',
-                  color: GOLD_INK,
-                  lineHeight: 1,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  maxWidth: '80%',
-                  textDecoration: 'none',
-                  letterSpacing: '0.06em',
-                }}
-              >
-                {oracleBrandTitle} ↗
-              </a>
-            ) : (
-              <p style={{ margin: 0, fontSize: '0.82em', fontWeight: 700, fontFamily: 'var(--lh-guild-display, "Cinzel", serif)', color: GOLD_INK, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '80%', letterSpacing: '0.06em' }}>
-                {oracleBrandTitle}
-              </p>
-            )}
-          </>
-        ) : (
-          /* Unbranded — decorative placeholder */
+          {/* Banner label — always "Foretold Signposts"; never replaced by URL or career text */}
           <p style={{ margin: 0, fontSize: '0.84em', fontWeight: 700, fontFamily: 'var(--lh-guild-display, "Cinzel", serif)', textTransform: 'uppercase', letterSpacing: '0.20em', color: GOLD_INK, lineHeight: 1, whiteSpace: 'nowrap' }}>
-            Oracle's Prophecy
+            Foretold Signposts
           </p>
-        )}
 
         <span aria-hidden style={{ width: 5, height: 5, background: GOLD_INK, transform: 'rotate(45deg)', flexShrink: 0, opacity: 0.7 }} />
         {/* Right decorative rule */}
@@ -471,6 +437,9 @@ function ScrollHubView({
       {/* background in prophecy_sigil.png — re-export with transparency to fix.  */}
       {oracleBrandTitle ? (
         <div
+          role={oracleBrandUrl ? 'link' : undefined}
+          aria-label={oracleBrandUrl ? `Open career research: ${oracleBrandTitle}` : undefined}
+          title={oracleBrandUrl ? oracleBrandTitle : undefined}
           style={{
             position: 'absolute',
             left:   `${(910  / SCROLL_REF.w) * 100}%`,
@@ -480,13 +449,16 @@ function ScrollHubView({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            pointerEvents: 'none',
+            cursor: oracleBrandUrl ? 'pointer' : 'default',
+            pointerEvents: 'auto',
           }}
-          aria-hidden
+          onClick={() => {
+            if (oracleBrandUrl) window.open(oracleBrandUrl, '_blank', 'noopener,noreferrer');
+          }}
         >
           <img
             src="assets/oracle/prophecy_sigil.png"
-            alt=""
+            alt={oracleBrandUrl ? `Oracle sigil — ${oracleBrandTitle}` : ''}
             draggable={false}
             style={{
               width: '100%',
@@ -494,8 +466,6 @@ function ScrollHubView({
               objectFit: 'contain',
               display: 'block',
               filter: 'drop-shadow(0 2px 6px rgba(120,70,0,0.50)) sepia(0.4) saturate(1.3)',
-              // TEMPORARY: remove once prophecy_sigil.png is re-exported with a transparent background
-              mixBlendMode: 'multiply',
               userSelect: 'none',
             }}
           />

@@ -20,6 +20,7 @@ import { computeForetoldSignposts } from './signpostAlgorithm';
 import { ScrollFrameStage } from '../../components/scrollUI/ScrollFrameStage';
 import { RUNE_ASSETS } from '../../components/scrollUI/scrollAssets';
 import { SCROLL_LAYOUT, SCROLL_REF, toOverlayCss } from '../../components/ScrollOfDestinyDisplay';
+import { playLhCeremonyMusic } from '../../lib/lhCeremonyMusic';
 
 type Props = {
   foretoldSignpostRealmIds: readonly string[];
@@ -131,6 +132,8 @@ export function ScrollRevealSequence({
   onDismiss,
 }: Props) {
   const [stage, setStage] = useState<Stage>(0);
+
+  useEffect(() => playLhCeremonyMusic('scroll_reveal_ceremony'), []);
 
   // If live signpost IDs were not committed yet, derive them from RIASEC scores
   // so rune cards always appear during the reveal.

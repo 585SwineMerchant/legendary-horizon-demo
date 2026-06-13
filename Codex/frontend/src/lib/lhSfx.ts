@@ -19,7 +19,13 @@ export type LhSfxId =
   | 'lost_echo_swing'
   // Generic door SFX — currently used for Aethelwood Guild HQ entry/exit transitions.
   | 'door_open'
-  | 'door_close';
+  | 'door_close'
+  | 'save_confirm'
+  | 'quest_complete'
+  | 'item_acquired'
+  | 'action_blocked'
+  | 'answer_correct'
+  | 'answer_incorrect';
 
 const SFX_FILES: Record<LhSfxId, string> = {
   portal_activation: 'portal_activation.wav',
@@ -40,6 +46,12 @@ const SFX_FILES: Record<LhSfxId, string> = {
   lost_echo_swing: 'lost_echo_swing.mp3',
   door_open: 'door_open.mp3',
   door_close: 'door_close.mp3',
+  save_confirm: 'save_confirm.mp3',
+  quest_complete: 'quest_complete.mp3',
+  item_acquired: 'item_acquired.mp3',
+  action_blocked: 'action_blocked.mp3',
+  answer_correct: 'answer_correct.mp3',
+  answer_incorrect: 'answer_incorrect.mp3',
 };
 
 const DEFAULT_VOLUMES: Record<LhSfxId, number> = {
@@ -59,6 +71,12 @@ const DEFAULT_VOLUMES: Record<LhSfxId, number> = {
   // they accent the transition rather than dominate it.
   door_open: 0.62,
   door_close: 0.6,
+  save_confirm: 0.68,
+  quest_complete: 0.62,
+  item_acquired: 0.58,
+  action_blocked: 0.48,
+  answer_correct: 0.58,
+  answer_incorrect: 0.5,
 };
 
 /**

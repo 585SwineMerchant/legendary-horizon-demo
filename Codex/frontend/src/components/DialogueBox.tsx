@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useDialogueNarration } from '../hooks/useDialogueNarration';
 import { useTypewriter } from '../hooks/useTypewriter';
 
 type Props = {
@@ -62,6 +63,7 @@ function RpgDialogueBox({
   }, [body]);
 
   const currentBeat = beats[pageIndex] ?? '';
+  useDialogueNarration(title, speakerLabel, currentBeat);
   const { displayed, done, skipToEnd } = useTypewriter(currentBeat);
   const isLastPage = pageIndex >= beats.length - 1;
 

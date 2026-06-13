@@ -107,12 +107,14 @@ export function EncounterOverlay({ payload, onWin, onRetreat }: Props) {
     (idx: number) => {
       if (!currentKnowledge || knowledgePhase !== 'question') return;
       if (idx !== currentKnowledge.roundAnswerIndex) {
+        playLhSfx('answer_incorrect');
         setKnowledgeWrong(true);
         dispatchKnowledgeCombatVisual({ interactableId: payload.interactableId, phase: 'wrong' });
         return;
       }
 
       const nextCorrect = knowledgeCorrect + 1;
+      playLhSfx('answer_correct');
       setKnowledgeCorrect(nextCorrect);
       setKnowledgeWrong(false);
       dispatchKnowledgeCombatVisual({ interactableId: payload.interactableId, phase: 'correct' });
@@ -135,6 +137,7 @@ export function EncounterOverlay({ payload, onWin, onRetreat }: Props) {
     (idx: number) => {
       if (!currentVocab) return;
       if (idx === currentVocab.answerIndex) {
+        playLhSfx('answer_correct');
         if (vocabRound + 1 >= vocabQuestions.length) {
           onWin({ requestedXp });
           return;
@@ -142,6 +145,7 @@ export function EncounterOverlay({ payload, onWin, onRetreat }: Props) {
         setVocabRound((r) => r + 1);
         setVocabWrong(false);
       } else {
+        playLhSfx('answer_incorrect');
         setVocabWrong(true);
       }
     },

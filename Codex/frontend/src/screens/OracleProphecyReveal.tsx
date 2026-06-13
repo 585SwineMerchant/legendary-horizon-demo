@@ -263,11 +263,10 @@ export function OracleProphecyReveal({
               }
             }}
           >
-            {/* TEMPORARY: mix-blend-mode:multiply — remove once PNG has transparent background */}
             <img
               src={sigilUrl}
               alt="Oracle prophecy sigil"
-              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', mixBlendMode: 'multiply' }}
+              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
               draggable={false}
             />
           </div>
@@ -362,11 +361,10 @@ export function OracleProphecyReveal({
           pointerEvents: 'none',
         }}
       >
-        {/* TEMPORARY: mix-blend-mode:multiply — remove once PNG has transparent background */}
         <img
           src={sigilUrl}
           alt="Oracle prophecy sigil"
-          style={{ width: 'clamp(64px, 10vw, 120px)', height: 'auto', display: 'block', mixBlendMode: 'multiply' }}
+          style={{ width: 'clamp(64px, 10vw, 120px)', height: 'auto', display: 'block' }}
           draggable={false}
         />
       </div>
