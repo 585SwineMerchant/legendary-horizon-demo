@@ -65,17 +65,17 @@ type Props = {
 export const SCROLL_REF = { w: 1280, h: 720 } as const;
 
 export const SCROLL_LAYOUT = {
-  // ── Calibrated 2026-06-03 via ?lh_scroll_layout_debug=1 (pass 5) ───────
+  // ── Calibrated 2026-06-13 via ?lh_scroll_layout_debug=1 (pass 6) ───────
   portrait:    { left: 578, top: 131, width: 130, height: 130 },
   name:        { left: 548, top: 238, width: 188, height:  21 },
   leftCol:     { left: 252, top: 246, width: 147, height: 268 },
-  center:      { left: 430, top: 296, width: 423, height: 241 },
+  center:      { left: 431, top: 262, width: 423, height: 241 },
   rightCol:    { left: 881, top: 247, width: 144, height: 265 },
   sigil1:      { left: 374, top: 538, width: 142, height: 112 },
   sigil2:      { left: 570, top: 537, width: 142, height: 112 },
   sigil3:      { left: 757, top: 538, width: 142, height: 112 },
-  bannerRow:   { left: 394, top: 504, width: 492, height:  34 },
-  oracleSigil: { left: 910, top: 530, width: 150, height: 130 },
+  bannerRow:   { left: 509, top: 509, width: 268, height:  26 },
+  oracleSigil: { left: 879, top: 501, width: 150, height: 130 },
   // ── Nav button zones — calibrated via dev tool ────────────────────────
   btnFieldJournal:  { left: -30, top:  95, width: 132, height: 154 },
   btnQuestLog:      { left: -30, top: 300, width: 132, height: 154 },

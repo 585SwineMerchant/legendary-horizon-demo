@@ -38,6 +38,14 @@ var LH_SCHEMA = {
   ITEM_DEFINITION_TAB: 'LhItemDefinitions',
   /** Session-end / class block history (append-only). */
   SESSION_HISTORY_TAB: 'LhSessionHistory',
+  /**
+   * Quest of Fate career worksheet submissions (append-only).
+   * Teacher must create this tab in the spreadsheet with the header row:
+   * submitted_iso | player_id | quest_id | module_id | prophecy_id | prophecy_title |
+   * career_name | career_summary | responsibilities | work_environment |
+   * median_salary | min_education | credentials | pros | cons | personal_fit
+   */
+  QUEST_OF_FATE_TAB: 'LhQuestOfFate',
 };
 
 /**
@@ -2226,6 +2234,47 @@ function lhWebJsonOutput_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
 
+/**
+ * Appends a Quest of Fate career worksheet submission to the LhQuestOfFate tab.
+ *
+ * Tab must exist with this header row (columns in any order):
+ *   submitted_iso, player_id, quest_id, module_id, prophecy_id, prophecy_title,
+ *   career_name, career_summary, responsibilities, work_environment,
+ *   median_salary, min_education, credentials, pros, cons, personal_fit
+ *
+ * Returns { ok: true } on success, { ok: false, error: string } on failure.
+ */
+function LhQuestOfFate_submitWorksheet(spreadsheetId, playerId, worksheet) {
+  var sheet = lhSheetTryGet_(spreadsheetId, LH_SCHEMA.QUEST_OF_FATE_TAB);
+  if (!sheet) {
+    return { ok: false, error: 'LhQuestOfFate tab missing — teacher must create the tab with the required header row.' };
+  }
+  var ws = worksheet || {};
+  var row = {};
+  row['submitted_iso'] = ws.submitted_at_iso || new Date().toISOString();
+  row['player_id']      = String(playerId || '');
+  row['quest_id']       = 'mq-203';
+  row['module_id']      = 'mod_quest_of_fate_worksheet';
+  row['prophecy_id']    = String(ws.prophecy_id || '');
+  row['prophecy_title'] = String(ws.prophecy_title || '');
+  row['career_name']    = String(ws.career_name || '');
+  row['career_summary'] = String(ws.career_summary || '');
+  row['responsibilities'] = String(ws.responsibilities || '');
+  row['work_environment'] = String(ws.work_environment || '');
+  row['median_salary']  = String(ws.median_salary || '');
+  row['min_education']  = String(ws.min_education || '');
+  row['credentials']    = String(ws.credentials || '');
+  row['pros']           = String(ws.pros || '');
+  row['cons']           = String(ws.cons || '');
+  row['personal_fit']   = String(ws.personal_fit || '');
+  try {
+    lhSession_appendObjectRow_(sheet, row);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
 function doGet() {
   return lhWebJsonOutput_({
     ok: true,
@@ -2519,6 +2568,29 @@ function doPost(e) {
         out.ok = false;
         out.message = 'grade_campfire failed.';
         out.errors = [gc.error || 'grade_campfire_failed'];
+      }
+      return lhWebJsonOutput_(out);
+    }
+
+    if (action === 'submit_quest_of_fate_worksheet') {
+      var qofPlayerId = String(body.player_id || '').trim();
+      var qofWs = body.worksheet;
+      if (!qofPlayerId) {
+        out.error = 'player_id_required';
+        return lhWebJsonOutput_(out);
+      }
+      if (!qofWs || typeof qofWs !== 'object') {
+        out.error = 'worksheet_required';
+        return lhWebJsonOutput_(out);
+      }
+      var qofResult = LhQuestOfFate_submitWorksheet(spreadsheetId, qofPlayerId, qofWs);
+      if (qofResult.ok) {
+        out.ok = true;
+        out.message = 'Career worksheet submitted to teacher dashboard.';
+      } else {
+        out.ok = false;
+        out.message = qofResult.error || 'submit_quest_of_fate_worksheet failed.';
+        out.errors = [qofResult.error || 'worksheet_write_failed'];
       }
       return lhWebJsonOutput_(out);
     }

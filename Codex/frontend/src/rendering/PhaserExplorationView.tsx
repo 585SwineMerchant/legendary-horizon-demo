@@ -3348,7 +3348,11 @@ export function PhaserExplorationView({
                   )
                   .setDepth(Math.max(0, baseY - 0.08));
               }
-              const sprite = this.add.image(spriteX, obj.y ?? 0, key, frameName);
+              // Snap tile-object sprites to integer pixels to eliminate sub-pixel gaps between
+              // adjacent 32×32 tiles (e.g. windmill body objects exported with fractional coords).
+              const spriteXSnapped = Math.round(spriteX);
+              const spriteYSnapped = Math.round(obj.y ?? 0);
+              const sprite = this.add.image(spriteXSnapped, spriteYSnapped, key, frameName);
               sprite.setOrigin(isReactiveGrass || isTreeObject ? 0.5 : 0, 1);
               const sortY = Math.max(0, (obj.y ?? 0) - grassDepthShrink);
               sprite.setDepth(sortY + (isTreeObject ? -0.01 : 0.001));
@@ -3824,26 +3828,35 @@ export function PhaserExplorationView({
                 // Depth 10 is above all default-depth (0) layers but well below the player
                 // y-sort range (~1376-2560 in the crops area), so the player still walks on top.
                 layer.setDepth(10);
-                // Temporary crops dev logging (B-012)
-                {
+                // Crops coordinate report (dev only) — first 10 non-empty tiles,
+                // expected Tiled world position (tileX*32 + offsetx, tileY*32 + offsety) vs
+                // actual Phaser pixelX/pixelY. Delta should be 0,0.
+                if (import.meta.env.DEV) {
                   const ld2 = map.getLayer('crops');
-                  const nonEmpty = ld2?.data
-                    ? ld2.data.reduce((s, row) => s + row.filter((t) => t && t.index > 0).length, 0)
-                    : -1;
-                  // Sample a tile we know is in the crop area (tile coords ~50,55)
-                  const sampleTile = layer.getTileAt(50, 55);
-                  console.log('[LhScene:crops-debug] crops layer after setDepth(10)', {
-                    depth: layer.depth,
-                    alpha: layer.alpha,
-                    visible: layer.visible,
-                    active: layer.active,
-                    x: layer.x, y: layer.y,
-                    sceneActive: this.scene?.isActive?.() ?? 'unknown',
-                    nonEmptyTiles: nonEmpty,
-                    sampleTile_50_55: sampleTile ? { index: sampleTile.index, x: sampleTile.pixelX, y: sampleTile.pixelY } : null,
-                    // Check that crop textures are actually in the WebGL renderer
-                    cropsInTilesets: tilesets.filter(ts => ts.name.startsWith('crops-')).map(ts => ts.name),
-                  });
+                  const offsetX = layerOffsetX; // from Tiled JSON, applied when createLayer was called
+                  const offsetY = layerOffsetY;
+                  const reported: Array<{tileX:number;tileY:number;expectedX:number;expectedY:number;phaserX:number;phaserY:number;deltaX:number;deltaY:number}> = [];
+                  if (ld2?.data) {
+                    outer: for (let ry = 0; ry < ld2.data.length; ry++) {
+                      for (let rx = 0; rx < ld2.data[ry].length; rx++) {
+                        const t = ld2.data[ry][rx];
+                        if (!t || t.index <= 0) continue;
+                        const pTile = layer.getTileAt(rx, ry);
+                        if (!pTile) continue;
+                        const expectedX = rx * 32 + offsetX;
+                        const expectedY = ry * 32 + offsetY;
+                        reported.push({
+                          tileX: rx, tileY: ry,
+                          expectedX, expectedY,
+                          phaserX: pTile.pixelX, phaserY: pTile.pixelY,
+                          deltaX: pTile.pixelX - expectedX,
+                          deltaY: pTile.pixelY - expectedY,
+                        });
+                        if (reported.length >= 10) break outer;
+                      }
+                    }
+                  }
+                  console.log('[LhScene:crops] coordinate report (offsetx=' + offsetX + ', offsety=' + offsetY + ')', reported);
                 }
               }
               this.jrpgExplorationDimTargets.push(layer);
@@ -4049,23 +4062,38 @@ export function PhaserExplorationView({
               this.addLostEchoVisual(tr);
             }
 
-            // Draw Oracle statue glow target for ANY oracle trigger kind:
-            // - oracle_altar_zone: canonical proximity zone (oracle visual is tiles in guild_hq_floor_2)
-            // - oracle_encounter: legacy trigger type (routes → oracle_veiled dialogue)
-            // - npc_dialogue + oracle_veiled: synthetic fallback only when oracle_encounter is absent
-            const isOracleTrigger =
-              tr.kind === 'oracle_altar_zone' ||
+            // Oracle visual paths (one per trigger kind — only one should fire per map):
+            //
+            // oracle_altar_zone  → canonical trigger; oracle tiles live in guild_hq_floor_2 (tile layer).
+            //                      NO code-spawned statue — the Tiled tile IS the visual.
+            //                      Proximity zone + cinematic still fire normally via triggerBodies.
+            //
+            // oracle_encounter   → legacy trigger; no Tiled tile visual. Spawn a glow-effect statue image
+            //                      so the altar is visible. Routes to oracle_veiled dialogue, not cinematic.
+            //
+            // npc_dialogue+oracle_veiled (synthetic) → absolute fallback when oracle_encounter is absent.
+            //                      Spawn statue as above.
+            //
+            // All three still create a trigger rect (below) so proximity / Enter detection works.
+            const isOracleCodeSpawnNeeded =
               tr.kind === 'oracle_encounter' ||
               (!_hasOracleEncounterTrigger && tr.kind === 'npc_dialogue' && tr.npc_id === 'oracle_veiled');
-            if (isOracleTrigger) {
-              const oracleSource = tr.kind === 'oracle_encounter' ? 'tiled' : 'synthetic';
+
+            if (import.meta.env.DEV) {
+              if (tr.kind === 'oracle_altar_zone' || tr.kind === 'oracle_encounter' ||
+                  (tr.kind === 'npc_dialogue' && tr.npc_id === 'oracle_veiled')) {
+                console.log('[LH_ORACLE] trigger registered', {
+                  kind: tr.kind,
+                  interactable_id: tr.interactable_id,
+                  visual_source: tr.kind === 'oracle_altar_zone' ? 'tiled_tile_layer_guild_hq_floor_2' : 'code_spawned_statue',
+                  spawning_statue: isOracleCodeSpawnNeeded,
+                  x: tr.x, y: tr.y, w: tr.w, h: tr.h,
+                });
+              }
+            }
+
+            if (isOracleCodeSpawnNeeded) {
               this.addOracleStatueVisual(tr);
-              console.log('[LH_ORACLE] ORACLE_SOURCE: ' + oracleSource, {
-                interactable_id: tr.interactable_id,
-                kind: tr.kind,
-                npc_id: tr.npc_id,
-                x: tr.x, y: tr.y, w: tr.w, h: tr.h,
-              });
             }
 
             const isPortal = tr.kind === 'maia_portal';
