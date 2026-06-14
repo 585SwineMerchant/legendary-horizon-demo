@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="400" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="30" nextobjectid="4761">
+<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="400" height="300" tilewidth="32" tileheight="32" infinite="0" nextlayerid="30" nextobjectid="4781">
  <editorsettings>
   <export target="../Codex/frontend/public/assets/maps/Legendary_Horizon_Map.json" format="json"/>
  </editorsettings>
@@ -3014,6 +3014,113 @@
     <property name="lh_kind" value="combat_encounter"/>
    </properties>
    <capsule/>
+  </object>
+    <object id="4761" name="valors_watchtower_trigger" x="3482.67" y="702.667" width="48.6667" height="64.6667">
+   <properties>
+    <property name="lh_activation_mode" value="overlap_auto"/>
+    <property name="lh_kind" value="guild_hq_research"/>
+    <property name="lh_realm_id" value="realm_valors_watchtower"/>
+   </properties>
+  </object>
+    <object id="4762" name="mercantiles_citadel_trigger" x="3176.67" y="4630" width="119.333" height="58">
+   <properties>
+    <property name="lh_activation_mode" value="overlap_auto"/>
+    <property name="lh_kind" value="guild_hq_research"/>
+    <property name="lh_realm_id" value="realm_mercantile_citadel"/>
+   </properties>
+  </object>
+    <object id="4764" name="crossroads_haven_trigger" x="4250.67" y="6833.33" width="56" height="73.3333">
+   <properties>
+    <property name="lh_activation_mode" value="overlap_auto"/>
+    <property name="lh_kind" value="guild_hq_research"/>
+    <property name="lh_realm_id" value="realm_crossroads_haven"/>
+   </properties>
+  </object>
+    <object id="4765" name="Empaths_enclave_trigger" x="1694.67" y="8331.33" width="92.6667" height="58">
+   <properties>
+    <property name="lh_activation_mode" value="overlap_auto"/>
+    <property name="lh_kind" value="guild_hq_research"/>
+    <property name="lh_realm_id" value="realm_empaths_enclave"/>
+   </properties>
+  </object>
+    <object id="4766" name="alchemical_observatory_trigger" x="5414" y="8778" width="70" height="59">
+   <properties>
+    <property name="lh_activation_mode" value="overlap_auto"/>
+    <property name="lh_kind" value="guild_hq_research"/>
+    <property name="lh_realm_id" value="realm_alchemical_observatory"/>
+   </properties>
+  </object>
+    <object id="4767" name="guilded_vault_trigger" x="6075" y="7546" width="52" height="38">
+   <properties>
+    <property name="lh_activation_mode" value="overlap_auto"/>
+    <property name="lh_kind" value="guild_hq_research"/>
+    <property name="lh_realm_id" value="realm_gilded_vault"/>
+   </properties>
+  </object>
+    <object id="4768" name="odessys_harbor_trigger" x="8784" y="8969.33" width="377.333" height="68">
+   <properties>
+    <property name="lh_activation_mode" value="overlap_auto"/>
+    <property name="lh_kind" value="guild_hq_research"/>
+    <property name="lh_realm_id" value="realm_odyssey_harbor"/>
+   </properties>
+  </object>
+    <object id="4769" name="aurora_apothecary_trigger" x="10696" y="6696" width="130" height="134">
+   <properties>
+    <property name="lh_activation_mode" value="overlap_auto"/>
+    <property name="lh_kind" value="guild_hq_research"/>
+    <property name="lh_realm_id" value="realm_aurora_apothecary"/>
+   </properties>
+  </object>
+    <object id="4770" name="bards_beacon_trigger" x="9528" y="5390" width="61" height="95">
+   <properties>
+    <property name="lh_activation_mode" value="overlap_auto"/>
+    <property name="lh_kind" value="guild_hq_research"/>
+    <property name="lh_realm_id" value="realm_bards_beacon"/>
+   </properties>
+  </object>
+    <object id="4771" name="archives_of_ascension_trigger" x="9198" y="3364" width="45.3333" height="54">
+   <properties>
+    <property name="lh_activation_mode" value="overlap_auto"/>
+    <property name="lh_kind" value="guild_hq_research"/>
+    <property name="lh_realm_id" value="realm_archives_ascension"/>
+   </properties>
+  </object>
+  <object id="4772" x="7512" y="792" width="43" height="17"/>
+  <object id="4773" x="7557" y="811" width="140" height="148"/>
+    <object id="4775" name="high_council_hall_trigger" x="7504" y="797" width="80" height="71">
+   <properties>
+    <property name="lh_activation_mode" value="overlap_auto"/>
+    <property name="lh_kind" value="guild_hq_research"/>
+    <property name="lh_realm_id" value="realm_high_council_hall"/>
+   </properties>
+  </object>
+    <object id="4776" name="monolith_of_masonry_trigger" x="10586" y="589" width="161" height="103">
+   <properties>
+    <property name="lh_activation_mode" value="overlap_auto"/>
+    <property name="lh_kind" value="guild_hq_research"/>
+    <property name="lh_realm_id" value="realm_monolith_masonry"/>
+   </properties>
+  </object>
+    <object id="4777" name="great_vulcanis_forge_trigger" x="11848.7" y="1761.33" width="55.3333" height="48.6667">
+   <properties>
+    <property name="lh_activation_mode" value="overlap_auto"/>
+    <property name="lh_kind" value="guild_hq_research"/>
+    <property name="lh_realm_id" value="realm_vulcanis_forge"/>
+   </properties>
+  </object>
+    <object id="4779" name="chroniclers_spire_trigger" x="6261.33" y="2365.33" width="88" height="80">
+   <properties>
+    <property name="lh_activation_mode" value="overlap_auto"/>
+    <property name="lh_kind" value="guild_hq_research"/>
+    <property name="lh_realm_id" value="realm_chroniclers_spire"/>
+   </properties>
+  </object>
+    <object id="4780" name="etheric_nexus_trigger" x="12148" y="4008" width="236" height="164">
+   <properties>
+    <property name="lh_activation_mode" value="overlap_auto"/>
+    <property name="lh_kind" value="guild_hq_research"/>
+    <property name="lh_realm_id" value="realm_etheric_nexus"/>
+   </properties>
   </object>
  </objectgroup>
  <objectgroup id="22" name="lh_collision" visible="0">

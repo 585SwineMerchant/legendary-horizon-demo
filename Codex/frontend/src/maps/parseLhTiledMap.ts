@@ -237,14 +237,56 @@ function objectBounds(obj: TiledObject, warnings?: string[]): ParsedLhTrigger['b
   return { x: minX, y: minY, width: Math.max(maxX - minX, 0), height: Math.max(maxY - minY, 0) };
 }
 
+/**
+ * Inferred realm ID for Guild HQ triggers placed in Tiled without explicit `lh_kind` / `lh_realm_id` properties.
+ * Keyed on the Tiled object `name` (case-sensitive as placed).  When properties are present they always win;
+ * this table is a last-resort fallback so a named rectangle never silently fails.
+ */
+const GUILD_HQ_TRIGGER_NAME_TO_REALM: Readonly<Record<string, string>> = {
+  Aethelwood_Farms_Trigger:           'realm_aethelwood',
+  valors_watchtower_trigger:          'realm_valors_watchtower',
+  mercantiles_citadel_trigger:        'realm_mercantile_citadel',
+  crossroads_haven_trigger:           'realm_crossroads_haven',
+  Empaths_enclave_trigger:            'realm_empaths_enclave',
+  alchemical_observatory_trigger:     'realm_alchemical_observatory',
+  guilded_vault_trigger:              'realm_gilded_vault',
+  odessys_harbor_trigger:             'realm_odyssey_harbor',
+  aurora_apothecary_trigger:          'realm_aurora_apothecary',
+  bards_beacon_trigger:               'realm_bards_beacon',
+  archives_of_ascension_trigger:      'realm_archives_ascension',
+  high_council_hall_trigger:          'realm_high_council_hall',
+  monolith_of_masonry_trigger:        'realm_monolith_masonry',
+  great_vulcanis_forge_trigger:       'realm_vulcanis_forge',
+  chroniclers_spire_trigger:          'realm_chroniclers_spire',
+  etheric_nexus_trigger:              'realm_etheric_nexus',
+};
+
 function normaliseTriggers(objects: TiledObject[], layerName: string, warnings: string[]): ParsedLhTrigger[] {
   const out: ParsedLhTrigger[] = [];
   objects.forEach((obj) => {
     const props = obj.properties ?? [];
-    const lhKindRaw = tileProperty(props, 'lh_kind');
-    if (!lhKindRaw && obj.type !== 'lh_trigger_zone') {
+    let lhKindRaw = tileProperty(props, 'lh_kind');
+    let inferredRealmId: string | undefined;
+
+    // Name-based fallback: if a named rectangle ends with _trigger (or _Trigger) but carries no
+    // lh_kind, check the known Guild HQ name table before silently discarding the object.
+    if (!lhKindRaw && obj.type !== 'lh_trigger_zone' && obj.name) {
+      const inferredRealm = GUILD_HQ_TRIGGER_NAME_TO_REALM[obj.name];
+      if (inferredRealm) {
+        lhKindRaw = 'guild_hq_research';
+        inferredRealmId = inferredRealm;
+        warnings.push(`guild_hq_inferred_from_name:${obj.name}:${inferredRealm}`);
+      } else if (obj.name.toLowerCase().endsWith('_trigger')) {
+        // Named _trigger object not in the known table and no explicit props — surface a clear warning.
+        warnings.push(`unrecognised_trigger_name:${obj.name}:id=${obj.id} — add lh_kind property or add to GUILD_HQ_TRIGGER_NAME_TO_REALM`);
+        return;
+      } else {
+        return;
+      }
+    } else if (!lhKindRaw && obj.type !== 'lh_trigger_zone') {
       return;
     }
+
     const kind = lhKindRaw ?? 'unknown';
     if (kind === 'waypoint' || kind === 'fog_region' || kind === 'roaming_lost_echo_spawn' || kind === 'collision') {
       return;
@@ -275,7 +317,7 @@ function normaliseTriggers(objects: TiledObject[], layerName: string, warnings: 
       activation_mode,
       npc_id: tileProperty(props, 'lh_npc_id'),
       rotation_deg: typeof obj.rotation === 'number' ? obj.rotation : undefined,
-      target_realm_id: tileProperty(props, 'lh_target_realm_id') ?? tileProperty(props, 'lh_realm_id'),
+      target_realm_id: tileProperty(props, 'lh_target_realm_id') ?? tileProperty(props, 'lh_realm_id') ?? inferredRealmId,
       target_quest_id: tileProperty(props, 'lh_target_quest_id'),
       external_url_key: tileProperty(props, 'lh_external_url_key'),
       fog_key: tileProperty(props, 'lh_fog_key'),
