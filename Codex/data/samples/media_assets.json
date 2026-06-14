@@ -74,9 +74,9 @@
   {
     "asset_id": "guild_hq_hero_realm_aethelwood",
     "kind": "guild_hq",
-    "description": "Aethelwood Farmsteads — guild HQ hall plate. Local fallback: Battle_screen_aethelwood.png. Replace delivery_url_placeholder with approved hero art URL when available.",
+    "description": "Aethelwood Farmsteads — guild HQ hall plate. Replace delivery_url_placeholder with approved hero art URL when available.",
     "drive_file_id": "",
-    "delivery_url_placeholder": "/assets/Battle_screen_aethelwood.png",
+    "delivery_url_placeholder": "",
     "realm_ids": [
       "realm_aethelwood"
     ]

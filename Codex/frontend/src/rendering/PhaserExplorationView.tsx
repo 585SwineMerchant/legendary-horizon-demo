@@ -3802,7 +3802,6 @@ export function PhaserExplorationView({
           for (const layerData of map.layers ?? []) {
             const ld = layerData as unknown as {
               name?: string; type?: string;
-              offsetx?: number; offsety?: number;
               properties?: Array<{ name: string; value: unknown }>;
             };
             const layerName = ld?.name;
@@ -3810,12 +3809,11 @@ export function PhaserExplorationView({
             if (!layerName) continue;
             if (layerType && layerType !== 'tilelayer') continue;
             const abovePlayer = ld?.properties?.some((p) => p.name === 'lh_above_player' && p.value === true) ?? false;
-            // Apply Tiled layer pixel offsets (usually 0; non-zero only for intentional offsets).
-            // Phaser does NOT do this automatically — createLayer always places at world origin.
-            const layerOffsetX = ld?.offsetx ?? 0;
-            const layerOffsetY = ld?.offsety ?? 0;
+            // Phaser's JSON parser reads Tiled offsetx/offsety → stores as layerData.x / layerData.y.
+            // createLayer() uses those as defaults when x/y args are omitted (undefined).
+            // DO NOT pass explicit 0,0 — that overrides the stored offset and breaks layers like crops.
             try {
-              const layer = map.createLayer(layerName, tilesets, layerOffsetX, layerOffsetY);
+              const layer = map.createLayer(layerName, tilesets);
               if (!layer) {
                 console.warn(`[LhScene] Layer "${layerName}" returned null`);
                 continue;
@@ -3828,14 +3826,15 @@ export function PhaserExplorationView({
                 // Depth 10 is above all default-depth (0) layers but well below the player
                 // y-sort range (~1376-2560 in the crops area), so the player still walks on top.
                 layer.setDepth(10);
-                // Crops coordinate report (dev only) — first 10 non-empty tiles,
-                // expected Tiled world position (tileX*32 + offsetx, tileY*32 + offsety) vs
-                // actual Phaser pixelX/pixelY. Delta should be 0,0.
+                // Crops coordinate report (dev only) — first 10 non-empty tiles.
+                // layer.x/y are the offsets Phaser applied from the JSON offsetx/offsety fields.
+                // World position of tile [col,row] = layer.x + col*32, layer.y + row*32.
+                // pTile.pixelX is LOCAL (= col*32); world = layer.x + pTile.pixelX → delta must be 0.
                 if (import.meta.env.DEV) {
                   const ld2 = map.getLayer('crops');
-                  const offsetX = layerOffsetX; // from Tiled JSON, applied when createLayer was called
-                  const offsetY = layerOffsetY;
-                  const reported: Array<{tileX:number;tileY:number;expectedX:number;expectedY:number;phaserX:number;phaserY:number;deltaX:number;deltaY:number}> = [];
+                  const lx = layer.x;
+                  const ly = layer.y;
+                  const reported: Array<{tileX:number;tileY:number;expectedWorldX:number;expectedWorldY:number;worldX:number;worldY:number;deltaX:number;deltaY:number}> = [];
                   if (ld2?.data) {
                     outer: for (let ry = 0; ry < ld2.data.length; ry++) {
                       for (let rx = 0; rx < ld2.data[ry].length; rx++) {
@@ -3843,20 +3842,22 @@ export function PhaserExplorationView({
                         if (!t || t.index <= 0) continue;
                         const pTile = layer.getTileAt(rx, ry);
                         if (!pTile) continue;
-                        const expectedX = rx * 32 + offsetX;
-                        const expectedY = ry * 32 + offsetY;
+                        const expectedWorldX = rx * 32 + lx;
+                        const expectedWorldY = ry * 32 + ly;
+                        const worldX = lx + pTile.pixelX;
+                        const worldY = ly + pTile.pixelY;
                         reported.push({
                           tileX: rx, tileY: ry,
-                          expectedX, expectedY,
-                          phaserX: pTile.pixelX, phaserY: pTile.pixelY,
-                          deltaX: pTile.pixelX - expectedX,
-                          deltaY: pTile.pixelY - expectedY,
+                          expectedWorldX, expectedWorldY,
+                          worldX, worldY,
+                          deltaX: worldX - expectedWorldX,
+                          deltaY: worldY - expectedWorldY,
                         });
                         if (reported.length >= 10) break outer;
                       }
                     }
                   }
-                  console.log('[LhScene:crops] coordinate report (offsetx=' + offsetX + ', offsety=' + offsetY + ')', reported);
+                  console.log('[LhScene:crops] coordinate report (layer.x=' + lx + ', layer.y=' + ly + ')', reported);
                 }
               }
               this.jrpgExplorationDimTargets.push(layer);

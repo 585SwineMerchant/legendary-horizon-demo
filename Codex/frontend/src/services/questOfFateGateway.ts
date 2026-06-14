@@ -41,9 +41,13 @@ export async function submitQuestOfFateWorksheetRemote(args: {
 
   const parsed = res.payload;
   if (!parsed.ok) {
+    // parsed.message is set for known failures; parsed.error for routing failures (e.g. unknown_action)
+    const serverMsg =
+      (parsed.message as string | undefined)?.trim() ||
+      (parsed.error ? `Server error: ${parsed.error}` : 'Worksheet submission rejected by server.');
     return {
       ok: false,
-      message: (parsed.message as string) || 'Worksheet submission rejected by server.',
+      message: serverMsg,
       errors:
         (parsed.errors as string[] | undefined) ??
         (parsed.error ? [String(parsed.error)] : undefined),

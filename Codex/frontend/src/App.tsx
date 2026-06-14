@@ -140,7 +140,9 @@ export function App() {
   useEffect(() => {
     let lastHoverAt = 0;
     const isSoundTarget = (target: EventTarget | null): boolean =>
-      target instanceof Element && Boolean(target.closest('button, [role="button"], a[href]'));
+      target instanceof Element &&
+      !target.closest('[data-lh-ui-sfx="off"]') &&
+      Boolean(target.closest('button, [role="button"], a[href]'));
 
     const onPointerOver = (ev: PointerEvent) => {
       if (!isSoundTarget(ev.target)) return;
@@ -566,7 +568,11 @@ export function App() {
         }}
         onSubmitResult={(payload) => {
           applyModuleResult(payload);
-          clearModuleDraft(payload.module_id);
+          // mod_master_scribe_survey draft holds riasec_r/i/a/s/e/c which
+          // ScrollOfDestinyDisplay reads — do not clear it on submit.
+          if (payload.module_id !== 'mod_master_scribe_survey') {
+            clearModuleDraft(payload.module_id);
+          }
           navigate.closeModule();
         }}
       /> : null}
