@@ -1,4 +1,4 @@
-import { postLhWebAppJson } from './lhWebAppClient';
+import { postLhTeacherWebAppJson } from './lhWebAppClient';
 
 export type QuestOfFateWorksheetPayload = {
   career_name: string;
@@ -24,12 +24,12 @@ export async function submitQuestOfFateWorksheetRemote(args: {
   player_id: string;
   worksheet: QuestOfFateWorksheetPayload;
 }): Promise<QuestOfFateSubmitResult> {
-  const url = import.meta.env.VITE_LH_APPS_SCRIPT_WEBAPP_URL?.trim();
+  const url = import.meta.env.VITE_LH_TEACHER_APPS_SCRIPT_URL?.trim();
   if (!url) {
-    return { ok: true, message: 'Worksheet sealed locally (no backend URL configured).' };
+    return { ok: true, message: 'Worksheet sealed locally (no teacher backend URL configured).' };
   }
 
-  const res = await postLhWebAppJson({
+  const res = await postLhTeacherWebAppJson({
     action: 'submit_quest_of_fate_worksheet',
     player_id: args.player_id,
     worksheet: args.worksheet,

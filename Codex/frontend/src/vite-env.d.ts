@@ -10,8 +10,17 @@ declare const __LH_BUILD_DATE__: string;
 declare const __LH_BUILD_MODE__: string;
 
 interface ImportMetaEnv {
-  /** Full Web App URL (…/macros/s/…/exec). When set, manual save POSTs here instead of simulating. */
+  /**
+   * Game/save backend Web App URL (…/macros/s/…/exec).
+   * Handles: save, load, session_end, exit_ticket, teacher_unlock_quest, teacher_restore_*.
+   */
   readonly VITE_LH_APPS_SCRIPT_WEBAPP_URL?: string;
+  /**
+   * Teacher backend Web App URL (…/macros/s/…/exec).
+   * Handles: submit_quest_of_fate_worksheet and future teacher-facing submission actions.
+   * Project: https://script.google.com/home/projects/1iWXX68Bn5JUB_xS0CSvWr6AoOi1uAAJPaHWwXNdz1yK7Jlw-9hkhue0J/edit
+   */
+  readonly VITE_LH_TEACHER_APPS_SCRIPT_URL?: string;
   /** Optional override when the Web App URL is fixed but spreadsheet id varies per build. */
   readonly VITE_LH_SPREADSHEET_ID?: string;
   /** Set to `true` to keep local simulation even if `VITE_LH_APPS_SCRIPT_WEBAPP_URL` is set. */
