@@ -505,6 +505,8 @@ export function useNightOneFlow() {
     initialGuildRealmId: string | null;
     fogRevealRealmId: string | null;
   }>({ initialGuildRealmId: null, fogRevealRealmId: null });
+  /** Tracks which guild was most recently entered — drives Comparison Ledger row focus. */
+  const [activeLedgerRealmId, setActiveLedgerRealmId] = useState<string | null>(null);
   /** Phaser guild HQ enter tween completed; fire exit walk when this atlas closes (see `closeRealmAtlas`). */
   const phaserGuildResearchExitWhenAtlasClosedRef = useRef<string | null>(null);
 
@@ -1614,6 +1616,8 @@ export function useNightOneFlow() {
         const firstKcBeaten = LOST_ECHO_KC_INTERACTABLE_IDS.some((id) => visitedInteractableIds.includes(id));
         if (revealed.has(triggerRealm)) {
           if (truePathRealm && truePathRealm === triggerRealm && firstKcBeaten) {
+            setRealmProgress((p) => markResearchComplete(p, triggerRealm));
+            setActiveLedgerRealmId(triggerRealm);
             setRealmAtlasEntryIntent({ initialGuildRealmId: triggerRealm, fogRevealRealmId: null });
             phaserGuildResearchExitWhenAtlasClosedRef.current = interactableId;
             playLhSfx('door_open');
@@ -1650,6 +1654,8 @@ export function useNightOneFlow() {
         // to match (that field tracks narrative/UI focus and may lag while exploring the big map).
 
         setExploration((e) => mergeGuildHqAtlasRevealed(e, triggerRealm));
+        setRealmProgress((p) => markResearchComplete(p, triggerRealm));
+        setActiveLedgerRealmId(triggerRealm);
         setRealmAtlasEntryIntent({
           initialGuildRealmId: triggerRealm,
           fogRevealRealmId: triggerRealm,
@@ -3275,6 +3281,7 @@ export function useNightOneFlow() {
     realmAtlasOpen,
     realmAtlasInitialGuildRealmId: realmAtlasEntryIntent.initialGuildRealmId,
     realmAtlasFogRevealRealmId: realmAtlasEntryIntent.fogRevealRealmId,
+    activeLedgerRealmId,
     consumeRealmAtlasInitialGuildIntent,
     consumeRealmAtlasFogRevealIntent,
     worldMapOpen,

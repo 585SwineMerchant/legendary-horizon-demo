@@ -4807,3 +4807,257 @@ html[data-lh-motion='reduce'] *::after {
   align-self: center;
 }
 
+/* ─── Comparison Ledger Panel ─────────────────────────────────────────────── */
+
+/* Override the default row-flex of lh-guild-info-overlay to a column layout */
+.lh-ledger-panel {
+  flex-direction: column !important;
+  align-items: stretch !important;
+}
+
+.lh-ledger-panel__chrome {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  background: rgba(7, 11, 20, 0.96);
+  border-bottom: 1px solid rgba(251, 191, 36, 0.18);
+  z-index: 1;
+}
+
+.lh-ledger-panel__chrome-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.lh-ledger-panel__eyebrow {
+  margin: 0;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--lh-amber);
+  opacity: 0.75;
+}
+
+.lh-ledger-panel__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--lh-text);
+  letter-spacing: 0.03em;
+}
+
+.lh-ledger-panel__back {
+  font-size: 0.78rem;
+  padding: 0.4rem 0.9rem;
+  flex-shrink: 0;
+}
+
+/* Scrollable body: must have min-height: 0 to actually scroll inside flex */
+.lh-ledger-panel__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+  padding: 1rem;
+}
+
+.lh-ledger-panel__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 12rem;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.lh-ledger-panel__empty-line {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--lh-text);
+}
+
+.lh-ledger-panel__empty-sub {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--lh-muted);
+}
+
+/* Table */
+.lh-ledger-table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  table-layout: fixed;
+}
+
+.lh-ledger-th {
+  position: sticky;
+  top: 0;
+  background: rgba(10, 14, 26, 0.97);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.67rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  font-weight: 600;
+  white-space: nowrap;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.2);
+  text-align: left;
+  z-index: 2;
+}
+
+.lh-ledger-th--auto {
+  background: rgba(10, 14, 26, 0.97);
+}
+
+.lh-ledger-th--guild {
+  width: 10rem;
+}
+
+.lh-ledger-th--link {
+  width: 7rem;
+}
+
+.lh-ledger-th--student {
+  width: 13rem;
+}
+
+.lh-ledger-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  transition: background 0.15s;
+}
+
+.lh-ledger-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.lh-ledger-row--active {
+  background: rgba(251, 191, 36, 0.06);
+  border-bottom-color: rgba(251, 191, 36, 0.15);
+}
+
+.lh-ledger-row--active:hover {
+  background: rgba(251, 191, 36, 0.09);
+}
+
+.lh-ledger-td {
+  padding: 0.6rem 0.75rem;
+  vertical-align: top;
+}
+
+.lh-ledger-td--auto {
+  background: rgba(7, 11, 20, 0.5);
+}
+
+.lh-ledger-td--guild {
+  position: relative;
+}
+
+.lh-ledger-active-pip {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--lh-amber);
+  box-shadow: 0 0 6px rgba(251, 191, 36, 0.6);
+  margin-right: 0.4rem;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.lh-ledger-realm-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--lh-text);
+  line-height: 1.35;
+}
+
+.lh-ledger-cluster {
+  font-size: 0.75rem;
+  color: var(--lh-muted);
+  line-height: 1.35;
+}
+
+.lh-ledger-tags {
+  font-size: 0.72rem;
+  color: rgba(148, 163, 184, 0.8);
+  line-height: 1.4;
+}
+
+.lh-ledger-link {
+  font-size: 0.75rem;
+  color: var(--lh-amber);
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.lh-ledger-link:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
+
+.lh-ledger-muted {
+  color: rgba(148, 163, 184, 0.4);
+  font-size: 0.78rem;
+}
+
+.lh-ledger-td--student {
+  padding: 0.45rem 0.5rem;
+}
+
+.lh-ledger-textarea {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--lh-text);
+  font: inherit;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  padding: 0.35rem 0.45rem;
+  box-sizing: border-box;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.lh-ledger-textarea:focus {
+  outline: none;
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.04);
+}
+
+.lh-ledger-textarea::placeholder {
+  color: rgba(148, 163, 184, 0.35);
+  font-style: italic;
+}
+
+/* Guild info overlay — ledger status line */
+.lh-guild-realm-modal__ledger-status {
+  margin: 0.75rem 0 0;
+  font-size: 0.72rem;
+  color: rgba(148, 163, 184, 0.55);
+  font-style: italic;
+  line-height: 1.4;
+}
+
+/* Atlas chrome: Comparison Ledger button sits left of Close */
+.lh-world-atlas__ledger-fab {
+  font-size: 0.72rem;
+  padding: 0.36rem 0.82rem;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.32);
+  background: rgba(7, 11, 20, 0.88);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  margin-right: 0.5rem;
+}
+

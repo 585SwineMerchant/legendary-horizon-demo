@@ -110,8 +110,8 @@ type Props = {
   /** After Guild Research closes, lift atlas fog from this hall’s waypoint while audio plays. */
   fogRevealRealmId?: string | null;
   onFogRevealConsumed?: () => void;
-  /** Mark a realm as researched in the Comparison Ledger (no vault gate). */
-  onRecordResearch?: (realmId: string) => void;
+  /** The guild realm most recently entered — drives Comparison Ledger row focus. */
+  activeLedgerRealmId?: string | null;
   /** Current `realm_reflections` from `exploration_loop` — drives the Comparison Ledger. */
   explorationReflections?: Record<string, RealmReflectionV1>;
   /** Persist a reflection field patch for a specific realm. */
@@ -133,7 +133,7 @@ export function RealmAtlasOverlay({
   onInitialGuildInfoConsumed,
   fogRevealRealmId = null,
   onFogRevealConsumed,
-  onRecordResearch,
+  activeLedgerRealmId,
   explorationReflections,
   onUpdateReflection,
 }: Props) {
@@ -538,7 +538,7 @@ export function RealmAtlasOverlay({
           <button type="button" className="lh-button lh-button--ghost lh-world-atlas__close-fab" onClick={onClose}>
             Close
           </button>
-          {onRecordResearch && (
+          {onUpdateReflection && (
             <button
               type="button"
               className="lh-button lh-button--ghost lh-world-atlas__ledger-fab"
@@ -722,10 +722,9 @@ export function RealmAtlasOverlay({
         quests={quests}
         mediaCatalog={mediaCatalog}
         realmProgress={realmProgress}
-        onRecordResearch={onRecordResearch}
       />
 
-      {onRecordResearch && onUpdateReflection && (
+      {onUpdateReflection && (
         <RealmComparisonPanel
           open={comparisonOpen}
           onClose={() => setComparisonOpen(false)}
@@ -733,6 +732,7 @@ export function RealmAtlasOverlay({
           researchedRealmIds={researchedRealmIds}
           reflections={explorationReflections ?? {}}
           onUpdateReflection={onUpdateReflection}
+          activeLedgerRealmId={activeLedgerRealmId}
         />
       )}
     </div>

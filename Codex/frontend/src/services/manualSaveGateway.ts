@@ -286,7 +286,7 @@ export function coerceExplorationLoop(raw: unknown): ExplorationLoopState | null
 
   // realm_reflections — per-realm Comparison Ledger notes (6 optional string fields each)
   const REFLECTION_KEYS: ReadonlyArray<keyof RealmReflectionV1> = [
-    'interest', 'skills', 'subjects', 'work_env', 'strength', 'concern',
+    'jobs_found', 'skills_needed', 'school_subjects', 'work_environment', 'why_fits', 'questions',
   ];
   const rrRaw = o.realm_reflections;
   if (rrRaw && typeof rrRaw === 'object' && !Array.isArray(rrRaw)) {

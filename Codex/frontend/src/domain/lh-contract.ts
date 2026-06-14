@@ -246,18 +246,18 @@ export type ComparisonLedgerEntry = {
  * then compares two realms side-by-side to decide which career direction fits them best.
  */
 export type RealmReflectionV1 = {
-  /** How interested are you in this realm, and why? */
-  interest?: string;
-  /** What skills does this realm use? */
-  skills?: string;
-  /** What school subjects connect to this realm? */
-  subjects?: string;
-  /** What kind of work environment does this suggest? */
-  work_env?: string;
-  /** What is one strength you have that fits this realm? */
-  strength?: string;
-  /** What is one concern or question you still have? */
-  concern?: string;
+  /** Jobs or roles the student found during research. */
+  jobs_found?: string;
+  /** Skills needed in this career area. */
+  skills_needed?: string;
+  /** School subjects that connect to this realm. */
+  school_subjects?: string;
+  /** Work environment description. */
+  work_environment?: string;
+  /** Why this career area might fit the student. */
+  why_fits?: string;
+  /** Questions or concerns the student still has. */
+  questions?: string;
 };
 
 /** Milestone 11 — worksheet archetypes (GDD research / class artifacts). */
