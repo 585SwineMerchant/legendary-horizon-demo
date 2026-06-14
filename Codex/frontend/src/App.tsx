@@ -298,16 +298,20 @@ export function App() {
 
   const surveyRiasecScores = useMemo(() => {
     const draft = exploration.module_drafts?.mod_master_scribe_survey;
-    if (!draft) return null;
-    const r = Number(draft.riasec_r);
-    const i = Number(draft.riasec_i);
-    const a = Number(draft.riasec_a);
-    const s = Number(draft.riasec_s);
-    const e = Number(draft.riasec_e);
-    const c = Number(draft.riasec_c);
-    if ([r, i, a, s, e, c].every((v) => v === 0)) return null;
-    return { r, i, a, s, e, c };
-  }, [exploration.module_drafts?.mod_master_scribe_survey]);
+    if (draft) {
+      const r = Number(draft.riasec_r);
+      const i = Number(draft.riasec_i);
+      const a = Number(draft.riasec_a);
+      const s = Number(draft.riasec_s);
+      const e = Number(draft.riasec_e);
+      const c = Number(draft.riasec_c);
+      if (![r, i, a, s, e, c].every((v) => isNaN(v) || v === 0)) return { r, i, a, s, e, c };
+    }
+    // Old saves: reveal was performed but riasec_ fields were not persisted.
+    // Show equal-weight fallback so the scroll displays stats instead of "unrevealed."
+    if (exploration.scroll_reveal_performed) return { r: 5, i: 5, a: 5, s: 5, e: 5, c: 5 };
+    return null;
+  }, [exploration.module_drafts?.mod_master_scribe_survey, exploration.scroll_reveal_performed]);
 
   // Resolve the oracle prophecy from the player's foretold signpost realm IDs.
   // Used to pass the correct prophecyId / title to OracleProphecyReveal.

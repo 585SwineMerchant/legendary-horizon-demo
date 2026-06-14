@@ -3067,14 +3067,43 @@ export function PhaserExplorationView({
 
           const spec = inferWindmillAnimSpec(baked);
           const groupMap = new Map<string, WindmillAnimGroup>();
+          const wmTileW = baked.tileWidth || 32;
+          const wmTileH = baked.tileHeight || 32;
+
+          // Reset here (addTiledTileObjectDecor no longer resets windmillDecorSprites so that
+          // crops-layer sprites added below survive into the structures-layer append pass).
+          this.windmillDecorSprites = [];
 
           for (const layer of layers) {
             if (!layer?.active) continue;
+            // Layers rendered at a fixed low depth (like `crops` at depth 10) permanently put
+            // their tiles behind Y-sorted sprites — the player clips through windmill tiles in
+            // those layers at animation frames where blades appear in that row-band.
+            // Fix: convert such tiles to Y-sorted image sprites instead of putTileAt tiles.
+            const needsSpriteConversion = layer.name === 'crops';
             layer.forEachTile((tile) => {
               if (!tile?.tileset || tile.tileset.name !== WINDMILL_BAKED_TILESET_NAME) return;
               const local = tile.index - spec.firstGid;
               const parsed = parseWindmillLocalIndex(spec, local);
               if (!parsed) return;
+
+              if (needsSpriteConversion && this.textures.exists(WINDMILL_BAKED_TILESET_NAME)) {
+                const worldLeft = tile.pixelX + layer.x;
+                const worldBottom = tile.pixelY + layer.y + wmTileH;
+                const frameName = `gid_${tile.index}`;
+                const texture = this.textures.get(WINDMILL_BAKED_TILESET_NAME);
+                if (!texture.has(frameName)) {
+                  const sx = (local % baked.columns) * wmTileW;
+                  const sy = Math.floor(local / baked.columns) * wmTileH;
+                  texture.add(frameName, 0, sx, sy, wmTileW, wmTileH);
+                }
+                const spr = this.add.image(Math.round(worldLeft), Math.round(worldBottom), WINDMILL_BAKED_TILESET_NAME, frameName);
+                spr.setOrigin(0, 1);
+                spr.setDepth(worldBottom + 0.001);
+                this.windmillDecorSprites.push({ spec, sprite: spr, colInFrame: parsed.colInFrame, rowInFrame: parsed.rowInFrame, tileW: wmTileW, tileH: wmTileH });
+                layer.removeTileAt(tile.x, tile.y);
+                return;
+              }
 
               const { animFrame, colInFrame, rowInFrame } = parsed;
               const anchorX = tile.x - colInFrame;
@@ -3270,7 +3299,8 @@ export function PhaserExplorationView({
           if (!tileObjectLayers.length) return;
 
           this.reactiveGrassDecor = [];
-          this.windmillDecorSprites = [];
+          // windmillDecorSprites is reset+seeded by registerWindmillBakedTileAnimations (crops-layer
+          // tiles converted to Y-sorted sprites); this method only appends structures-layer sprites.
           const flipMask = 0x80000000 | 0x40000000 | 0x20000000;
           let added = 0;
           let baseSorted = 0;
