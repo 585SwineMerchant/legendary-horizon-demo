@@ -1383,10 +1383,25 @@ code.lh-code-inline {
   right: 0.55rem;
   z-index: 24;
   pointer-events: none;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 .lh-world-atlas__chrome .lh-button {
   pointer-events: auto;
+}
+
+/* Unified chrome button — replaces old close-fab and ledger-fab */
+.lh-world-atlas__chrome-btn {
+  font-size: 0.72rem;
+  padding: 0.36rem 0.82rem;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.32);
+  background: rgba(7, 11, 20, 0.88);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
 }
 
 .lh-world-atlas__close-fab {

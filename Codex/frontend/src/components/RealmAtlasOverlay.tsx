@@ -110,6 +110,8 @@ type Props = {
   /** After Guild Research closes, lift atlas fog from this hall’s waypoint while audio plays. */
   fogRevealRealmId?: string | null;
   onFogRevealConsumed?: () => void;
+  /** Close the Atlas and open the Scroll of Destiny. Falls back to onClose if not provided. */
+  onReturnToScroll?: () => void;
   /** The guild realm most recently entered — drives Comparison Ledger row focus. */
   activeLedgerRealmId?: string | null;
   /** Current `realm_reflections` from `exploration_loop` — drives the Comparison Ledger. */
@@ -133,6 +135,7 @@ export function RealmAtlasOverlay({
   onInitialGuildInfoConsumed,
   fogRevealRealmId = null,
   onFogRevealConsumed,
+  onReturnToScroll,
   activeLedgerRealmId,
   explorationReflections,
   onUpdateReflection,
@@ -535,18 +538,22 @@ export function RealmAtlasOverlay({
     <div className="lh-overlay lh-overlay--dim lh-overlay--atlas-full" role="dialog" aria-label="World Atlas">
       <div className="lh-world-atlas lh-world-atlas--map-focus">
         <div className="lh-world-atlas__chrome">
-          <button type="button" className="lh-button lh-button--ghost lh-world-atlas__close-fab" onClick={onClose}>
-            Close
-          </button>
           {onUpdateReflection && (
             <button
               type="button"
-              className="lh-button lh-button--ghost lh-world-atlas__ledger-fab"
+              className="lh-button lh-button--ghost lh-world-atlas__chrome-btn"
               onClick={() => setComparisonOpen(true)}
             >
               Comparison Ledger{researchedRealmIds.length > 0 ? ` (${researchedRealmIds.length})` : ''}
             </button>
           )}
+          <button
+            type="button"
+            className="lh-button lh-button--ghost lh-world-atlas__chrome-btn"
+            onClick={onReturnToScroll ?? onClose}
+          >
+            Return to Scroll
+          </button>
         </div>
 
         <div className="lh-atlas__map-shell lh-atlas__map-shell--world-fill">

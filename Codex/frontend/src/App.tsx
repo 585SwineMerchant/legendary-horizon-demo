@@ -512,6 +512,7 @@ export function App() {
         <RealmAtlasOverlay
           open={realmAtlasOpen}
           onClose={navigate.closeRealmAtlas}
+          onReturnToScroll={() => { navigate.closeRealmAtlas(); navigate.openPause(); }}
           realms={allRealms}
           currentRealmId={player.current_realm_id}
           quests={quests}
