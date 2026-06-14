@@ -29,7 +29,8 @@
 // ── Schema ──────────────────────────────────────────────────────────────────
 
 var LH_TEACHER_SCHEMA = {
-  QUEST_OF_FATE_TAB: 'LhQuestOfFate',
+  QUEST_OF_FATE_TAB:       'LhQuestOfFate',
+  COMPARISON_LEDGER_TAB:   'LhComparisonLedger',
 };
 
 // ── Utilities ────────────────────────────────────────────────────────────────
@@ -115,14 +116,65 @@ function LhQuestOfFate_submitWorksheet(spreadsheetId, playerId, worksheet) {
   }
 }
 
+// ── Comparison Ledger submission ─────────────────────────────────────────────
+
+/**
+ * Appends one row per researched realm to LhComparisonLedger tab.
+ *
+ * Tab setup — create in the spreadsheet with exactly this header row:
+ *   submitted_iso | player_id | module_id | realm_id | realm_name |
+ *   career_cluster | career_areas | research_url | jobs_found |
+ *   skills_needed | school_subjects | work_environment | why_fits | questions
+ *
+ * Returns { ok: true, rows_written: N } on success.
+ */
+function LhComparisonLedger_submitRows(spreadsheetId, playerId, rows) {
+  var sheet = lhTeacher_sheetTryGet_(spreadsheetId, LH_TEACHER_SCHEMA.COMPARISON_LEDGER_TAB);
+  if (!sheet) {
+    return {
+      ok: false,
+      error: 'LhComparisonLedger tab missing — create the tab with the required header row (see script header for column list).',
+    };
+  }
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { ok: false, error: 'rows array is empty or missing.' };
+  }
+  var written = 0;
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i] || {};
+    var row = {};
+    row['submitted_iso']    = String(r.submitted_iso    || new Date().toISOString());
+    row['player_id']        = String(playerId           || '');
+    row['module_id']        = 'mod_comparison_ledger';
+    row['realm_id']         = String(r.realm_id         || '');
+    row['realm_name']       = String(r.realm_name       || '');
+    row['career_cluster']   = String(r.career_cluster   || '');
+    row['career_areas']     = String(r.career_areas     || '');
+    row['research_url']     = String(r.research_url     || '');
+    row['jobs_found']       = String(r.jobs_found       || '');
+    row['skills_needed']    = String(r.skills_needed    || '');
+    row['school_subjects']  = String(r.school_subjects  || '');
+    row['work_environment'] = String(r.work_environment || '');
+    row['why_fits']         = String(r.why_fits         || '');
+    row['questions']        = String(r.questions        || '');
+    try {
+      lhTeacher_appendObjectRow_(sheet, row);
+      written++;
+    } catch (e) {
+      return { ok: false, error: 'Row write failed at index ' + i + ': ' + String(e) };
+    }
+  }
+  return { ok: true, rows_written: written };
+}
+
 // ── Entry points ─────────────────────────────────────────────────────────────
 
 function doGet() {
   return lhTeacher_webJsonOutput_({
     ok: true,
     service: 'legendary_horizon_teacher_backend',
-    version: '1.0.0',
-    actions: ['submit_quest_of_fate_worksheet'],
+    version: '1.1.0',
+    actions: ['submit_quest_of_fate_worksheet', 'submit_comparison_ledger'],
     ts: new Date().toISOString(),
   });
 }
@@ -163,6 +215,30 @@ function doPost(e) {
         out.ok = false;
         out.message = result.error || 'submit_quest_of_fate_worksheet failed.';
         out.errors = [result.error || 'worksheet_write_failed'];
+      }
+      return lhTeacher_webJsonOutput_(out);
+    }
+
+    if (action === 'submit_comparison_ledger') {
+      var clPlayerId = String(body.player_id || '').trim();
+      var clRows = body.rows;
+      if (!clPlayerId) {
+        out.error = 'player_id_required';
+        return lhTeacher_webJsonOutput_(out);
+      }
+      if (!Array.isArray(clRows) || clRows.length === 0) {
+        out.error = 'rows_required';
+        return lhTeacher_webJsonOutput_(out);
+      }
+      var clResult = LhComparisonLedger_submitRows(spreadsheetId, clPlayerId, clRows);
+      if (clResult.ok) {
+        out.ok = true;
+        out.message = 'Comparison Ledger submitted — ' + clResult.rows_written + ' guild row(s) recorded.';
+        out.rows_written = clResult.rows_written;
+      } else {
+        out.ok = false;
+        out.message = clResult.error || 'submit_comparison_ledger failed.';
+        out.errors = [clResult.error || 'ledger_write_failed'];
       }
       return lhTeacher_webJsonOutput_(out);
     }

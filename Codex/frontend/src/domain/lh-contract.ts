@@ -413,6 +413,16 @@ export type ExplorationLoopState = {
   /** ISO timestamp of last confirmed Drive sync. */
   quest_of_fate_last_synced_at_iso?: string;
 
+  // ── Comparison Ledger — teacher turn-in sync ──────────────────────────────
+  /**
+   * Submission sync status for the Comparison Ledger.
+   * 'pending' — not yet turned in.
+   * 'sending' — submission in-flight to Apps Script backend.
+   * 'synced'  — backend confirmed receipt.
+   * 'error'   — sync attempt failed; student may retry.
+   */
+  comparison_ledger_sync_status?: 'pending' | 'sending' | 'synced' | 'error';
+
   // ── Resolve tracking (System 4) — session-only, synced with PlayerSave ────
   /** Current Resolve for active session. Mirrored to/from PlayerSave.resolve_current on save. */
   resolve_current?: number;

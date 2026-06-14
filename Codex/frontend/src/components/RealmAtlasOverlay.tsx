@@ -118,6 +118,10 @@ type Props = {
   explorationReflections?: Record<string, RealmReflectionV1>;
   /** Persist a reflection field patch for a specific realm. */
   onUpdateReflection?: (realmId: string, patch: Partial<RealmReflectionV1>) => void;
+  /** Submit the full ledger to the teacher backend. */
+  onSubmitLedger?: () => void;
+  /** Comparison Ledger sync status — drives button label/disabled state. */
+  ledgerSyncStatus?: 'pending' | 'sending' | 'synced' | 'error';
 };
 
 
@@ -139,6 +143,8 @@ export function RealmAtlasOverlay({
   activeLedgerRealmId,
   explorationReflections,
   onUpdateReflection,
+  onSubmitLedger,
+  ledgerSyncStatus,
 }: Props) {
   const ordered = useMemo(() => sortRealmsCanon(realms), [realms]);
   const revealedSet = useMemo(
@@ -740,6 +746,8 @@ export function RealmAtlasOverlay({
           reflections={explorationReflections ?? {}}
           onUpdateReflection={onUpdateReflection}
           activeLedgerRealmId={activeLedgerRealmId}
+          onSubmit={onSubmitLedger}
+          syncStatus={ledgerSyncStatus}
         />
       )}
     </div>

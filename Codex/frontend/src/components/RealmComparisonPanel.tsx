@@ -20,6 +20,8 @@ const STUDENT_COLUMNS: Array<{
   { key: 'questions',        label: 'Questions / Concerns',   placeholder: 'e.g. I wonder if… I am unsure about…' },
 ];
 
+type SyncStatus = 'pending' | 'sending' | 'synced' | 'error' | undefined;
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -28,6 +30,8 @@ type Props = {
   reflections: Readonly<Record<string, RealmReflectionV1>>;
   onUpdateReflection: (realmId: string, patch: Partial<RealmReflectionV1>) => void;
   activeLedgerRealmId?: string | null;
+  onSubmit?: () => void;
+  syncStatus?: SyncStatus;
 };
 
 export function RealmComparisonPanel({
@@ -38,6 +42,8 @@ export function RealmComparisonPanel({
   reflections,
   onUpdateReflection,
   activeLedgerRealmId,
+  onSubmit,
+  syncStatus,
 }: Props) {
   const activeRowRef = useRef<HTMLTableRowElement | null>(null);
 
@@ -71,13 +77,30 @@ export function RealmComparisonPanel({
           <p className="lh-eyebrow lh-ledger-panel__eyebrow">Act III — Guild Research</p>
           <h2 className="lh-ledger-panel__title">Comparison Ledger</h2>
         </div>
-        <button
-          type="button"
-          className="lh-button lh-button--ghost lh-ledger-panel__back"
-          onClick={onClose}
-        >
-          ← Back to Atlas
-        </button>
+        <div className="lh-ledger-panel__chrome-right">
+          <button
+            type="button"
+            className="lh-button lh-button--ghost lh-ledger-panel__back"
+            onClick={onClose}
+          >
+            ← Back to Atlas
+          </button>
+          {onSubmit && (
+            <button
+              type="button"
+              className={`lh-button lh-ledger-panel__submit${syncStatus === 'synced' ? ' lh-ledger-panel__submit--done' : ''}`}
+              onClick={onSubmit}
+              disabled={syncStatus === 'sending' || syncStatus === 'synced'}
+              aria-label="Turn in Comparison Ledger to teacher"
+            >
+              {syncStatus === 'sending'
+                ? 'Submitting…'
+                : syncStatus === 'synced'
+                ? 'Submitted ✓'
+                : 'Turn In Comparison Ledger'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Scrollable body */}

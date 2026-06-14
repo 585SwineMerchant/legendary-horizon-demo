@@ -102,6 +102,7 @@ export function App() {
     researchRealm,
     activeLedgerRealmId,
     updateRealmReflection,
+    submitComparisonLedger,
     submitLedgerEntry,
     markActiveWaypointVisited,
     visitedInteractableIds,
@@ -527,6 +528,8 @@ export function App() {
           activeLedgerRealmId={activeLedgerRealmId}
           explorationReflections={exploration.realm_reflections}
           onUpdateReflection={updateRealmReflection}
+          onSubmitLedger={submitComparisonLedger}
+          ledgerSyncStatus={exploration.comparison_ledger_sync_status}
         />
       ) : null}
 

@@ -275,6 +275,11 @@ export function coerceExplorationLoop(raw: unknown): ExplorationLoopState | null
   if (typeof o.quest_of_fate_last_synced_at_iso === 'string' && o.quest_of_fate_last_synced_at_iso.trim())
     base.quest_of_fate_last_synced_at_iso = o.quest_of_fate_last_synced_at_iso.trim();
 
+  // comparison_ledger_sync_status
+  const clStatus = o.comparison_ledger_sync_status;
+  if (clStatus === 'pending' || clStatus === 'sending' || clStatus === 'synced' || clStatus === 'error')
+    base.comparison_ledger_sync_status = clStatus;
+
   // resolve / safe-camp tracking
   const rc = o.resolve_current;
   if (typeof rc === 'number' && Number.isFinite(rc)) base.resolve_current = Math.max(0, rc);

@@ -166,6 +166,10 @@ import {
   type RealmProgressMap,
 } from '../realm/realmProgress';
 import { CANON_REALMS } from '../realm/canonRealms';
+import { getRealmPathInterestTags } from '../realm/guildRealmTitleParts';
+import { getGuildRealmCareerOneStopUrl } from '../realm/guildRealmCareerOneStopUrl';
+import { getCareerClusterLabel } from '../realm/realmRegistry';
+import { submitComparisonLedgerRemote } from '../services/comparisonLedgerGateway';
 import {
   loadQuestDefinitionsFromJson,
   markQuestTurnedIn as markQuestTurnedInOnList,
@@ -2385,6 +2389,75 @@ export function useNightOneFlow() {
     setRealmProgress((p) => markResearchComplete(p, id));
   }, []);
 
+  /** Submit the Comparison Ledger to the teacher backend. */
+  const submitComparisonLedger = useCallback(async () => {
+    const pid = player?.player_id ?? '';
+
+    // Collect researched realm IDs from progress map
+    const researchedIds = Object.entries(realmProgress)
+      .filter(([, e]) => e?.research_complete)
+      .map(([id]) => id);
+
+    if (researchedIds.length < 2) {
+      setSaveFeedback({
+        tone: 'error',
+        text: 'Research at least two guild halls before turning in your Comparison Ledger.',
+      });
+      return;
+    }
+
+    const reflections = exploration.realm_reflections ?? {};
+    const hasContent = researchedIds.some((id) => {
+      const r = reflections[id];
+      return r && Object.values(r).some((v) => typeof v === 'string' && v.trim().length > 0);
+    });
+
+    if (!hasContent) {
+      setSaveFeedback({
+        tone: 'error',
+        text: 'Fill in at least one research field before turning in your Comparison Ledger.',
+      });
+      return;
+    }
+
+    setSaveFeedback({ tone: 'success', text: 'Comparison Ledger sealed — submitting to teacher dashboard…' });
+    setExploration((e) => ({ ...e, comparison_ledger_sync_status: 'sending' as const }));
+
+    const now = new Date().toISOString();
+    const rows = researchedIds.map((realmId) => {
+      const realm = CANON_REALMS.find((r) => r.realm_id === realmId);
+      const reflection = reflections[realmId] ?? {};
+      return {
+        submitted_iso: now,
+        player_id: pid,
+        module_id: 'mod_comparison_ledger',
+        realm_id: realmId,
+        realm_name: realm?.display_name ?? realmId,
+        career_cluster: realm ? getCareerClusterLabel(realm) : '',
+        career_areas: realm ? getRealmPathInterestTags(realm).join(', ') : '',
+        research_url: getGuildRealmCareerOneStopUrl(realmId) ?? '',
+        jobs_found:       reflection.jobs_found       ?? '',
+        skills_needed:    reflection.skills_needed    ?? '',
+        school_subjects:  reflection.school_subjects  ?? '',
+        work_environment: reflection.work_environment ?? '',
+        why_fits:         reflection.why_fits         ?? '',
+        questions:        reflection.questions        ?? '',
+      };
+    });
+
+    const result = await submitComparisonLedgerRemote({ player_id: pid, rows });
+    if (result.ok) {
+      setExploration((e) => ({ ...e, comparison_ledger_sync_status: 'synced' as const }));
+      setSaveFeedback({ tone: 'success', text: result.message });
+    } else {
+      setExploration((e) => ({ ...e, comparison_ledger_sync_status: 'error' as const }));
+      setSaveFeedback({
+        tone: 'error',
+        text: `Ledger sealed locally — teacher sync failed: ${result.message}`,
+      });
+    }
+  }, [player, realmProgress, exploration.realm_reflections]);
+
   /** Merge a partial reflection patch into `exploration.realm_reflections[realmId]`. */
   const updateRealmReflection = useCallback((realmId: string, patch: Partial<RealmReflectionV1>) => {
     const id = String(realmId ?? '').trim();
@@ -3396,6 +3469,7 @@ export function useNightOneFlow() {
     researchRealm,
     recordRealmResearch,
     updateRealmReflection,
+    submitComparisonLedger,
     updateRealmNotes,
     submitLedgerEntry,
     markActiveWaypointVisited,
