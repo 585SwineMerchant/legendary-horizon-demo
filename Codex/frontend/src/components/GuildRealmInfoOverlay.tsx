@@ -22,6 +22,7 @@ export type GuildRealmInfoOverlayProps = {
   quests: QuestDefinition[];
   mediaCatalog: readonly MediaAssetRecord[];
   realmProgress: RealmProgressMap;
+  onRecordResearch?: (realmId: string) => void;
 };
 
 const SLUG_DECOR: Readonly<Record<string, string>> = {
@@ -55,6 +56,7 @@ export function GuildRealmInfoOverlay({
   quests,
   mediaCatalog,
   realmProgress,
+  onRecordResearch,
 }: GuildRealmInfoOverlayProps) {
   useEscapeToClose(open, onClose);
 
@@ -101,6 +103,7 @@ export function GuildRealmInfoOverlay({
 
   const intro = getRealmIntroBody(realm);
   const cluster = getCareerClusterLabel(realm);
+  const alreadyRecorded = Boolean(realmProgress[realm.realm_id]?.research_complete);
 
   return (
     <div
@@ -199,6 +202,24 @@ export function GuildRealmInfoOverlay({
               </ul>
             </div>
           </div>
+
+          {onRecordResearch && (
+            <div className="lh-guild-realm-modal__ledger-row">
+              {alreadyRecorded ? (
+                <p className="lh-guild-realm-modal__ledger-recorded" role="status">
+                  Recorded in Ledger ✓
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  className="lh-btn lh-btn--primary"
+                  onClick={() => onRecordResearch(realm.realm_id)}
+                >
+                  Add to Comparison Ledger
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         <div

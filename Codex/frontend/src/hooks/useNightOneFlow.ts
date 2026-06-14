@@ -130,6 +130,7 @@ import {
   mergeGuildHqAtlasRevealedFromRealmProgress,
   syncGuildTruePathFromPlayerIfUnset,
   type ExplorationLoopState,
+  type RealmReflectionV1,
 } from '../exploration/explorationTypes';
 import { applyLedgerEntryToQuests } from '../exploration/ledgerQuestBridge';
 import {
@@ -2371,6 +2372,29 @@ export function useNightOneFlow() {
     [quests],
   );
 
+  /** Mark a realm as researched for the Comparison Ledger — no vault gate, available in beta. */
+  const recordRealmResearch = useCallback((realmId: string) => {
+    const id = String(realmId ?? '').trim();
+    if (!id) return;
+    setRealmProgress((p) => markResearchComplete(p, id));
+  }, []);
+
+  /** Merge a partial reflection patch into `exploration.realm_reflections[realmId]`. */
+  const updateRealmReflection = useCallback((realmId: string, patch: Partial<RealmReflectionV1>) => {
+    const id = String(realmId ?? '').trim();
+    if (!id) return;
+    setExploration((e) => {
+      const prev = e.realm_reflections?.[id] ?? {};
+      return {
+        ...e,
+        realm_reflections: {
+          ...(e.realm_reflections ?? {}),
+          [id]: { ...prev, ...patch },
+        },
+      };
+    });
+  }, []);
+
   const updateRealmNotes = useCallback(
     (realmId: string, notes: string) => {
       const vault = quests.find((q) => q.quest_id === 'mq-203');
@@ -3363,6 +3387,8 @@ export function useNightOneFlow() {
     primaryWorldTriggerRealmId: PRIMARY_WORLD_TRIGGER_REALM_ID,
     clearFogKey,
     researchRealm,
+    recordRealmResearch,
+    updateRealmReflection,
     updateRealmNotes,
     submitLedgerEntry,
     markActiveWaypointVisited,

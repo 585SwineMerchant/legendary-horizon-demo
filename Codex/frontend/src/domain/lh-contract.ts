@@ -240,6 +240,26 @@ export type ComparisonLedgerEntry = {
   pathway_b?: string;
 };
 
+/**
+ * Per-realm reflection notes — persisted in `exploration_loop.realm_reflections`.
+ * Supports the Comparison Ledger: student answers 6 questions for each researched realm,
+ * then compares two realms side-by-side to decide which career direction fits them best.
+ */
+export type RealmReflectionV1 = {
+  /** How interested are you in this realm, and why? */
+  interest?: string;
+  /** What skills does this realm use? */
+  skills?: string;
+  /** What school subjects connect to this realm? */
+  subjects?: string;
+  /** What kind of work environment does this suggest? */
+  work_env?: string;
+  /** What is one strength you have that fits this realm? */
+  strength?: string;
+  /** What is one concern or question you still have? */
+  concern?: string;
+};
+
 /** Milestone 11 — worksheet archetypes (GDD research / class artifacts). */
 export type AcademicTaskKind =
   | 'quest_of_fate'
@@ -346,6 +366,12 @@ export type ExplorationLoopState = {
    * Drives Realm Atlas fog — not quest unlocks or travel.
    */
   guild_hq_atlas_revealed_realm_ids?: string[];
+  /**
+   * Per-realm reflection notes keyed by `realm_id`.
+   * Written when the student clicks "Add to Comparison Ledger" on a Guild Hub and fills in reflections.
+   * Powers the Comparison Ledger side-by-side view.
+   */
+  realm_reflections?: Record<string, RealmReflectionV1>;
   /**
    * Scroll of Destiny — up to three canon `realm_id`s inscribed when the Manifest is sealed (Foretold Signposts).
    * Anchors Act II/III comparison and exploration guidance; empty until Act I manifest completion.

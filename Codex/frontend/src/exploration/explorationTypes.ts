@@ -1,7 +1,7 @@
 import type { ExplorationLoopState, GuildEndgameV1 } from '../domain/lh-contract';
 import type { RealmProgressMap } from '../realm/realmProgress';
 
-export type { ComparisonLedgerEntry, ExplorationLoopState } from '../domain/lh-contract';
+export type { ComparisonLedgerEntry, ExplorationLoopState, RealmReflectionV1 } from '../domain/lh-contract';
 
 export function createDefaultGuildEndgameV1(): GuildEndgameV1 {
   return {

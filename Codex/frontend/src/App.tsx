@@ -100,6 +100,8 @@ export function App() {
     primaryWorldTriggerRealmId,
     clearFogKey,
     researchRealm,
+    recordRealmResearch,
+    updateRealmReflection,
     submitLedgerEntry,
     markActiveWaypointVisited,
     visitedInteractableIds,
@@ -521,6 +523,9 @@ export function App() {
           onInitialGuildInfoConsumed={consumeRealmAtlasInitialGuildIntent}
           fogRevealRealmId={realmAtlasFogRevealRealmId}
           onFogRevealConsumed={consumeRealmAtlasFogRevealIntent}
+          onRecordResearch={recordRealmResearch}
+          explorationReflections={exploration.realm_reflections}
+          onUpdateReflection={updateRealmReflection}
         />
       ) : null}
 

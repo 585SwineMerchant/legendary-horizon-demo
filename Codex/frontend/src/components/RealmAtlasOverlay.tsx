@@ -10,9 +10,11 @@ import {
 import { AtlasFogHoleCalibrator } from './AtlasFogHoleCalibrator';
 import { useEscapeToClose } from '../hooks/useEscapeToClose';
 import { GuildRealmInfoOverlay } from './GuildRealmInfoOverlay';
+import { RealmComparisonPanel } from './RealmComparisonPanel';
 import { LH_MEDIA_ASSET_ID_FOG_CLEARING, LH_MEDIA_ASSET_ID_SCROLL_UNFURLING } from '../lib/mediaConstants';
 import { tryPlayCatalogAudioAsset } from '../lib/lhCatalogAudio';
 import type { MediaAssetRecord, QuestDefinition, RealmDefinition } from '../types';
+import type { RealmReflectionV1 } from '../exploration/explorationTypes';
 import {
   fogHoleOverridesOnly,
   getAtlasFogHolePlacementForRealm,
@@ -108,6 +110,12 @@ type Props = {
   /** After Guild Research closes, lift atlas fog from this hall’s waypoint while audio plays. */
   fogRevealRealmId?: string | null;
   onFogRevealConsumed?: () => void;
+  /** Mark a realm as researched in the Comparison Ledger (no vault gate). */
+  onRecordResearch?: (realmId: string) => void;
+  /** Current `realm_reflections` from `exploration_loop` — drives the Comparison Ledger. */
+  explorationReflections?: Record<string, RealmReflectionV1>;
+  /** Persist a reflection field patch for a specific realm. */
+  onUpdateReflection?: (realmId: string, patch: Partial<RealmReflectionV1>) => void;
 };
 
 
@@ -125,6 +133,9 @@ export function RealmAtlasOverlay({
   onInitialGuildInfoConsumed,
   fogRevealRealmId = null,
   onFogRevealConsumed,
+  onRecordResearch,
+  explorationReflections,
+  onUpdateReflection,
 }: Props) {
   const ordered = useMemo(() => sortRealmsCanon(realms), [realms]);
   const revealedSet = useMemo(
@@ -136,6 +147,11 @@ export function RealmAtlasOverlay({
     [foretoldSignpostRealmIds],
   );
   const [guildInfoRealmId, setGuildInfoRealmId] = useState<string | null>(null);
+  const [comparisonOpen, setComparisonOpen] = useState(false);
+  const researchedRealmIds = useMemo(
+    () => Object.entries(realmProgress).filter(([, e]) => e?.research_complete).map(([id]) => id),
+    [realmProgress],
+  );
   const [atlasIntroVisible, setAtlasIntroVisible] = useState(false);
   const [fogLiftFinished, setFogLiftFinished] = useState(false);
   const [fogLiftAnimating, setFogLiftAnimating] = useState(false);
@@ -522,6 +538,15 @@ export function RealmAtlasOverlay({
           <button type="button" className="lh-button lh-button--ghost lh-world-atlas__close-fab" onClick={onClose}>
             Close
           </button>
+          {onRecordResearch && (
+            <button
+              type="button"
+              className="lh-button lh-button--ghost lh-world-atlas__ledger-fab"
+              onClick={() => setComparisonOpen(true)}
+            >
+              Comparison Ledger{researchedRealmIds.length > 0 ? ` (${researchedRealmIds.length})` : ''}
+            </button>
+          )}
         </div>
 
         <div className="lh-atlas__map-shell lh-atlas__map-shell--world-fill">
@@ -697,7 +722,19 @@ export function RealmAtlasOverlay({
         quests={quests}
         mediaCatalog={mediaCatalog}
         realmProgress={realmProgress}
+        onRecordResearch={onRecordResearch}
       />
+
+      {onRecordResearch && onUpdateReflection && (
+        <RealmComparisonPanel
+          open={comparisonOpen}
+          onClose={() => setComparisonOpen(false)}
+          realms={ordered}
+          researchedRealmIds={researchedRealmIds}
+          reflections={explorationReflections ?? {}}
+          onUpdateReflection={onUpdateReflection}
+        />
+      )}
     </div>
   );
 }

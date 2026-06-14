@@ -7,6 +7,7 @@ import type {
   ManualSaveEnvelopeV1,
   PlayerSave,
   QuestDefinition,
+  RealmReflectionV1,
   RitualDraftsV1,
   SessionSummaryV1,
 } from '../domain/lh-contract';
@@ -282,6 +283,26 @@ export function coerceExplorationLoop(raw: unknown): ExplorationLoopState | null
   const cy = o.last_safe_camp_y;
   if (typeof cx === 'number' && Number.isFinite(cx)) base.last_safe_camp_x = cx;
   if (typeof cy === 'number' && Number.isFinite(cy)) base.last_safe_camp_y = cy;
+
+  // realm_reflections — per-realm Comparison Ledger notes (6 optional string fields each)
+  const REFLECTION_KEYS: ReadonlyArray<keyof RealmReflectionV1> = [
+    'interest', 'skills', 'subjects', 'work_env', 'strength', 'concern',
+  ];
+  const rrRaw = o.realm_reflections;
+  if (rrRaw && typeof rrRaw === 'object' && !Array.isArray(rrRaw)) {
+    const out: Record<string, RealmReflectionV1> = {};
+    for (const [realmId, raw] of Object.entries(rrRaw as Record<string, unknown>)) {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+      const r = raw as Record<string, unknown>;
+      const entry: RealmReflectionV1 = {};
+      for (const key of REFLECTION_KEYS) {
+        const val = r[key];
+        if (typeof val === 'string' && val.trim()) entry[key] = val;
+      }
+      out[realmId] = entry;
+    }
+    if (Object.keys(out).length) base.realm_reflections = out;
+  }
 
   return base;
 }
