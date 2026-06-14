@@ -3070,6 +3070,25 @@ export function PhaserExplorationView({
           const wmTileW = baked.tileWidth || 32;
           const wmTileH = baked.tileHeight || 32;
 
+          // Pre-scan object layers to find the topmost (minimum world-Y top-edge) windmill
+          // tile object in the structures layer.  The crops tile-layer places windmill row-0
+          // tiles relative to the crops layer offsety (611 px), which lands ~66 px north of
+          // where row-1 starts in the object layer — creating a gap where blade pixels appear
+          // but no sprites render them.  We close the gap by using this reference Y as the
+          // worldBottom for all crops row-0 sprites.
+          let windmillBodyTopY: number | null = null;
+          const rawObjLayers = ((map as unknown as { objects?: TiledObjectLayerRuntime[] }).objects ?? []);
+          for (const objLayer of rawObjLayers) {
+            for (const obj of (objLayer.objects ?? [])) {
+              if (!obj.gid) continue;
+              const gid = (obj.gid >>> 0) & ~(0x80000000 | 0x40000000 | 0x20000000);
+              if (gid >= baked.firstgid && gid < baked.firstgid + baked.total) {
+                const topY = (obj.y ?? 0) - wmTileH;
+                if (windmillBodyTopY === null || topY < windmillBodyTopY) windmillBodyTopY = topY;
+              }
+            }
+          }
+
           // Reset here (addTiledTileObjectDecor no longer resets windmillDecorSprites so that
           // crops-layer sprites added below survive into the structures-layer append pass).
           this.windmillDecorSprites = [];
@@ -3089,7 +3108,11 @@ export function PhaserExplorationView({
 
               if (needsSpriteConversion && this.textures.exists(WINDMILL_BAKED_TILESET_NAME)) {
                 const worldLeft = tile.pixelX + layer.x;
-                const worldBottom = tile.pixelY + layer.y + wmTileH;
+                // Use the top edge of the northernmost structures windmill tile as worldBottom
+                // for row-0 crops sprites.  This closes the ~66 px gap created by the crops
+                // layer's offsety (611) being smaller than the structures reference positions.
+                const layerBasedBottom = tile.pixelY + layer.y + wmTileH;
+                const worldBottom = windmillBodyTopY !== null ? windmillBodyTopY : layerBasedBottom;
                 const frameName = `gid_${tile.index}`;
                 const texture = this.textures.get(WINDMILL_BAKED_TILESET_NAME);
                 if (!texture.has(frameName)) {

@@ -76,7 +76,7 @@
     "kind": "guild_hq",
     "description": "Aethelwood Farmsteads — guild HQ hall plate. Replace delivery_url_placeholder with approved hero art URL when available.",
     "drive_file_id": "",
-    "delivery_url_placeholder": "/assets/Aethelwood Farmsteads.png",
+    "delivery_url_placeholder": "/assets/maps/Aethelwood Farmsteads.png",
     "realm_ids": [
       "realm_aethelwood"
     ]

@@ -218,9 +218,21 @@ export function RealmAtlasOverlay({
     setFogAnimProgress(1);
     setFogLiftFinished(true);
     onFogRevealConsumed?.();
-    if (!readAtlasIntroDismissed()) {
+    const dismissed = readAtlasIntroDismissed();
+    if (!dismissed) {
       markAtlasIntroPendingFromFogReveal();
       setAtlasIntroVisible(true);
+    }
+    if (import.meta.env.DEV) {
+      console.info('[FogReveal] completeFogReveal', {
+        dismissed,
+        dismissedKey: ATLAS_FOG_INTRO_DISMISSED_LS,
+        pendingKey: ATLAS_FOG_INTRO_PENDING_SS,
+        popupOpened: !dismissed,
+        tip: dismissed
+          ? 'Popup suppressed — clear sessionStorage key to reset: sessionStorage.removeItem("' + ATLAS_FOG_INTRO_DISMISSED_LS + '")'
+          : 'Popup opened — dismiss it to set the dismissed key.',
+      });
     }
   }, [onFogRevealConsumed]);
 
