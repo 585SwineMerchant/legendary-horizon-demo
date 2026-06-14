@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build && node scripts/verify-pages-media-base.mjs",
+    "build": "tsc --noEmit && vite build && node scripts/verify-pages-media-base.mjs && node scripts/verify-approved-audio-assets.mjs",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview"
   },

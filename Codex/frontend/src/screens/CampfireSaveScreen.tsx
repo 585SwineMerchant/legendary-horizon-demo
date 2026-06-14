@@ -3,6 +3,7 @@ import type { PlayerSave } from '../types';
 import { hasAmberFlameVisual, parseSatchelInventory } from '../data/itemCatalog';
 import { CAMPFIRE_STREAK_MILESTONES } from '../data/itemCatalog';
 import { getLhAudioDirector } from '../lib/lhAudioDirector';
+import { playLhCeremonyMusic } from '../lib/lhCeremonyMusic';
 
 const DEFAULT_PROMPT =
   'Describe one thing you discovered today in the realms, and one question you are still carrying with you.';
@@ -80,10 +81,14 @@ export function CampfireSaveScreen({ player, prompt, onSubmit, onComplete }: Pro
   const [submitState, setSubmitState] = useState<SubmitState>({ phase: 'idle' });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Stop music during Fireside Reflection. STUB: play fireside_reflection_music here once the track is added.
+  // Replace exploration music with the quiet reflection loop for this screen.
   useEffect(() => {
     getLhAudioDirector().setLane(null);
-    return () => { getLhAudioDirector().setLane('exploration'); };
+    const stopReflectionMusic = playLhCeremonyMusic('fireside_reflection_loop');
+    return () => {
+      stopReflectionMusic();
+      getLhAudioDirector().setLane('exploration');
+    };
   }, []);
 
   const activePrompt = prompt?.trim() || DEFAULT_PROMPT;

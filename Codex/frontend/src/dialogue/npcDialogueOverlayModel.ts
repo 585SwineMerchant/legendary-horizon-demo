@@ -5,4 +5,5 @@ export type LhNpcDialogueOverlayModel = {
   speakerLabel: string;
   body: string;
   portraitUrl?: string;
+  narrationSequenceId?: string;
 };

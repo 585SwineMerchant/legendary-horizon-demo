@@ -275,7 +275,12 @@ const LOST_ECHO_KC_INTERACTABLE_IDS = PARSED_PRIMARY_MAP.triggers
 // ── Master Scribe Dialogue (Act I + Act II opening) ───────────────────────
 // Ordered most-advanced → least; first matching branch wins.
 // Exact bridge lines from approved Act I script. Do not improvise new beats.
-function resolveAct1MasterScribeDialogue(quests: readonly QuestDefinition[]): string {
+type QuestAwareDialogue = {
+  body: string;
+  narrationSequenceId: string;
+};
+
+function resolveAct1MasterScribeDialogue(quests: readonly QuestDefinition[]): QuestAwareDialogue {
   const isActive = (id: string) => {
     const q = quests.find((q) => q.quest_id === id);
     return q ? (q.status === 'active' || q.status === 'available') : false;
@@ -367,12 +372,16 @@ function resolveAct1MasterScribeDialogue(quests: readonly QuestDefinition[]): st
     console.log(`[LH_ACT_FLOW_DEBUG] Scribe dialogue → branch:${branch} | ${statuses}`);
   }
 
-  return line!;
+  return {
+    body: line!,
+    narrationSequenceId:
+      branch === 'fallback' ? 'master_scribe_fallback' : `master_scribe_${branch.replace('-', '_')}`,
+  };
 }
 
 // ── Oracle Dialogue (Act II opening) ──────────────────────────────────────
 // Short, mystical. The Scribe teaches; the Oracle prophesies.
-function resolveAct1OracleDialogue(quests: readonly QuestDefinition[]): string {
+function resolveAct1OracleDialogue(quests: readonly QuestDefinition[]): QuestAwareDialogue {
   const isActive = (id: string) => {
     const q = quests.find((q) => q.quest_id === id);
     return q ? (q.status === 'active' || q.status === 'available') : false;
@@ -386,15 +395,20 @@ function resolveAct1OracleDialogue(quests: readonly QuestDefinition[]): string {
   if (isActive('mq-201')) {
     // Player approached via Enter — guide them to the Scroll activation path.
     // The cinematic only fires through lh:oracle-altar-scroll-open (Spacebar on Scroll near altar).
-    return (
-      'Traveler of the Grey Commons...\n\nYour first signs have awakened.' +
-      '\n\nThree runes burn upon your Scroll.\n\nNot answers.\n\nNot chains.\n\nSignposts.' +
-      '\n\nDo not choose from wonder.\n\nDo not choose from fear.\n\nChoose only after seeking evidence.' +
-      '\n\nI do not speak my visions.\n\nI reveal them through the Scroll.\n\nOpen it here, at this altar.'
-    );
+    return {
+      body:
+        'Traveler of the Grey Commons...\n\nYour first signs have awakened.' +
+        '\n\nThree runes burn upon your Scroll.\n\nNot answers.\n\nNot chains.\n\nSignposts.' +
+        '\n\nDo not choose from wonder.\n\nDo not choose from fear.\n\nChoose only after seeking evidence.' +
+        '\n\nI do not speak my visions.\n\nI reveal them through the Scroll.\n\nOpen it here, at this altar.',
+      narrationSequenceId: 'oracle_mq_201',
+    };
   }
   // Fallback after mq-201 is complete
-  return 'The signs are spoken, Traveler. The road is yours to walk.';
+  return {
+    body: 'The signs are spoken, Traveler. The road is yours to walk.',
+    narrationSequenceId: 'oracle_fallback',
+  };
 }
 
 export function useNightOneFlow() {
@@ -1893,13 +1907,13 @@ export function useNightOneFlow() {
         const isOracle = npcId === 'oracle_veiled';
 
         // Scribe and Oracle use static quest-aware dialogue; all others use the catalog.
-        const staticBody = isMasterScribe
+        const staticDialogue = isMasterScribe
           ? resolveAct1MasterScribeDialogue(result.nextQuests ?? quests)
           : isOracle
             ? resolveAct1OracleDialogue(result.nextQuests ?? quests)
             : null;
         const body =
-          staticBody ??
+          staticDialogue?.body ??
           resolveNpcDialogueBody(
             npcId,
             BLUEPRINT.dialogue_catalog,
@@ -1961,6 +1975,7 @@ export function useNightOneFlow() {
             speakerLabel: formatNpcSpeakerLabel(npc),
             body,
             portraitUrl: portraitUrl || undefined,
+            narrationSequenceId: staticDialogue?.narrationSequenceId,
           });
         }
 
@@ -3271,6 +3286,7 @@ export function useNightOneFlow() {
         speakerLabel: 'Master Scribe',
         body: 'This should not be here.\n\nYour first signs are clear… but something else has marked the Scroll.\n\nI can record what the Scroll reveals. I cannot interpret what has awakened beneath it.\n\nThe Oracle must see this. Find the shrine beyond the path, and return to me when her vision is complete.',
         portraitUrl: undefined,
+        narrationSequenceId: 'master_scribe_post_scroll_reveal',
       });
     },
     oracleCinematicOpen,

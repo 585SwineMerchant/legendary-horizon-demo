@@ -433,6 +433,7 @@ export function ExplorationScreen({
             speakerLabel={npcDialogue.speakerLabel}
             portraitUrl={npcDialogue.portraitUrl}
             body={npcDialogue.body}
+            narrationSequenceId={npcDialogue.narrationSequenceId}
             primaryLabel="Continue"
             onPrimary={onDismissNpcDialogue}
           />

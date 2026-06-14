@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { publicAssetUrl } from '../lib/publicAssetUrl';
 import { SCROLL_REF } from '../components/ScrollOfDestinyDisplay';
+import { playLhCeremonyMusic } from '../lib/lhCeremonyMusic';
 
 /**
  * Oracle Prophecy Reveal
@@ -16,7 +17,6 @@ import { SCROLL_REF } from '../components/ScrollOfDestinyDisplay';
  *   hold         → "Seal my destiny" button becomes clickable        (~1 400 ms)
  *   done         → onComplete fires
  *
- * TODO: add prophecy_reveal_music lane in LhAudioDirector once the track is composed.
  * TODO: add burning SFX triggered at start of 'burn' phase once the clip is added.
  *
  * NOTE: prophecy_sigil.png must be exported with a transparent background from your
@@ -91,6 +91,8 @@ export function OracleProphecyReveal({
 }: Props) {
   const [phase, setPhase] = useState<Phase>('glow');
   const completedRef = useRef(false);
+
+  useEffect(() => playLhCeremonyMusic('prophecy_reveal_ceremony'), []);
 
   // Phase sequencer — purely timer-driven, no player input.
   useEffect(() => {

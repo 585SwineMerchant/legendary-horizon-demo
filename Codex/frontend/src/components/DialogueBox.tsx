@@ -7,6 +7,7 @@ type Props = {
   speakerLabel?: string;
   portraitUrl?: string;
   body: string;
+  narrationSequenceId?: string;
   primaryLabel?: string;
   onPrimary: () => void;
   /** resume variant keeps the original centered card styling (ResumeDialogScreen). */
@@ -52,6 +53,7 @@ function RpgDialogueBox({
   speakerLabel,
   portraitUrl,
   body,
+  narrationSequenceId,
   onPrimary,
 }: Omit<Props, 'variant' | 'primaryLabel'>) {
   const beats = splitBeats(body);
@@ -63,7 +65,7 @@ function RpgDialogueBox({
   }, [body]);
 
   const currentBeat = beats[pageIndex] ?? '';
-  useDialogueNarration(title, speakerLabel, currentBeat);
+  useDialogueNarration(title, speakerLabel, currentBeat, narrationSequenceId, pageIndex);
   const { displayed, done, skipToEnd } = useTypewriter(currentBeat);
   const isLastPage = pageIndex >= beats.length - 1;
 

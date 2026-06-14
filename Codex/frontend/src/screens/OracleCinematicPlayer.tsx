@@ -29,19 +29,11 @@ const ORACLE_VIDEO_SRC: string = (() => {
 const VIDEO_BED_VOLUME = 0.42;
 const VIDEO_DUCKED_VOLUME = 0.16;
 
-const ORACLE_NARRATION_CUES = [
-  { start: 1.2, file: 'oracle_mq_201__p01.mp3' },
-  { start: 3.5, file: 'oracle_mq_201__p02.mp3' },
-  { start: 6.4, file: 'oracle_mq_201__p03.mp3' },
-  { start: 9.5, file: 'oracle_mq_201__p04.mp3' },
-  { start: 10.9, file: 'oracle_mq_201__p05.mp3' },
-  { start: 12.3, file: 'oracle_mq_201__p06.mp3' },
-  { start: 14.8, file: 'oracle_mq_201__p07.mp3' },
-  { start: 17.0, file: 'oracle_mq_201__p08.mp3' },
-  { start: 19.5, file: 'oracle_mq_201__p09.mp3' },
-  { start: 22.5, file: 'oracle_mq_201__p10.mp3' },
-  { start: 25.0, file: 'oracle_mq_201__p11.mp3' },
-  { start: 27.7, file: 'oracle_mq_201__p12.mp3' },
+// These clips narrate the three sparse text overlays already baked into the cinematic.
+const ORACLE_CINEMATIC_ECHOES = [
+  { start: 1.0, file: 'oracle_cinematic__p01.mp3' },
+  { start: 10.5, file: 'oracle_cinematic__p02.mp3' },
+  { start: 23.5, file: 'oracle_cinematic__p03.mp3' },
 ] as const;
 
 type Props = {
@@ -59,7 +51,7 @@ export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) 
   const videoRef = useRef<HTMLVideoElement>(null);
   const completedRef = useRef(false);
   const narrationRef = useRef<HTMLAudioElement | null>(null);
-  const nextNarrationCueRef = useRef(0);
+  const nextEchoRef = useRef(0);
   const [visible, setVisible] = useState(false);
   const [muted, setMuted] = useState(() => {
     if (typeof document === 'undefined') return false;
@@ -84,26 +76,21 @@ export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) 
     onComplete();
   }, [onComplete, stopNarration]);
 
-  const playNarrationCue = useCallback((file: string) => {
+  const playEcho = useCallback((file: string) => {
     stopNarration();
-
-    const video = videoRef.current;
     const narration = new Audio(publicAssetUrl(`assets/dialogue/narration/${file}`));
     narration.preload = 'auto';
     narration.volume = 0.95;
     narration.muted = muted;
     narrationRef.current = narration;
-    if (video) video.volume = VIDEO_DUCKED_VOLUME;
+    if (videoRef.current) videoRef.current.volume = VIDEO_DUCKED_VOLUME;
 
     narration.onended = () => {
       if (narrationRef.current !== narration) return;
       narrationRef.current = null;
       if (videoRef.current) videoRef.current.volume = VIDEO_BED_VOLUME;
     };
-    void narration.play().catch((err) => {
-      if (import.meta.env.DEV) {
-        console.warn('[OracleCinematicPlayer] Narration play() rejected for', file, err);
-      }
+    void narration.play().catch(() => {
       if (narrationRef.current === narration) {
         narrationRef.current = null;
         if (videoRef.current) videoRef.current.volume = VIDEO_BED_VOLUME;
@@ -113,17 +100,17 @@ export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) 
 
   const handleTimeUpdate = useCallback(() => {
     const currentTime = videoRef.current?.currentTime ?? 0;
-    const cue = ORACLE_NARRATION_CUES[nextNarrationCueRef.current];
-    if (!cue || currentTime < cue.start) return;
-    nextNarrationCueRef.current += 1;
-    playNarrationCue(cue.file);
-  }, [playNarrationCue]);
+    const echo = ORACLE_CINEMATIC_ECHOES[nextEchoRef.current];
+    if (!echo || currentTime < echo.start) return;
+    nextEchoRef.current += 1;
+    playEcho(echo.file);
+  }, [playEcho]);
 
   const handleSeeking = useCallback(() => {
     const currentTime = videoRef.current?.currentTime ?? 0;
     stopNarration();
-    nextNarrationCueRef.current = ORACLE_NARRATION_CUES.findIndex((cue) => cue.start >= currentTime);
-    if (nextNarrationCueRef.current < 0) nextNarrationCueRef.current = ORACLE_NARRATION_CUES.length;
+    nextEchoRef.current = ORACLE_CINEMATIC_ECHOES.findIndex((echo) => echo.start >= currentTime);
+    if (nextEchoRef.current < 0) nextEchoRef.current = ORACLE_CINEMATIC_ECHOES.length;
   }, [stopNarration]);
 
   // ── fade in once mounted ───────────────────────────────────────────────────
@@ -140,7 +127,7 @@ export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) 
     vid.muted = muted;
     vid.volume = narrationRef.current ? VIDEO_DUCKED_VOLUME : VIDEO_BED_VOLUME;
     void vid.play().catch(() => {
-      // Unmuted autoplay blocked — retry muted so timeupdate events fire and narration can play.
+      // Unmuted autoplay blocked — retry muted so the cinematic can still begin.
       // The in-player toggle lets the user unmute; the MutationObserver keeps global state in sync.
       if (import.meta.env.DEV) {
         console.warn('[OracleCinematicPlayer] Unmuted autoplay blocked — retrying muted.');
