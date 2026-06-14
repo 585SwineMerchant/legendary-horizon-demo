@@ -16,7 +16,7 @@ export const CANON_REALMS: readonly RealmDefinition[] = [
     slug: 'aethelwood',
     lore_digest: "A sprawling, untamed forest where Druids and Rangers manage the land's vital life force.",
     map_tiled_export: 'aethelwood_demo.json',
-    tags: ['canon', 'demo_map', 'nature_primary'],
+    tags: ['canon', 'demo_map', 'nature_primary', 'agriculture', 'food science', 'nature', 'environmental work'],
     sort_order: 1,
   },
   {
@@ -27,7 +27,7 @@ export const CANON_REALMS: readonly RealmDefinition[] = [
     slug: 'monolith-masonry',
     lore_digest: 'An impenetrable mountain fortress built by master stonemasons and engineers.',
     map_tiled_export: null,
-    tags: ['canon', 'placeholder_map'],
+    tags: ['skilled trades', 'construction', 'design', 'engineering'],
     sort_order: 2,
   },
   {
@@ -38,7 +38,7 @@ export const CANON_REALMS: readonly RealmDefinition[] = [
     slug: 'chroniclers-spire',
     lore_digest: "A tower of shifting light and sound where Bards and Illusionists craft the world's stories.",
     map_tiled_export: null,
-    tags: ['canon', 'placeholder_map'],
+    tags: ['creative careers', 'communication', 'media', 'storytelling'],
     sort_order: 3,
   },
   {
@@ -49,7 +49,7 @@ export const CANON_REALMS: readonly RealmDefinition[] = [
     slug: 'mercantile-citadel',
     lore_digest: "The administrative heart of the land, where High Strategists oversee the Realm's operations.",
     map_tiled_export: null,
-    tags: ['canon', 'placeholder_map'],
+    tags: ['business', 'leadership', 'management', 'strategy'],
     sort_order: 4,
   },
   {
@@ -60,7 +60,7 @@ export const CANON_REALMS: readonly RealmDefinition[] = [
     slug: 'archives-ascension',
     lore_digest: 'A vast library where Guild Mentors pass down ancient knowledge to the next generation of Travelers.',
     map_tiled_export: null,
-    tags: ['canon', 'placeholder_map'],
+    tags: ['education', 'helping professions', 'mentorship', 'research'],
     sort_order: 5,
   },
   {
@@ -71,7 +71,7 @@ export const CANON_REALMS: readonly RealmDefinition[] = [
     slug: 'gilded-vault',
     lore_digest: "A secure, underground treasury where the Coinmasters balance the Realm's gold and resources.",
     map_tiled_export: null,
-    tags: ['canon', 'placeholder_map'],
+    tags: ['finance', 'business', 'math skills', 'planning'],
     sort_order: 6,
   },
   {
@@ -82,7 +82,7 @@ export const CANON_REALMS: readonly RealmDefinition[] = [
     slug: 'high-council-hall',
     lore_digest: 'A majestic assembly where the Regents draft the laws that keep the darkness at bay.',
     map_tiled_export: null,
-    tags: ['canon', 'placeholder_map'],
+    tags: ['public service', 'law', 'leadership', 'community'],
     sort_order: 7,
   },
   {
@@ -93,7 +93,7 @@ export const CANON_REALMS: readonly RealmDefinition[] = [
     slug: 'aurora-apothecary',
     lore_digest: 'A tranquil glade filled with glowing herbs, where Healers mend the wounds of those returning from Trials.',
     map_tiled_export: null,
-    tags: ['canon', 'placeholder_map'],
+    tags: ['healthcare', 'helping professions', 'science', 'patient care'],
     sort_order: 8,
   },
   {
@@ -104,7 +104,7 @@ export const CANON_REALMS: readonly RealmDefinition[] = [
     slug: 'crossroads-haven',
     lore_digest: 'A welcoming outpost for weary Travelers, offering rest and information on the road to the Horizon.',
     map_tiled_export: null,
-    tags: ['canon', 'placeholder_map'],
+    tags: ['hospitality', 'travel', 'customer service', 'events'],
     sort_order: 9,
   },
   {
@@ -115,7 +115,7 @@ export const CANON_REALMS: readonly RealmDefinition[] = [
     slug: 'empaths-enclave',
     lore_digest: "A sanctuary dedicated to supporting the citizens of the land and guiding lost souls.",
     map_tiled_export: null,
-    tags: ['canon', 'placeholder_map'],
+    tags: ['helping professions', 'counseling', 'community', 'social work'],
     sort_order: 10,
   },
   {
@@ -126,7 +126,7 @@ export const CANON_REALMS: readonly RealmDefinition[] = [
     slug: 'etheric-nexus',
     lore_digest: 'A glowing network of blue ley lines where Technomancers manage the flow of digital magic.',
     map_tiled_export: null,
-    tags: ['canon', 'placeholder_map'],
+    tags: ['technology', 'coding', 'problem solving', 'systems'],
     sort_order: 11,
   },
   {
@@ -137,7 +137,7 @@ export const CANON_REALMS: readonly RealmDefinition[] = [
     slug: 'valors-watchtower',
     lore_digest: 'A high-vantage garrison where the Iron Guard keeps watch against external threats.',
     map_tiled_export: null,
-    tags: ['canon', 'placeholder_map'],
+    tags: ['public safety', 'law enforcement', 'protection', 'service'],
     sort_order: 12,
   },
   {
@@ -148,7 +148,7 @@ export const CANON_REALMS: readonly RealmDefinition[] = [
     slug: 'vulcanis-forge',
     lore_digest: "A thundering workshop of heat and steel where Artificers mass-produce the gear for the Guilds.",
     map_tiled_export: null,
-    tags: ['canon', 'placeholder_map'],
+    tags: ['skilled trades', 'engineering', 'production', 'hands-on work'],
     sort_order: 13,
   },
   {
@@ -159,7 +159,7 @@ export const CANON_REALMS: readonly RealmDefinition[] = [
     slug: 'bards-beacon',
     lore_digest: "A plaza filled with glowing signs and Heralds spreading word of the Guilds' triumphs.",
     map_tiled_export: null,
-    tags: ['canon', 'placeholder_map'],
+    tags: ['marketing', 'creative careers', 'communication', 'branding'],
     sort_order: 14,
   },
   {
@@ -170,7 +170,7 @@ export const CANON_REALMS: readonly RealmDefinition[] = [
     slug: 'alchemical-observatory',
     lore_digest: 'A high-altitude lab where Alchemists and Astronomers decode the laws of the universe.',
     map_tiled_export: null,
-    tags: ['canon', 'placeholder_map'],
+    tags: ['science', 'technology', 'engineering', 'math skills'],
     sort_order: 15,
   },
   {
@@ -181,7 +181,7 @@ export const CANON_REALMS: readonly RealmDefinition[] = [
     slug: 'odyssey-harbor',
     lore_digest: 'A bustling hub of airships and caravans ensuring resources reach every corner of the land.',
     map_tiled_export: null,
-    tags: ['canon', 'placeholder_map'],
+    tags: ['transportation', 'logistics', 'planning', 'skilled trades'],
     sort_order: 16,
   },
 ] as const;
@@ -208,4 +208,3 @@ if (import.meta.env?.DEV) {
     console.warn('[LHRealmCanon] Arcanum Reactor / Energy realm should not be in active canon.');
   }
 }
-

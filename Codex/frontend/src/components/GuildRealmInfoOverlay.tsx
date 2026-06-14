@@ -7,6 +7,7 @@ import { getGuildRealmCareerOneStopUrl } from '../realm/guildRealmCareerOneStopU
 import { resolveGuildHqHeroAsset } from '../realm/guildHqHeroAsset';
 import { getGuildHqWorkbookHeroDisplay } from '../realm/guildHqWorkbookHero';
 import { getGuildRealmTitleParts, getRealmPathInterestTags } from '../realm/guildRealmTitleParts';
+import { getRealmResearchBullets } from '../realm/guildRealmResearchBullets';
 import {
   filterQuestsForRealm,
   getCareerClusterLabel,
@@ -192,9 +193,9 @@ export function GuildRealmInfoOverlay({
             <div className="lh-guild-realm-modal__box lh-guild-realm-modal__box--wide">
               <h3 className="lh-guild-realm-modal__box-label">Research focus</h3>
               <ul className="lh-guild-realm-modal__diamond-list">
-                <li>What real careers belong to this cluster?</li>
-                <li>What training, credentials, or apprenticeships appear most often?</li>
-                <li>Which working conditions fit your expedition style?</li>
+                {getRealmResearchBullets(realm.realm_id).map((bullet) => (
+                  <li key={bullet}>{bullet}</li>
+                ))}
               </ul>
             </div>
           </div>

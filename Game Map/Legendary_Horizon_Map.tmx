@@ -3022,7 +3022,7 @@
     <property name="lh_realm_id" value="realm_valors_watchtower"/>
    </properties>
   </object>
-    <object id="4762" name="mercantiles_citadel_trigger" x="3176.67" y="4630" width="119.333" height="58">
+    <object id="4762" name="mercantile_citadel_trigger" x="3176.67" y="4630" width="119.333" height="58">
    <properties>
     <property name="lh_activation_mode" value="overlap_auto"/>
     <property name="lh_kind" value="guild_hq_research"/>
@@ -3050,14 +3050,14 @@
     <property name="lh_realm_id" value="realm_alchemical_observatory"/>
    </properties>
   </object>
-    <object id="4767" name="guilded_vault_trigger" x="6075" y="7546" width="52" height="38">
+    <object id="4767" name="gilded_vault_trigger" x="6075" y="7546" width="52" height="38">
    <properties>
     <property name="lh_activation_mode" value="overlap_auto"/>
     <property name="lh_kind" value="guild_hq_research"/>
     <property name="lh_realm_id" value="realm_gilded_vault"/>
    </properties>
   </object>
-    <object id="4768" name="odessys_harbor_trigger" x="8784" y="8969.33" width="377.333" height="68">
+    <object id="4768" name="odyssey_harbor_trigger" x="8784" y="8969.33" width="377.333" height="68">
    <properties>
     <property name="lh_activation_mode" value="overlap_auto"/>
     <property name="lh_kind" value="guild_hq_research"/>

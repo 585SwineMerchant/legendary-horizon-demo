@@ -500972,7 +500972,7 @@
         {
           "height": 58,
           "id": 4762,
-          "name": "mercantiles_citadel_trigger",
+          "name": "mercantile_citadel_trigger",
           "opacity": 1,
           "rotation": 0,
           "type": "",
@@ -501088,7 +501088,7 @@
         {
           "height": 38,
           "id": 4767,
-          "name": "guilded_vault_trigger",
+          "name": "gilded_vault_trigger",
           "opacity": 1,
           "rotation": 0,
           "type": "",
@@ -501117,7 +501117,7 @@
         {
           "height": 68,
           "id": 4768,
-          "name": "odessys_harbor_trigger",
+          "name": "odyssey_harbor_trigger",
           "opacity": 1,
           "rotation": 0,
           "type": "",
