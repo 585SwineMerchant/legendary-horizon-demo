@@ -279,6 +279,11 @@ const LOST_ECHO_KC_INTERACTABLE_IDS = PARSED_PRIMARY_MAP.triggers
   .filter(isFirstKnowledgeCombatTrigger)
   .map((t) => makeTriggerInteractableId(PRIMARY_WORLD_TRIGGER_REALM_ID, t.tiled_object_id));
 
+// Guild Manager portrait: one consistent base NPC across all 16 guild HQs.
+// Asset strategy: a single base sprite stands in for every Guild Manager today;
+// per-guild clothing overlays are a future art pass, not a per-guild asset swap.
+const GUILD_MANAGER_PORTRAIT_URL = `${import.meta.env.BASE_URL}assets/npcs/villager/villager-m-idle.png`;
+
 // ── Master Scribe Dialogue (Act I + Act II opening) ───────────────────────
 // Ordered most-advanced → least; first matching branch wins.
 // Exact bridge lines from approved Act I script. Do not improvise new beats.
@@ -1718,85 +1723,104 @@ export function useNightOneFlow() {
           });
         }
 
-        // After first visit + atlas fog, physical doors close until the traveler commits to a True Path guild.
-        // Act I: re-entry allowed when a true path is chosen (endgame state), not demo stage.
-        const firstKcBeaten = LOST_ECHO_KC_INTERACTABLE_IDS.some((id) => visitedInteractableIds.includes(id));
         if (revealed.has(triggerRealm)) {
-          if (truePathRealm && truePathRealm === triggerRealm && firstKcBeaten) {
-            // MQ-402 "Travel to Chosen Guild HQ": entering the physical True Path HQ completes it.
-            const mq402re = quests.find((q) => q.quest_id === 'mq-402');
-            if (mq402re && (mq402re.status === 'active' || mq402re.status === 'available')) {
-              completeQuestWithXp('mq-402');
-              setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'mq-403')));
-              setPlayer((p) =>
-                p
-                  ? {
-                      ...p,
-                      active_main_quest_id: 'mq-403',
-                      active_main_quest_title: 'Meet the Guild Manager',
-                      required_next_action: 'Speak with the Guild Manager at this Guild HQ.',
-                    }
-                  : p,
-              );
-            }
+          // ── Guild already visited (Act III research complete) ──────────────────────
+          // Rule: door is locked after first visit.
+          // Act IV exception: only the True Path guild door reopens, and only once the
+          // player has been directed there via mq-402.
+
+          if (truePathRealm && truePathRealm === triggerRealm) {
             const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
-            if (!ge.application_unlocked) {
-              // First encounter with True Path HQ — fire the Guild Manager meeting.
-              const mq403ge = quests.find((q) => q.quest_id === 'mq-403');
-              if (mq403ge && (mq403ge.status === 'available' || mq403ge.status === 'active')) {
-                completeQuestWithXp('mq-403');
+
+            // If the GM meeting already happened, show a phase-appropriate status message.
+            if (ge.application_unlocked) {
+              if (!ge.application_sealed) {
+                setSaveFeedback({ tone: 'success', text: 'Your Enrollment Rune is still open. Complete it when you are ready.' });
+                return;
               }
-              setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'gt-101')));
-              setPlayer((p) =>
-                p
-                  ? {
-                      ...p,
-                      active_main_quest_id: 'gt-101',
-                      active_main_quest_title: 'Complete the Rite of Enrollment',
-                      required_next_action: 'Complete the Enrollment Rune application at your Guild HQ.',
-                    }
-                  : p,
-              );
-              setExploration((e) =>
-                mergeGuildHqAtlasRevealed(
-                  mergeGuildEndgameIntoExploration(e, {
-                    application_unlocked: true,
-                    phase: 'application_available',
-                  }),
-                  triggerRealm,
-                ),
-              );
-              playLhSfx('door_open');
-              setPauseOpen(false);
-              setNpcDialogue({
-                npcId: 'guild_manager_hq_npc',
-                title: 'Guild Manager',
-                speakerLabel: 'Guild Manager',
-                body:
-                  'Traveler. We have heard of your research. You have compared the guild roads and you have chosen ours.\n\n' +
-                  'That is not a small thing.\n\n' +
-                  'I cannot offer you a seat in this hall on reputation alone. Every Traveler who enters through these doors completes an Enrollment Rune first. It tells us who you are, what you bring, and why you belong here.\n\n' +
-                  'Complete it honestly. There is no wrong answer — only an unfinished one.',
-                portraitUrl: undefined,
-                narrationSequenceId: 'guild_manager_first_meeting',
+              const phaseMsg =
+                ge.phase === 'guild_accepted_v1'
+                  ? 'You have been accepted into this guild. Your journey continues.'
+                  : ge.phase === 'interview_invited'
+                  ? 'You have been invited to an interview. Speak with the Guild Manager to proceed.'
+                  : 'Your Enrollment Rune has been submitted. The Guild Manager will be in touch.';
+              setSaveFeedback({ tone: 'success', text: phaseMsg });
+              return;
+            }
+
+            // GM meeting not yet happened — only fire it when the player has been
+            // directed here by mq-402 ("Travel to Chosen Guild HQ").
+            const mq402re = quests.find((q) => q.quest_id === 'mq-402');
+            const directedHere = mq402re && (mq402re.status === 'active' || mq402re.status === 'available');
+            if (!directedHere) {
+              // True Path chosen in Act III but Act IV hasn't begun — door stays locked.
+              playLhSfx('action_blocked');
+              setSaveFeedback({
+                tone: 'error',
+                text: 'You have pledged your path to this guild. Return when you receive your summons.',
               });
-              guildManagerModulePendingRef.current = 'mod_gt101_enrollment_rune';
+              window.dispatchEvent(
+                new CustomEvent(LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT, { detail: { interactableId, mode: 'blocked' } }),
+              );
               return;
             }
-            if (!ge.application_sealed) {
-              setSaveFeedback({ tone: 'success', text: 'Your Enrollment Rune is still open. Complete it when you are ready.' });
-              return;
+
+            // Act IV: first True Path HQ entry — complete mq-402, fire Guild Manager.
+            completeQuestWithXp('mq-402');
+            setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'mq-403')));
+            setPlayer((p) =>
+              p
+                ? {
+                    ...p,
+                    active_main_quest_id: 'mq-403',
+                    active_main_quest_title: 'Meet the Guild Manager',
+                    required_next_action: 'Speak with the Guild Manager at this Guild HQ.',
+                  }
+                : p,
+            );
+            const mq403ge = quests.find((q) => q.quest_id === 'mq-403');
+            if (mq403ge && (mq403ge.status === 'available' || mq403ge.status === 'active')) {
+              completeQuestWithXp('mq-403');
             }
-            // Enrollment Rune sealed — show phase-appropriate status toast.
-            const phaseMsg =
-              ge.phase === 'guild_accepted_v1'
-                ? 'You have been accepted into this guild. Your journey continues.'
-                : ge.phase === 'interview_invited'
-                ? 'You have been invited to an interview. Speak with the Guild Manager to proceed.'
-                : 'Your Enrollment Rune has been submitted. The Guild Manager will be in touch.';
-            setSaveFeedback({ tone: 'success', text: phaseMsg });
+            setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'gt-101')));
+            setPlayer((p) =>
+              p
+                ? {
+                    ...p,
+                    active_main_quest_id: 'gt-101',
+                    active_main_quest_title: 'Complete the Rite of Enrollment',
+                    required_next_action: 'Complete the Enrollment Rune application at your Guild HQ.',
+                  }
+                : p,
+            );
+            setExploration((e) =>
+              mergeGuildHqAtlasRevealed(
+                mergeGuildEndgameIntoExploration(e, {
+                  application_unlocked: true,
+                  phase: 'application_available',
+                }),
+                triggerRealm,
+              ),
+            );
+            playLhSfx('door_open');
+            setPauseOpen(false);
+            setNpcDialogue({
+              npcId: 'guild_manager_hq_npc',
+              title: 'Guild Manager',
+              speakerLabel: 'Guild Manager',
+              body:
+                'Traveler. We have heard of your research. You have compared the guild roads and you have chosen ours.\n\n' +
+                'That is not a small thing.\n\n' +
+                'I cannot offer you a seat in this hall on reputation alone. Every Traveler who enters through these doors completes an Enrollment Rune first. It tells us who you are, what you bring, and why you belong here.\n\n' +
+                'Complete it honestly. There is no wrong answer — only an unfinished one.',
+              portraitUrl: GUILD_MANAGER_PORTRAIT_URL,
+              narrationSequenceId: 'guild_manager_first_meeting',
+            });
+            guildManagerModulePendingRef.current = 'mod_gt101_enrollment_rune';
             return;
           }
+
+          // Not the True Path guild (or no True Path chosen yet) — door stays locked.
           playLhSfx('action_blocked');
           setSaveFeedback({
             tone: 'error',
@@ -1810,21 +1834,9 @@ export function useNightOneFlow() {
           return;
         }
 
-        // Act I: guild HQ discovery is gated on the first KC being beaten, not on demo stage.
-        if (!firstKcBeaten) {
-          playLhSfx('action_blocked');
-          setSaveFeedback({
-            tone: 'error',
-            text: 'The guild roads are not ready. Face the challenge on the path before entering a guild hall.',
-          });
-          window.dispatchEvent(
-            new CustomEvent(LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT, { detail: { interactableId, mode: 'blocked' } }),
-          );
-          return;
-        }
-        // Shared overworld: physical trigger zone is authoritative — do not require `current_realm_id`
-        // to match (that field tracks narrative/UI focus and may lag while exploring the big map).
-
+        // ── First visit (guild not yet in atlas) — open research hub ────────────────
+        // No KC gate: guild entry is governed only by Act III/IV door rules.
+        // Physical trigger zone is authoritative — `current_realm_id` may lag.
         setExploration((e) => mergeGuildHqAtlasRevealed(e, triggerRealm));
         setRealmProgress((p) => markResearchComplete(p, triggerRealm));
         setActiveLedgerRealmId(triggerRealm);
@@ -2027,7 +2039,7 @@ export function useNightOneFlow() {
             'That is not a small thing.\n\n' +
             'I cannot offer you a seat in this hall on reputation alone. Every Traveler who enters through these doors completes an Enrollment Rune first. It tells us who you are, what you bring, and why you belong here.\n\n' +
             'Complete it honestly. There is no wrong answer — only an unfinished one.',
-          portraitUrl: undefined,
+          portraitUrl: GUILD_MANAGER_PORTRAIT_URL,
           narrationSequenceId: 'guild_manager_first_meeting',
         });
         guildManagerModulePendingRef.current = 'mod_gt101_enrollment_rune';
@@ -3085,7 +3097,10 @@ export function useNightOneFlow() {
     });
   }, []);
 
-  const reloadPersistedDemoForResume = useCallback(async (): Promise<string> => {
+  const reloadPersistedDemoForResume = useCallback(async (): Promise<{
+    source: string;
+    restoredMeaningfulState: boolean;
+  }> => {
     const persisted = await fetchPersistedDemoSession(seededPlayerSeed, seededQuestSeed, {
       allowLocalCache: false,
       mode: 'remote_strict',
@@ -3118,7 +3133,12 @@ export function useNightOneFlow() {
     setExploration(finalized.exploration);
     setLedgerDraft(emptyLedgerDraft());
     setPhaserExplorationRemountKey((k) => k + 1);
-    return persisted.source;
+    // A spreadsheet row that loaded "ok" can still be an empty/fresh row (new player_id,
+    // mistyped roster entry, or a row the teacher hasn't seeded yet). Distinguish that from
+    // an actual restored save so the toast doesn't claim success on an empty load.
+    const restoredMeaningfulState =
+      persisted.visitedInit.length > 0 || Object.keys(persisted.realmProgressInit).length > 0;
+    return { source: persisted.source, restoredMeaningfulState };
   }, []);
 
   const applyFreshVerticalSliceFromGameTitle = useCallback(() => {
@@ -3400,11 +3420,20 @@ export function useNightOneFlow() {
       restedReadinessShownRef.current = false;
       setSaveFeedback(null);
       try {
-        const source = await reloadPersistedDemoForResume();
-        setSaveFeedback({
-          tone: 'success',
-          text: `Spreadsheet save loaded and normalized (source: ${source}). The Traveler returns to the world.`,
-        });
+        const { source, restoredMeaningfulState } = await reloadPersistedDemoForResume();
+        if (source === 'remote_apps_script_ok' && !restoredMeaningfulState) {
+          setSaveFeedback({
+            tone: 'error',
+            text:
+              'Connected to the spreadsheet, but no saved progress was found for this player ID. ' +
+              'If you expected a prior save, confirm you are signed in with the same player ID and try again.',
+          });
+        } else {
+          setSaveFeedback({
+            tone: 'success',
+            text: `Spreadsheet save loaded and normalized (source: ${source}). The Traveler returns to the world.`,
+          });
+        }
         setScreen('explore');
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);

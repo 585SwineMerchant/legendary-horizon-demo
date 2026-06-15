@@ -23,7 +23,7 @@ import { publicAssetUrl } from '../lib/publicAssetUrl';
 // Resolved video URL: env-var override → local public path.
 const ORACLE_VIDEO_SRC: string = (() => {
   const override = (import.meta.env.VITE_LH_ORACLE_VIDEO_URL as string | undefined)?.trim();
-  return override || '/assets/video/oracle_cutscene_v1.mp4';
+  return override || '/assets/intro/oracle_cutscene_v1.mp4';
 })();
 
 const VIDEO_BED_VOLUME = 0.42;

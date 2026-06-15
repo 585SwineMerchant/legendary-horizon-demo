@@ -216,13 +216,23 @@ export function EnrollmentRuneModule({ draft, onDraftChange, onSubmitResult }: P
   }
 
   return (
-    <div className="lh-world-map__layout">
-      <section className="lh-world-map__realms" aria-label="Enrollment form">
+    <div
+      className="lh-world-map__layout"
+      style={{ display: 'flex', flexDirection: 'column', gridTemplateColumns: 'none', minHeight: 0, maxHeight: '100%' }}
+    >
+      <section
+        className="lh-world-map__realms"
+        aria-label="Enrollment form"
+        style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}
+      >
         <h3 className="lh-heading-sm">Employment Application (Guild Trial)</h3>
         <p className="lh-world-map__hint">
           Complete required fields to unlock submission. Progress: <strong>{completePct}%</strong>
         </p>
-        <div className="lh-panel" style={{ padding: 12, marginTop: 8 }}>
+        <div
+          className="lh-panel"
+          style={{ padding: 12, marginTop: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}
+        >
           <label className="lh-world-map__label">
             Class period (required)
             <select className="lh-input" value={draft.period ?? ''} onChange={(e) => update('period', e.target.value)}>
@@ -345,7 +355,7 @@ export function EnrollmentRuneModule({ draft, onDraftChange, onSubmitResult }: P
           </label>
         </div>
 
-        <div className="lh-world-map__actions" style={{ marginTop: 12 }}>
+        <div className="lh-world-map__actions" style={{ marginTop: 12, flexShrink: 0 }}>
           <button
             type="button"
             className="lh-button lh-button--primary"

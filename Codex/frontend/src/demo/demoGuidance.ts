@@ -348,10 +348,13 @@ export function buildDemoGuidanceMap(parsedMap: ParsedLhMap): ParsedLhMap {
 
   // oracle_encounter in the Tiled map routes to oracle_veiled dialogue via triggerDispatcher,
   // so the synthetic npc_dialogue+oracle_veiled is redundant (and causes a second statue).
-  // Only inject the synthetic oracle when neither source exists.
+  // oracle_altar_zone is the canonical real-map shrine (visual oracle lives in the tile layer
+  // at guild_hq_floor_2) — when it exists, injecting a synthetic oracle sprite creates a stray
+  // second Oracle. Only inject the synthetic oracle when none of these sources exist.
   const hasOracleEncounterTiled = parsedMap.triggers.some((t) => t.kind === 'oracle_encounter');
+  const hasOracleAltarZoneTiled = parsedMap.triggers.some((t) => t.kind === 'oracle_altar_zone');
 
-  if (!hasOracleNpcDialogue && !hasOracleEncounterTiled) {
+  if (!hasOracleNpcDialogue && !hasOracleEncounterTiled && !hasOracleAltarZoneTiled) {
     // Inject a visual oracle NPC sprite so the player can see and approach the Oracle.
     // Priority:
     //   1. VITE_LH_ORACLE_X / VITE_LH_ORACLE_Y env-var override (for precise tuning)
