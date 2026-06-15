@@ -122,6 +122,8 @@ type Props = {
   onSubmitLedger?: () => void;
   /** Comparison Ledger sync status — drives button label/disabled state. */
   ledgerSyncStatus?: 'pending' | 'sending' | 'synced' | 'error';
+  /** Gate status for Comparison Ledger turn-in eligibility. */
+  ledgerGate?: { signpostsVisited: number; guildsResearched: number; eligible: boolean };
 };
 
 
@@ -145,6 +147,7 @@ export function RealmAtlasOverlay({
   onUpdateReflection,
   onSubmitLedger,
   ledgerSyncStatus,
+  ledgerGate,
 }: Props) {
   const ordered = useMemo(() => sortRealmsCanon(realms), [realms]);
   const revealedSet = useMemo(
@@ -748,6 +751,7 @@ export function RealmAtlasOverlay({
           activeLedgerRealmId={activeLedgerRealmId}
           onSubmit={onSubmitLedger}
           syncStatus={ledgerSyncStatus}
+          ledgerGate={ledgerGate}
         />
       )}
     </div>

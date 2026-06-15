@@ -22,6 +22,12 @@ const STUDENT_COLUMNS: Array<{
 
 type SyncStatus = 'pending' | 'sending' | 'synced' | 'error' | undefined;
 
+type LedgerGate = {
+  signpostsVisited: number;
+  guildsResearched: number;
+  eligible: boolean;
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -33,6 +39,7 @@ type Props = {
   onSubmit?: () => void;
   syncStatus?: SyncStatus;
   backLabel?: string;
+  ledgerGate?: LedgerGate;
 };
 
 export function RealmComparisonPanel({
@@ -46,6 +53,7 @@ export function RealmComparisonPanel({
   onSubmit,
   syncStatus,
   backLabel = '← Back to Atlas',
+  ledgerGate,
 }: Props) {
   const activeRowRef = useRef<HTMLTableRowElement | null>(null);
 
@@ -87,21 +95,41 @@ export function RealmComparisonPanel({
           >
             {backLabel}
           </button>
-          {onSubmit && (
-            <button
-              type="button"
-              className={`lh-button lh-ledger-panel__submit${syncStatus === 'synced' ? ' lh-ledger-panel__submit--done' : ''}`}
-              onClick={onSubmit}
-              disabled={syncStatus === 'sending' || syncStatus === 'synced'}
-              aria-label="Turn in Comparison Ledger to teacher"
-            >
-              {syncStatus === 'sending'
-                ? 'Submitting…'
-                : syncStatus === 'synced'
-                ? 'Submitted ✓'
-                : 'Turn In Comparison Ledger'}
-            </button>
-          )}
+          {onSubmit && (() => {
+            const alreadySubmitted = syncStatus === 'synced';
+            const isSending = syncStatus === 'sending';
+            const gateOk = !ledgerGate || ledgerGate.eligible;
+            const disabled = isSending || alreadySubmitted || !gateOk;
+
+            return (
+              <div className="lh-ledger-panel__submit-area">
+                {!alreadySubmitted && ledgerGate && !ledgerGate.eligible && (
+                  <div className="lh-ledger-panel__gate-status" role="status">
+                    <span className="lh-ledger-panel__gate-line">
+                      Foretold Signposts: {ledgerGate.signpostsVisited}/3
+                    </span>
+                    <span className="lh-ledger-panel__gate-line">
+                      Guilds Researched: {ledgerGate.guildsResearched}/5
+                    </span>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className={`lh-button lh-ledger-panel__submit${alreadySubmitted ? ' lh-ledger-panel__submit--done' : ''}${!gateOk ? ' lh-ledger-panel__submit--gated' : ''}`}
+                  onClick={onSubmit}
+                  disabled={disabled}
+                  aria-label="Turn in Comparison Ledger to teacher"
+                  title={!gateOk ? 'Turn-in unlocks after you visit all 3 Foretold Signposts and research at least 5 Guilds.' : undefined}
+                >
+                  {isSending
+                    ? 'Submitting…'
+                    : alreadySubmitted
+                    ? 'Submitted ✓'
+                    : 'Turn In Comparison Ledger'}
+                </button>
+              </div>
+            );
+          })()}
         </div>
       </div>
 

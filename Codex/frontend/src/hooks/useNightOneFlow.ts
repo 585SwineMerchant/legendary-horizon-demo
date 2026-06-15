@@ -2389,6 +2389,21 @@ export function useNightOneFlow() {
     setRealmProgress((p) => markResearchComplete(p, id));
   }, []);
 
+  // ── Comparison Ledger eligibility ─────────────────────────────────────────
+  // Gate: all 3 Foretold Signpost realms visited + at least 5 guilds researched.
+  const comparisonLedgerGateStatus = useMemo(() => {
+    const signpostIds = exploration.foretold_signpost_realm_ids ?? [];
+    const researchedSet = new Set(
+      Object.entries(realmProgress)
+        .filter(([, e]) => e?.research_complete)
+        .map(([id]) => id),
+    );
+    const signpostsVisited = signpostIds.filter((id) => researchedSet.has(id)).length;
+    const guildsResearched = researchedSet.size;
+    const eligible = signpostsVisited >= 3 && guildsResearched >= 5;
+    return { signpostsVisited, guildsResearched, eligible };
+  }, [exploration.foretold_signpost_realm_ids, realmProgress]);
+
   /** Submit the Comparison Ledger to the teacher backend. */
   const submitComparisonLedger = useCallback(async () => {
     const pid = player?.player_id ?? '';
@@ -2398,10 +2413,16 @@ export function useNightOneFlow() {
       .filter(([, e]) => e?.research_complete)
       .map(([id]) => id);
 
-    if (researchedIds.length < 2) {
+    const signpostIds = exploration.foretold_signpost_realm_ids ?? [];
+    const researchedSet = new Set(researchedIds);
+    const signpostsVisited = signpostIds.filter((id) => researchedSet.has(id)).length;
+
+    if (signpostsVisited < 3 || researchedIds.length < 5) {
+      const sp = `Foretold Signposts: ${signpostsVisited}/3`;
+      const gr = `Guilds Researched: ${researchedIds.length}/5`;
       setSaveFeedback({
         tone: 'error',
-        text: 'Research at least two guild halls before turning in your Comparison Ledger.',
+        text: `Ledger not ready — ${sp} · ${gr}`,
       });
       return;
     }
@@ -3470,6 +3491,7 @@ export function useNightOneFlow() {
     recordRealmResearch,
     updateRealmReflection,
     submitComparisonLedger,
+    comparisonLedgerGateStatus,
     updateRealmNotes,
     submitLedgerEntry,
     markActiveWaypointVisited,
