@@ -113,8 +113,8 @@ export function BuildDebugStamp({ tileMapUrl, mapVariant }: Props) {
     <div
       style={{
         position: 'fixed',
-        top: 6,
-        right: 6,
+        bottom: 6,
+        left: 6,
         zIndex: 99999,
         background: 'rgba(0,0,0,0.88)',
         color: '#d4f7a0',

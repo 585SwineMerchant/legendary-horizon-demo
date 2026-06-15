@@ -32,6 +32,7 @@ type Props = {
   activeLedgerRealmId?: string | null;
   onSubmit?: () => void;
   syncStatus?: SyncStatus;
+  backLabel?: string;
 };
 
 export function RealmComparisonPanel({
@@ -44,6 +45,7 @@ export function RealmComparisonPanel({
   activeLedgerRealmId,
   onSubmit,
   syncStatus,
+  backLabel = '← Back to Atlas',
 }: Props) {
   const activeRowRef = useRef<HTMLTableRowElement | null>(null);
 
@@ -83,7 +85,7 @@ export function RealmComparisonPanel({
             className="lh-button lh-button--ghost lh-ledger-panel__back"
             onClick={onClose}
           >
-            ← Back to Atlas
+            {backLabel}
           </button>
           {onSubmit && (
             <button

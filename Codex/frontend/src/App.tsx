@@ -8,6 +8,7 @@ import { OracleProphecyReveal } from './screens/OracleProphecyReveal';
 import { OracleCinematicPlayer } from './screens/OracleCinematicPlayer';
 import { resolveOracleProphecyFromRealmIds } from './modules/act2/oracleCareerData';
 import { RealmAtlasOverlay } from './components/RealmAtlasOverlay';
+import { RealmComparisonPanel } from './components/RealmComparisonPanel';
 import { WorldMapOverlay } from './components/WorldMapOverlay';
 import { AcademicWorksheetsOverlay } from './components/AcademicWorksheetsOverlay';
 import { InventoryOverlay } from './components/InventoryOverlay';
@@ -47,6 +48,7 @@ export function App() {
   const a11y = useLhAccessibilityPrefs();
   const teacherEnabled = import.meta.env.DEV || import.meta.env.VITE_LH_TEACHER_DASHBOARD === 'true';
   const [teacherDashboardOpen, setTeacherDashboardOpen] = useState(false);
+  const [scrollLedgerOpen, setScrollLedgerOpen] = useState(false);
   const {
     screen,
     realm,
@@ -316,6 +318,11 @@ export function App() {
     return null;
   }, [exploration.module_drafts?.mod_master_scribe_survey, exploration.scroll_reveal_performed]);
 
+  const scrollLedgerResearchedRealmIds = useMemo(
+    () => Object.entries(realmProgress).filter(([, e]) => e?.research_complete).map(([id]) => id),
+    [realmProgress],
+  );
+
   // Resolve the oracle prophecy from the player's foretold signpost realm IDs.
   // Used to pass the correct prophecyId / title to OracleProphecyReveal.
   const oracleProphecyDef = useMemo(
@@ -471,7 +478,23 @@ export function App() {
           if (url) window.open(url, '_blank');
         }}
         onOpenQuestOfFateWorksheet={() => navigate.openModule('mod_quest_of_fate_worksheet')}
+        onOpenComparisonLedger={() => setScrollLedgerOpen(true)}
       /> : null}
+
+      {!teacherDashboardOpen && scrollLedgerOpen ? (
+        <RealmComparisonPanel
+          open={scrollLedgerOpen}
+          onClose={() => setScrollLedgerOpen(false)}
+          backLabel="← Back to Documents"
+          realms={allRealms}
+          researchedRealmIds={scrollLedgerResearchedRealmIds}
+          reflections={exploration.realm_reflections ?? {}}
+          onUpdateReflection={updateRealmReflection}
+          activeLedgerRealmId={activeLedgerRealmId}
+          onSubmit={submitComparisonLedger}
+          syncStatus={exploration.comparison_ledger_sync_status}
+        />
+      ) : null}
 
       {!teacherDashboardOpen ? (
         <SystemToastOverlay message={saveFeedback} onConsumed={navigate.dismissSaveFeedback} />

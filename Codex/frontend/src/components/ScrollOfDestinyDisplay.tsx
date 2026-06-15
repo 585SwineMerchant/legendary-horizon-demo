@@ -54,6 +54,7 @@ type Props = {
   onOpenScrollViewer?: () => void;
   onReviewProphecy?: () => void;
   onOpenQuestOfFateWorksheet?: () => void;
+  onOpenComparisonLedger?: () => void;
 };
 
 // ── Scroll Layout Config ───────────────────────────────────────────────────
@@ -577,9 +578,11 @@ interface WorkFileEntry {
 function buildWorkFiles(
   player: PlayerSave | null,
   quests: readonly QuestDefinition[],
+  realmProgress?: RealmProgressMap,
 ): WorkFileEntry[] {
   const hasSave    = player !== null;
   const hasStarted = hasSave && (player.xp_total > 0 || player.current_act > 1);
+  const hasResearchedRealm = Object.values(realmProgress ?? {}).some((e) => e?.research_complete);
 
   // Quest of Fate unlocks when mq-202 (Runes Become Legible) completes, which
   // triggers mq-203 (The Quest of Fate) to become available. Check both so the
@@ -627,9 +630,9 @@ function buildWorkFiles(
       fantasyTitle: 'Comparison Ledger',
       realTitle: 'Career Comparison Notes',
       loreDesc: 'Evidence from three foretold paths — side-by-side career analysis.',
-      status: 'locked',
-      lockLabel: 'Locked — Act II / III',
-      btnLabel: 'Coming Soon',
+      status: hasResearchedRealm ? 'available' : 'locked',
+      lockLabel: hasResearchedRealm ? null : 'Locked — Visit a Guild Research Hub',
+      btnLabel: hasResearchedRealm ? 'Open' : 'Coming Soon',
     },
     {
       id: 'realm_recon',
@@ -683,14 +686,18 @@ function WorkFilesTab({
   player,
   quests,
   exploration,
+  realmProgress,
   onOpenQuestOfFateWorksheet,
+  onOpenComparisonLedger,
 }: {
   player: PlayerSave | null;
   quests: readonly QuestDefinition[];
   exploration?: ExplorationLoopState | null;
+  realmProgress?: RealmProgressMap;
   onOpenQuestOfFateWorksheet?: () => void;
+  onOpenComparisonLedger?: () => void;
 }) {
-  const files = buildWorkFiles(player, quests);
+  const files = buildWorkFiles(player, quests, realmProgress);
 
   function handleFileOpen(file: WorkFileEntry) {
     if (file.status === 'locked') return;
@@ -699,6 +706,9 @@ function WorkFilesTab({
         console.log('[LH_WORKFILES] opened', { id: file.id, module: 'mod_quest_of_fate_worksheet' });
       }
       onOpenQuestOfFateWorksheet?.();
+    }
+    if (file.id === 'comparison_ledger') {
+      onOpenComparisonLedger?.();
     }
   }
 
@@ -1065,6 +1075,7 @@ function ReflectionArchiveTab({ player }: { player: PlayerSave | null }) {
 function JournalShell({
   player, quests, allRealms, exploration, realmProgress,
   onOpenQuestOfFateWorksheet,
+  onOpenComparisonLedger,
   onBackToScroll,
 }: Props & { onBackToScroll: () => void }) {
   const [activeTab, setActiveTab] = useState<FieldJournalTab>('work_files');
@@ -1110,7 +1121,9 @@ function JournalShell({
             player={player}
             quests={quests}
             exploration={exploration}
+            realmProgress={realmProgress}
             onOpenQuestOfFateWorksheet={onOpenQuestOfFateWorksheet}
+            onOpenComparisonLedger={onOpenComparisonLedger}
           />
         ) : null}
         {activeTab === 'journey_review'     ? <JourneyReviewTab player={player} exploration={exploration} /> : null}
