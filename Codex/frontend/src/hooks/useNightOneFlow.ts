@@ -157,6 +157,8 @@ import { deepClone } from '../lib/clone';
 import {
   LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT,
   LH_WINDOW_PHASER_GUILD_RESEARCH_EXIT,
+  LH_WINDOW_PHASER_PLAYER_POSITION,
+  type LhPhaserPlayerPositionDetail,
 } from '../lib/lhPhaserGuildResearchBridge';
 import { playLhSfx } from '../lib/lhSfx';
 import {
@@ -1385,6 +1387,23 @@ export function useNightOneFlow() {
     return () => window.removeEventListener('lh:mq105-echo-interact', handler);
   }, []); // registered once — setActiveEncounter reads from ref, setQuests is functional
 
+  // ── Player Position Tracking ─────────────────────────────────────────────────
+  // Phaser emits lh:phaser-player-position every ~10 s and on every Scroll-open (pause).
+  // Stored in ExplorationLoopState so the next session restores the player at the correct spot.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { x, y } = (e as CustomEvent<LhPhaserPlayerPositionDetail>).detail;
+      if (typeof x !== 'number' || typeof y !== 'number' || !isFinite(x) || !isFinite(y)) return;
+      setExploration((prev) => {
+        if (prev.saved_player_x === x && prev.saved_player_y === y) return prev;
+        return { ...prev, saved_player_x: Math.round(x), saved_player_y: Math.round(y) };
+      });
+    };
+    window.addEventListener(LH_WINDOW_PHASER_PLAYER_POSITION, handler);
+    return () => window.removeEventListener(LH_WINDOW_PHASER_PLAYER_POSITION, handler);
+  }, []); // setExploration is stable; no deps needed
+  // ────────────────────────────────────────────────────────────────────────────
+
   // ── Oracle Altar Zone ────────────────────────────────────────────────────────
   // Phaser fires lh:oracle-altar-zone-enter/exit when the player walks in/out of the altar proximity zone.
   // Phaser fires lh:oracle-altar-scroll-open when the player presses Space inside the altar zone.
@@ -1704,10 +1723,6 @@ export function useNightOneFlow() {
         const firstKcBeaten = LOST_ECHO_KC_INTERACTABLE_IDS.some((id) => visitedInteractableIds.includes(id));
         if (revealed.has(triggerRealm)) {
           if (truePathRealm && truePathRealm === triggerRealm && firstKcBeaten) {
-            setRealmProgress((p) => markResearchComplete(p, triggerRealm));
-            setActiveLedgerRealmId(triggerRealm);
-            setRealmAtlasEntryIntent({ initialGuildRealmId: triggerRealm, fogRevealRealmId: null });
-            phaserGuildResearchExitWhenAtlasClosedRef.current = interactableId;
             // MQ-402 "Travel to Chosen Guild HQ": entering the physical True Path HQ completes it.
             const mq402re = quests.find((q) => q.quest_id === 'mq-402');
             if (mq402re && (mq402re.status === 'active' || mq402re.status === 'available')) {
@@ -1724,9 +1739,62 @@ export function useNightOneFlow() {
                   : p,
               );
             }
-            playLhSfx('door_open');
-            setPauseOpen(false);
-            setRealmAtlasOpen(true);
+            const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
+            if (!ge.application_unlocked) {
+              // First encounter with True Path HQ — fire the Guild Manager meeting.
+              const mq403ge = quests.find((q) => q.quest_id === 'mq-403');
+              if (mq403ge && (mq403ge.status === 'available' || mq403ge.status === 'active')) {
+                completeQuestWithXp('mq-403');
+              }
+              setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'gt-101')));
+              setPlayer((p) =>
+                p
+                  ? {
+                      ...p,
+                      active_main_quest_id: 'gt-101',
+                      active_main_quest_title: 'Complete the Rite of Enrollment',
+                      required_next_action: 'Complete the Enrollment Rune application at your Guild HQ.',
+                    }
+                  : p,
+              );
+              setExploration((e) =>
+                mergeGuildHqAtlasRevealed(
+                  mergeGuildEndgameIntoExploration(e, {
+                    application_unlocked: true,
+                    phase: 'application_available',
+                  }),
+                  triggerRealm,
+                ),
+              );
+              playLhSfx('door_open');
+              setPauseOpen(false);
+              setNpcDialogue({
+                npcId: 'guild_manager_hq_npc',
+                title: 'Guild Manager',
+                speakerLabel: 'Guild Manager',
+                body:
+                  'Traveler. We have heard of your research. You have compared the guild roads and you have chosen ours.\n\n' +
+                  'That is not a small thing.\n\n' +
+                  'I cannot offer you a seat in this hall on reputation alone. Every Traveler who enters through these doors completes an Enrollment Rune first. It tells us who you are, what you bring, and why you belong here.\n\n' +
+                  'Complete it honestly. There is no wrong answer — only an unfinished one.',
+                portraitUrl: undefined,
+                narrationSequenceId: 'guild_manager_first_meeting',
+              });
+              guildManagerModulePendingRef.current = 'mod_gt101_enrollment_rune';
+              return;
+            }
+            if (!ge.application_sealed) {
+              setSaveFeedback({ tone: 'success', text: 'Your Enrollment Rune is still open. Complete it when you are ready.' });
+              return;
+            }
+            // Enrollment Rune sealed — show phase-appropriate status toast.
+            const phaseMsg =
+              ge.phase === 'guild_accepted_v1'
+                ? 'You have been accepted into this guild. Your journey continues.'
+                : ge.phase === 'interview_invited'
+                ? 'You have been invited to an interview. Speak with the Guild Manager to proceed.'
+                : 'Your Enrollment Rune has been submitted. The Guild Manager will be in touch.';
+            setSaveFeedback({ tone: 'success', text: phaseMsg });
             return;
           }
           playLhSfx('action_blocked');

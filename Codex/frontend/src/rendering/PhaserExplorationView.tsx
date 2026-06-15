@@ -8,6 +8,7 @@ import { PRIMARY_WORLD_TRIGGER_REALM_ID } from '../runtime/primaryWorldMap';
 import {
   LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT,
   LH_WINDOW_PHASER_GUILD_RESEARCH_EXIT,
+  LH_WINDOW_PHASER_PLAYER_POSITION,
   type LhPhaserGuildResearchBridgeDetail,
 } from '../lib/lhPhaserGuildResearchBridge';
 import { playLhLostEchoSwingSfx, playLhSfx, playLhTravelerSwingSfx } from '../lib/lhSfx';
@@ -107,6 +108,14 @@ type Props = {
    * This prevents game keys from firing while students type in documents.
    */
   overlayBlocksInput?: boolean;
+  /**
+   * World-space pixel X from the last saved session.
+   * When provided, Phaser skips the authored spawn point and places the player here instead.
+   * Value is persisted via `lh:phaser-player-position` window event → ExplorationLoopState.
+   */
+  savedPlayerX?: number | null;
+  /** World-space pixel Y from the last saved session. @see savedPlayerX */
+  savedPlayerY?: number | null;
 };
 
 type TriggerRect = {
@@ -1078,6 +1087,8 @@ export function PhaserExplorationView({
   restedReadinessMultiplier = 1.0,
   hasAmberFlame = false,
   overlayBlocksInput = false,
+  savedPlayerX,
+  savedPlayerY,
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
@@ -1094,6 +1105,9 @@ export function PhaserExplorationView({
   const restedReadinessMultiplierRef = useRef<number>(restedReadinessMultiplier);
   const hasAmberFlameRef = useRef<boolean>(hasAmberFlame);
   const overlayBlocksInputRef = useRef<boolean>(overlayBlocksInput);
+  const savedPlayerPositionRef = useRef<{ x: number; y: number } | null>(
+    savedPlayerX != null && savedPlayerY != null ? { x: savedPlayerX, y: savedPlayerY } : null,
+  );
 
   useEffect(() => {
     lostEchoDiagVisitedRef.current = lostEchoDiagVisitedTriggerIds ?? [];
@@ -1168,6 +1182,7 @@ export function PhaserExplorationView({
       const _hasAmberFlame = hasAmberFlameRef;
       const _overlayBlocksInput = overlayBlocksInputRef;
       const _dialogueNpcId = dialogueNpcIdRef;
+      const _savedPlayerPosition = savedPlayerPositionRef;
       const _onActivate = (interactableId: string) => onActivateHotspotRef.current(interactableId);
       const _lostEchoDiagVisited = lostEchoDiagVisitedRef;
       const _triggers: TriggerRect[] = _parsedMap.triggers.map((t) => {
@@ -1244,6 +1259,8 @@ export function PhaserExplorationView({
         /** Foot spawn for this session — used to suppress the interaction prompt over the demo spawn tile. */
         private explorationSpawnFootX = 0;
         private explorationSpawnFootY = 0;
+        /** Timestamp of last `lh:phaser-player-position` emit — throttled to every 10 s. */
+        private lastPositionEmitAt = 0;
         private fogStatics!: Phaser.Physics.Arcade.StaticGroup;
         private solidStatics!: Phaser.Physics.Arcade.StaticGroup;
         private triggerBodies: Array<{ rect: Phaser.GameObjects.Rectangle; meta: TriggerRect }> = [];
@@ -4311,8 +4328,16 @@ export function PhaserExplorationView({
                 : maiaPortal
                   ? maiaPortal.y + maiaPortal.h + 150
                   : hpx / 2;
-          const spawnX = Phaser.Math.Clamp(rawSpawnX, 24, wpx - 24);
-          const spawnY = Phaser.Math.Clamp(rawSpawnY, 24, hpx - 24);
+          let spawnX = Phaser.Math.Clamp(rawSpawnX, 24, wpx - 24);
+          let spawnY = Phaser.Math.Clamp(rawSpawnY, 24, hpx - 24);
+          // Restore last known player position from save (overrides authored spawn point).
+          const _savedPos = _savedPlayerPosition.current;
+          if (_savedPos &&
+              _savedPos.x >= 24 && _savedPos.x <= wpx - 24 &&
+              _savedPos.y >= 24 && _savedPos.y <= hpx - 24) {
+            spawnX = _savedPos.x;
+            spawnY = _savedPos.y;
+          }
           this.explorationSpawnFootX = spawnX;
           this.explorationSpawnFootY = spawnY;
 
@@ -5321,6 +5346,16 @@ export function PhaserExplorationView({
             return;
           }
 
+          // Throttled player-position emit so React can persist spawn point across sessions.
+          if (this.player && this.time.now - this.lastPositionEmitAt > 10_000) {
+            this.lastPositionEmitAt = this.time.now;
+            window.dispatchEvent(
+              new CustomEvent(LH_WINDOW_PHASER_PLAYER_POSITION, {
+                detail: { x: this.player.x, y: this.player.y },
+              }),
+            );
+          }
+
           if (Phaser.Input.Keyboard.JustDown(this.keyPause)) {
             if (this.playerInOracleAltarZone) {
               // Intercept Space while inside the Oracle altar zone — React decides whether
@@ -5328,6 +5363,14 @@ export function PhaserExplorationView({
               console.log('[LH_ORACLE_ALTAR] scroll open intercepted');
               window.dispatchEvent(new CustomEvent('lh:oracle-altar-scroll-open'));
             } else {
+              // Emit position before handing off to React — ensures last position is fresh on pause-save.
+              if (this.player) {
+                window.dispatchEvent(
+                  new CustomEvent(LH_WINDOW_PHASER_PLAYER_POSITION, {
+                    detail: { x: this.player.x, y: this.player.y },
+                  }),
+                );
+              }
               onPauseRef.current?.();
             }
             return;

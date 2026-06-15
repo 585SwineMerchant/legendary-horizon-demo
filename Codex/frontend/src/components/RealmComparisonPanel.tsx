@@ -87,6 +87,17 @@ export function RealmComparisonPanel({
           <p className="lh-eyebrow lh-ledger-panel__eyebrow">Act III — Guild Research</p>
           <h2 className="lh-ledger-panel__title">Comparison Ledger</h2>
         </div>
+        {/* Progress reminder — centered so it never overlaps the right-side buttons */}
+        {onSubmit && ledgerGate && !ledgerGate.eligible && syncStatus !== 'synced' && (
+          <div className="lh-ledger-panel__gate-status lh-ledger-panel__gate-status--center" role="status">
+            <span className="lh-ledger-panel__gate-line">
+              Foretold Signposts: {ledgerGate.signpostsVisited}/3
+            </span>
+            <span className="lh-ledger-panel__gate-line">
+              Guilds Researched: {ledgerGate.guildsResearched}/5
+            </span>
+          </div>
+        )}
         <div className="lh-ledger-panel__chrome-right">
           <button
             type="button"
@@ -103,16 +114,6 @@ export function RealmComparisonPanel({
 
             return (
               <div className="lh-ledger-panel__submit-area">
-                {!alreadySubmitted && ledgerGate && !ledgerGate.eligible && (
-                  <div className="lh-ledger-panel__gate-status" role="status">
-                    <span className="lh-ledger-panel__gate-line">
-                      Foretold Signposts: {ledgerGate.signpostsVisited}/3
-                    </span>
-                    <span className="lh-ledger-panel__gate-line">
-                      Guilds Researched: {ledgerGate.guildsResearched}/5
-                    </span>
-                  </div>
-                )}
                 <button
                   type="button"
                   className={`lh-button lh-ledger-panel__submit${alreadySubmitted ? ' lh-ledger-panel__submit--done' : ''}${!gateOk ? ' lh-ledger-panel__submit--gated' : ''}`}

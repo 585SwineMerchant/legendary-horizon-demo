@@ -53,6 +53,7 @@ export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) 
   const narrationRef = useRef<HTMLAudioElement | null>(null);
   const nextEchoRef = useRef(0);
   const [visible, setVisible] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
   const [muted, setMuted] = useState(() => {
     if (typeof document === 'undefined') return false;
     return document.documentElement.dataset.lhAudio === 'muted';
@@ -164,6 +165,52 @@ export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) 
     return () => observer.disconnect();
   }, []);
 
+  // Text-card fallback: shown when the video asset is unavailable (school network, missing file).
+  if (videoFailed) {
+    return (
+      <section
+        className="lh-screen lh-screen--oracle-cinematic"
+        aria-label="Oracle of Fate cinematic"
+        style={{
+          position: 'fixed', inset: 0, zIndex: 9000,
+          background: 'radial-gradient(ellipse at 50% 40%, #1a0e2e 0%, #0a0610 60%, #000 100%)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <div style={{ maxWidth: 560, padding: '40px 48px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <p style={{ margin: 0, fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(180,120,240,0.65)' }}>
+            The Oracle Speaks
+          </p>
+          <p style={{ margin: 0, fontSize: 22, fontFamily: 'var(--lh-guild-display, "Cinzel", serif)', fontWeight: 700, color: '#e8d8ff', lineHeight: 1.35 }}>
+            "I have watched you longer than you know, Traveler."
+          </p>
+          <p style={{ margin: 0, fontSize: 15, color: 'rgba(232,216,255,0.72)', lineHeight: 1.7 }}>
+            The fog that surrounds your path is not an obstacle.<br />
+            It is an invitation.<br />
+            What lies beyond it was written for you — and only you.
+          </p>
+          <p style={{ margin: 0, fontSize: 13, color: 'rgba(180,120,240,0.55)', fontStyle: 'italic', lineHeight: 1.6 }}>
+            "Step forward. Your Scroll of Destiny awaits its first true inscription."
+          </p>
+          <button
+            type="button"
+            onClick={handleFinished}
+            style={{
+              marginTop: 8, alignSelf: 'center',
+              padding: '12px 32px', fontSize: 14,
+              fontFamily: 'var(--lh-guild-display, "Cinzel", serif)', fontWeight: 700,
+              background: 'rgba(120,60,200,0.18)',
+              border: '1px solid rgba(180,120,240,0.40)',
+              borderRadius: 4, color: '#d4b8ff', cursor: 'pointer', letterSpacing: '0.06em',
+            }}
+          >
+            Receive the Prophecy →
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section
       className="lh-screen lh-screen--oracle-cinematic"
@@ -180,12 +227,13 @@ export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) 
         onSeeking={handleSeeking}
         onEnded={handleFinished}
         onError={() => {
-          // If the video fails to load (missing asset, network error), skip through
-          // so the oracle flow never gets permanently blocked.
+          // Video unavailable (missing asset or school network block).
+          // Show a text-card fallback so the player sees the Oracle narrative
+          // before the prophecy reveal — do NOT auto-skip.
           if (import.meta.env.DEV) {
-            console.warn('[OracleCinematicPlayer] Video failed to load — skipping to prophecy reveal.', ORACLE_VIDEO_SRC);
+            console.warn('[OracleCinematicPlayer] Video failed to load — showing text fallback.', ORACLE_VIDEO_SRC);
           }
-          handleFinished();
+          setVideoFailed(true);
         }}
         style={{
           position: 'absolute',

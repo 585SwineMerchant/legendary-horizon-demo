@@ -90,7 +90,7 @@ export function GuildRealmInfoOverlay({
     () => (realm ? resolveGuildHqHeroAsset(realm, mediaCatalog) : null),
     [realm, mediaCatalog],
   );
-  const hasHeroVisual = Boolean(workbookHeroSrc || heroAsset);
+  const hasHeroVisual = true; // text-card fallback always fills the visual rail
   const pathTags = realm ? getRealmPathInterestTags(realm) : [];
   const realmQuests = realm ? filterQuestsForRealm(quests, realm.realm_id) : [];
   const careerSpotlightUrl = realm ? getGuildRealmCareerOneStopUrl(realm.realm_id) : undefined;
@@ -243,7 +243,27 @@ export function GuildRealmInfoOverlay({
               loading="eager"
               className="lh-guild-realm-modal__visual-img"
             />
-          ) : null}
+          ) : (
+            /* Text-card fallback: shown when all Drive/catalog image URLs are unavailable
+               (school network firewall blocks drive.google.com). */
+            <div className="lh-guild-realm-modal__visual-textcard" aria-hidden="false">
+              <div className="lh-guild-realm-modal__visual-textcard-decor" aria-hidden="true">
+                {decor}
+              </div>
+              <p className="lh-guild-realm-modal__visual-textcard-name">{realm.display_name}</p>
+              <p className="lh-guild-realm-modal__visual-textcard-cluster">{cluster}</p>
+              {careerSpotlightUrl ? (
+                <a
+                  href={careerSpotlightUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="lh-guild-realm-modal__visual-textcard-link"
+                >
+                  Explore careers ↗
+                </a>
+              ) : null}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -73,9 +73,11 @@ type Props = {
 };
 
 export function BuildDebugStamp({ tileMapUrl, mapVariant }: Props) {
-  const active =
+  const fullPanel =
     import.meta.env.DEV ||
     new URLSearchParams(window.location.search).get('lh_build_debug') === '1';
+  // Keep the old name so the rest of the function compiles unchanged.
+  const active = fullPanel;
 
   const [probes, setProbes] = useState<AssetProbe[]>(() =>
     buildProbeList().map(p => ({ ...p, status: 'pending' as ProbeStatus }))
@@ -109,11 +111,42 @@ export function BuildDebugStamp({ tileMapUrl, mapVariant }: Props) {
     { label: 'map variant',value: mapVariant ?? '—' },
   ];
 
-  return (
+  // Always-visible compact chip: shows commit + date even in production.
+  const miniStamp = (
     <div
+      key="mini"
       style={{
         position: 'fixed',
         bottom: 6,
+        left: 6,
+        zIndex: 99999,
+        background: 'rgba(0,0,0,0.72)',
+        color: 'rgba(212,247,160,0.80)',
+        fontFamily: 'monospace',
+        fontSize: 9,
+        lineHeight: 1.5,
+        padding: '3px 7px',
+        borderRadius: 3,
+        border: '1px solid rgba(212,247,160,0.18)',
+        pointerEvents: 'none',
+        userSelect: 'none',
+        whiteSpace: 'nowrap',
+      }}
+      aria-hidden
+    >
+      {`rev:${__LH_BUILD_COMMIT__} · ${__LH_BUILD_DATE__}`}
+    </div>
+  );
+
+  if (!active) return miniStamp;
+
+  return (
+    <>
+      {miniStamp}
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 28,
         left: 6,
         zIndex: 99999,
         background: 'rgba(0,0,0,0.88)',
@@ -158,5 +191,6 @@ export function BuildDebugStamp({ tileMapUrl, mapVariant }: Props) {
         ))}
       </div>
     </div>
+    </>
   );
 }

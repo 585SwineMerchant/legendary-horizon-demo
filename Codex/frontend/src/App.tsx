@@ -485,6 +485,8 @@ export function App() {
           onEncounterRetreat={onEncounterRetreat}
           lostEchoDiagVisitedTriggerIds={visitedInteractableIds}
           overlayBlocksInput={moduleHostOpen || scrollRevealOpen || oracleCinematicOpen || oracleProphecyOpen}
+          savedPlayerX={exploration.saved_player_x ?? null}
+          savedPlayerY={exploration.saved_player_y ?? null}
           guildBreatherBanner={
             guildPathExplorationBanner
               ? { title: guildPathExplorationBanner.bannerTitle, body: guildPathExplorationBanner.bannerBody }

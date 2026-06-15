@@ -253,10 +253,28 @@ export function buildDemoGuidanceMap(parsedMap: ParsedLhMap): ParsedLhMap {
     (trigger) => trigger.kind === 'combat_encounter' && trigger.tiled_name === MQ105_KNOWLEDGE_ECHO_TRIGGER_NAME,
   );
 
-  // When a real Oracle altar NPC sprite exists in the map, the oracle_encounter zone becomes a
-  // duplicate interaction point. Remove it so only the altar NPC activates the Oracle sequence.
+  // When a real Oracle altar NPC sprite exists, remove oracle_encounter zones (they become
+  // duplicate interaction points). Also deduplicate oracle NPC triggers: if the Tiled map
+  // accidentally has two npc_dialogue/oracle_veiled objects, keep only the southernmost one
+  // (highest Y value in screen coordinates) — the real shrine is always south of the midpoint.
+  const oracleNpcTriggers = parsedMap.triggers.filter(
+    (t) => t.kind === 'npc_dialogue' && t.npc_id === 'oracle_veiled',
+  );
+  const canonicalOracleId: number | null =
+    oracleNpcTriggers.length > 1
+      ? oracleNpcTriggers.reduce((best, t) =>
+          t.bounds.y + t.bounds.height / 2 > best.bounds.y + best.bounds.height / 2 ? t : best,
+        ).tiled_object_id
+      : null;
+
   const effectiveTriggers = hasOracleNpcDialogue
-    ? parsedMap.triggers.filter((t) => t.kind !== 'oracle_encounter')
+    ? parsedMap.triggers.filter((t) => {
+        if (t.kind === 'oracle_encounter') return false;
+        if (canonicalOracleId !== null && t.kind === 'npc_dialogue' && t.npc_id === 'oracle_veiled') {
+          return t.tiled_object_id === canonicalOracleId;
+        }
+        return true;
+      })
     : parsedMap.triggers;
 
   if (hasOracleNpcDialogue && effectiveTriggers.length < parsedMap.triggers.length) {

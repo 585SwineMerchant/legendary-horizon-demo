@@ -87,6 +87,10 @@ type Props = {
   tileMapUrl?: string;
   /** When true, suppress all Phaser keyboard input (overlay covers the canvas). */
   overlayBlocksInput?: boolean;
+  /** Saved player world-space X to restore spawn position across sessions. */
+  savedPlayerX?: number | null;
+  /** Saved player world-space Y to restore spawn position across sessions. */
+  savedPlayerY?: number | null;
 };
 
 export function ExplorationScreen({
@@ -122,6 +126,8 @@ export function ExplorationScreen({
   lostEchoDiagVisitedTriggerIds,
   tileMapUrl,
   overlayBlocksInput = false,
+  savedPlayerX,
+  savedPlayerY,
 }: Props) {
   useEscapeToClose(Boolean(npcDialogue), onDismissNpcDialogue ?? (() => undefined));
   const jrpgKnowledgeEncounter = activeEncounter?.presentation === 'jrpg_knowledge';
@@ -186,6 +192,8 @@ export function ExplorationScreen({
           restedReadinessMultiplier={getRestedMultiplier(player.rested_readiness_tier)}
           hasAmberFlame={hasAmberFlameVisual(parseSatchelInventory(player.satchel_inventory_json).cosmetics)}
           overlayBlocksInput={overlayBlocksInput}
+          savedPlayerX={savedPlayerX}
+          savedPlayerY={savedPlayerY}
         />
       ) : null}
 

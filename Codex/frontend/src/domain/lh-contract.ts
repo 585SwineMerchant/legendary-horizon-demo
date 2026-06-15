@@ -432,6 +432,10 @@ export type ExplorationLoopState = {
   last_safe_camp_x?: number;
   /** World-space tile Y of last campfire save. */
   last_safe_camp_y?: number;
+  /** World-space pixel X of last known player position — restored as Phaser spawn on session resume. */
+  saved_player_x?: number;
+  /** World-space pixel Y of last known player position — restored as Phaser spawn on session resume. */
+  saved_player_y?: number;
 };
 
 /**
