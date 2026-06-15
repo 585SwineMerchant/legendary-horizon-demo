@@ -25,7 +25,7 @@
  * ADDING NEW ASSETS
  * ──────────────────
  * 1. Add the file to `public/assets/<category>/`.
- * 2. Add an entry to the relevant typed record below.
+ * 2. Add an entry to the relevant typed record below with `local_path: 'assets/<category>/<name>.webp'`.
  * 3. Reference `LH_MEDIA_MANIFEST` in the loading code — do NOT construct Drive URLs inline.
  */
 
@@ -42,9 +42,9 @@ export type LhMediaManifestEntry = {
   /** NPC identifier when this asset is scoped to a specific NPC. */
   npc_id?: string;
   /**
-   * Path relative to `/assets/`, no leading slash.
-   * Use `publicAssetUrl(entry.local_path)` to resolve the serving URL.
-   * WebP preferred for images; PNG/SVG for sprites and UI that need transparency.
+   * Path as passed to `publicAssetUrl()` / `resolveLhAssetUrl()` — includes the `assets/` prefix,
+   * no leading slash. Example: `'assets/guilds/aethelwood.webp'`.
+   * Matches the convention used throughout PhaserExplorationView and lhSfx (e.g. `assets/maps/foo.png`).
    */
   local_path: string;
   /** Accessible alt text or fallback label shown in text-card fallback. */
@@ -57,7 +57,7 @@ export type LhMediaManifestEntry = {
 export const LH_MEDIA_WORLD_ATLAS: LhMediaManifestEntry = {
   asset_id: 'world_atlas_map',
   asset_type: 'image',
-  local_path: 'maps/realm-atlas-world.webp',
+  local_path: 'assets/maps/realm-atlas-world.webp',
   alt: 'Legendary Horizon world map — illustrated parchment showing all 16 guild realms',
   load_group: 'act-load',
 };
@@ -79,7 +79,7 @@ export const LH_MEDIA_GUILD_HEROES: readonly LhMediaManifestEntry[] = [
     asset_id: 'guild_hq_hero_realm_aethelwood',
     asset_type: 'image',
     realm_id: 'realm_aethelwood',
-    local_path: 'guilds/aethelwood.webp',
+    local_path: 'assets/guilds/aethelwood.webp',
     alt: 'Aethelwood Farmsteads — Agriculture, Food, and Natural Resources guild headquarters',
     load_group: 'realm-load',
   },
@@ -87,7 +87,7 @@ export const LH_MEDIA_GUILD_HEROES: readonly LhMediaManifestEntry[] = [
     asset_id: 'guild_hq_hero_realm_monolith_masonry',
     asset_type: 'image',
     realm_id: 'realm_monolith_masonry',
-    local_path: 'guilds/monolith-masonry.webp',
+    local_path: 'assets/guilds/monolith-masonry.webp',
     alt: 'Monolith of Masonry — Architecture and Construction guild headquarters',
     load_group: 'realm-load',
   },
@@ -95,7 +95,7 @@ export const LH_MEDIA_GUILD_HEROES: readonly LhMediaManifestEntry[] = [
     asset_id: 'guild_hq_hero_realm_chroniclers_spire',
     asset_type: 'image',
     realm_id: 'realm_chroniclers_spire',
-    local_path: 'guilds/chroniclers-spire.webp',
+    local_path: 'assets/guilds/chroniclers-spire.webp',
     alt: "Chronicler's Spire — Arts, Audio/Video Technology, and Communications guild headquarters",
     load_group: 'realm-load',
   },
@@ -103,7 +103,7 @@ export const LH_MEDIA_GUILD_HEROES: readonly LhMediaManifestEntry[] = [
     asset_id: 'guild_hq_hero_realm_mercantile_citadel',
     asset_type: 'image',
     realm_id: 'realm_mercantile_citadel',
-    local_path: 'guilds/mercantile-citadel.webp',
+    local_path: 'assets/guilds/mercantile-citadel.webp',
     alt: "Mercantile's Citadel — Business Management and Administration guild headquarters",
     load_group: 'realm-load',
   },
@@ -111,7 +111,7 @@ export const LH_MEDIA_GUILD_HEROES: readonly LhMediaManifestEntry[] = [
     asset_id: 'guild_hq_hero_realm_archives_ascension',
     asset_type: 'image',
     realm_id: 'realm_archives_ascension',
-    local_path: 'guilds/archives-ascension.webp',
+    local_path: 'assets/guilds/archives-ascension.webp',
     alt: 'Archives of Ascension — Education and Training guild headquarters',
     load_group: 'realm-load',
   },
@@ -119,7 +119,7 @@ export const LH_MEDIA_GUILD_HEROES: readonly LhMediaManifestEntry[] = [
     asset_id: 'guild_hq_hero_realm_gilded_vault',
     asset_type: 'image',
     realm_id: 'realm_gilded_vault',
-    local_path: 'guilds/gilded-vault.webp',
+    local_path: 'assets/guilds/gilded-vault.webp',
     alt: 'The Gilded Vault — Finance guild headquarters',
     load_group: 'realm-load',
   },
@@ -127,7 +127,7 @@ export const LH_MEDIA_GUILD_HEROES: readonly LhMediaManifestEntry[] = [
     asset_id: 'guild_hq_hero_realm_high_council_hall',
     asset_type: 'image',
     realm_id: 'realm_high_council_hall',
-    local_path: 'guilds/high-council-hall.webp',
+    local_path: 'assets/guilds/high-council-hall.webp',
     alt: 'The High Council Hall — Government and Public Administration guild headquarters',
     load_group: 'realm-load',
   },
@@ -135,7 +135,7 @@ export const LH_MEDIA_GUILD_HEROES: readonly LhMediaManifestEntry[] = [
     asset_id: 'guild_hq_hero_realm_aurora_apothecary',
     asset_type: 'image',
     realm_id: 'realm_aurora_apothecary',
-    local_path: 'guilds/aurora-apothecary.webp',
+    local_path: 'assets/guilds/aurora-apothecary.webp',
     alt: 'Aurora Apothecary — Health Science guild headquarters',
     load_group: 'realm-load',
   },
@@ -143,7 +143,7 @@ export const LH_MEDIA_GUILD_HEROES: readonly LhMediaManifestEntry[] = [
     asset_id: 'guild_hq_hero_realm_crossroads_haven',
     asset_type: 'image',
     realm_id: 'realm_crossroads_haven',
-    local_path: 'guilds/crossroads-haven.webp',
+    local_path: 'assets/guilds/crossroads-haven.webp',
     alt: 'The Crossroads Haven — Hospitality and Tourism guild headquarters',
     load_group: 'realm-load',
   },
@@ -151,7 +151,7 @@ export const LH_MEDIA_GUILD_HEROES: readonly LhMediaManifestEntry[] = [
     asset_id: 'guild_hq_hero_realm_empaths_enclave',
     asset_type: 'image',
     realm_id: 'realm_empaths_enclave',
-    local_path: 'guilds/empaths-enclave.webp',
+    local_path: 'assets/guilds/empaths-enclave.webp',
     alt: "Empath's Enclave — Human Services guild headquarters",
     load_group: 'realm-load',
   },
@@ -159,7 +159,7 @@ export const LH_MEDIA_GUILD_HEROES: readonly LhMediaManifestEntry[] = [
     asset_id: 'guild_hq_hero_realm_etheric_nexus',
     asset_type: 'image',
     realm_id: 'realm_etheric_nexus',
-    local_path: 'guilds/etheric-nexus.webp',
+    local_path: 'assets/guilds/etheric-nexus.webp',
     alt: 'The Etheric Nexus — Information Technology guild headquarters',
     load_group: 'realm-load',
   },
@@ -167,7 +167,7 @@ export const LH_MEDIA_GUILD_HEROES: readonly LhMediaManifestEntry[] = [
     asset_id: 'guild_hq_hero_realm_valors_watchtower',
     asset_type: 'image',
     realm_id: 'realm_valors_watchtower',
-    local_path: 'guilds/valors-watchtower.webp',
+    local_path: 'assets/guilds/valors-watchtower.webp',
     alt: "Valor's Watchtower — Law, Public Safety, Corrections, and Security guild headquarters",
     load_group: 'realm-load',
   },
@@ -175,7 +175,7 @@ export const LH_MEDIA_GUILD_HEROES: readonly LhMediaManifestEntry[] = [
     asset_id: 'guild_hq_hero_realm_vulcanis_forge',
     asset_type: 'image',
     realm_id: 'realm_vulcanis_forge',
-    local_path: 'guilds/vulcanis-forge.webp',
+    local_path: 'assets/guilds/vulcanis-forge.webp',
     alt: 'The Great Vulcanis Forge — Manufacturing guild headquarters',
     load_group: 'realm-load',
   },
@@ -183,7 +183,7 @@ export const LH_MEDIA_GUILD_HEROES: readonly LhMediaManifestEntry[] = [
     asset_id: 'guild_hq_hero_realm_bards_beacon',
     asset_type: 'image',
     realm_id: 'realm_bards_beacon',
-    local_path: 'guilds/bards-beacon.webp',
+    local_path: 'assets/guilds/bards-beacon.webp',
     alt: "The Bard's Beacon — Marketing guild headquarters",
     load_group: 'realm-load',
   },
@@ -191,7 +191,7 @@ export const LH_MEDIA_GUILD_HEROES: readonly LhMediaManifestEntry[] = [
     asset_id: 'guild_hq_hero_realm_alchemical_observatory',
     asset_type: 'image',
     realm_id: 'realm_alchemical_observatory',
-    local_path: 'guilds/alchemical-observatory.webp',
+    local_path: 'assets/guilds/alchemical-observatory.webp',
     alt: 'The Alchemical Observatory — Science, Technology, Engineering, and Mathematics guild headquarters',
     load_group: 'realm-load',
   },
@@ -199,7 +199,7 @@ export const LH_MEDIA_GUILD_HEROES: readonly LhMediaManifestEntry[] = [
     asset_id: 'guild_hq_hero_realm_odyssey_harbor',
     asset_type: 'image',
     realm_id: 'realm_odyssey_harbor',
-    local_path: 'guilds/odyssey-harbor.webp',
+    local_path: 'assets/guilds/odyssey-harbor.webp',
     alt: "Odyssey's Harbor — Transportation, Distribution, and Logistics guild headquarters",
     load_group: 'realm-load',
   },

@@ -1,7 +1,10 @@
 GUILD HQ HERO IMAGES
 ====================
 
-Place one WebP image per guild realm here. File names must match the realm slug exactly.
+All 16 guild hero images are present as WebP files (converted 2026-06-15 from
+intro/assets PNGs via ffmpeg libwebp, 1280px wide, quality 82).
+
+File names match the realm slug exactly. Do not rename.
 
 NAMING CONVENTION
 -----------------
