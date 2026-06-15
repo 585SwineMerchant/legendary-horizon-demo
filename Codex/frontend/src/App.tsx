@@ -15,7 +15,7 @@ import { InventoryOverlay } from './components/InventoryOverlay';
 import { SatchelOverlay } from './components/SatchelOverlay';
 import { RestedReadinessModal } from './components/RestedReadinessModal';
 import { computeRestedReadinessTier } from './services/restedReadiness';
-import { QuestLogShell, type Act3GuildProgress } from './components/QuestLogShell';
+import { QuestLogShell, type Act3GuildProgress, type Act4GuildProgress } from './components/QuestLogShell';
 import { TruePathPickerModal } from './components/TruePathPickerModal';
 import { SystemToastOverlay } from './components/SystemToastOverlay';
 import { ModuleHostOverlay } from './components/ModuleHostOverlay';
@@ -358,6 +358,17 @@ export function App() {
     comparisonLedgerGateStatus,
   ]);
 
+  const act4GuildProgress = useMemo((): Act4GuildProgress | null => {
+    const ge = exploration.guild_endgame_v1;
+    if (!ge?.application_unlocked) return null;
+    return {
+      applicationUnlocked: ge.application_unlocked,
+      applicationSealed: ge.application_sealed ?? false,
+      interviewInvited: ge.interview_invited ?? false,
+      accepted: ge.phase === 'guild_accepted_v1',
+    };
+  }, [exploration.guild_endgame_v1]);
+
   // True Path picker candidate list: prefer foretold signpost IDs; fall back to researched guilds.
   const truePathCandidateRealmIds = useMemo((): readonly string[] => {
     const signposts = exploration.foretold_signpost_realm_ids ?? [];
@@ -522,6 +533,7 @@ export function App() {
         }}
         onOpenQuestOfFateWorksheet={() => navigate.openModule('mod_quest_of_fate_worksheet')}
         onOpenComparisonLedger={() => setScrollLedgerOpen(true)}
+        onOpenEnrollmentRune={() => navigate.openModule('mod_gt101_enrollment_rune')}
       /> : null}
 
       {!teacherDashboardOpen && scrollLedgerOpen ? (
@@ -632,6 +644,7 @@ export function App() {
         guildPathBreatherNote={guildPathQuestLogNote}
         currentRequiredNextAction={player?.required_next_action ?? null}
         act3GuildProgress={act3GuildProgress}
+        act4GuildProgress={act4GuildProgress}
         onOpenTruePathPicker={openTruePathPicker}
       /> : null}
 

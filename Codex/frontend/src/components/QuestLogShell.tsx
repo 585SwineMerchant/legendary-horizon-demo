@@ -12,6 +12,13 @@ export type Act3GuildProgress = {
   ledgerSubmitted: boolean;
 };
 
+export type Act4GuildProgress = {
+  applicationUnlocked: boolean;
+  applicationSealed: boolean;
+  interviewInvited: boolean;
+  accepted: boolean;
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -20,6 +27,7 @@ type Props = {
   guildPathBreatherNote?: string | null;
   currentRequiredNextAction?: string | null;
   act3GuildProgress?: Act3GuildProgress | null;
+  act4GuildProgress?: Act4GuildProgress | null;
   onOpenTruePathPicker?: () => void;
 };
 
@@ -153,6 +161,72 @@ function Act3GuildMission({ progress }: { progress: Act3GuildProgress }) {
   );
 }
 
+function Act4GuildMission({ progress }: { progress: Act4GuildProgress }) {
+  const { applicationUnlocked, applicationSealed, interviewInvited, accepted } = progress;
+
+  const runeState: ObjState   = applicationSealed ? 'complete' : applicationUnlocked ? 'active' : 'active';
+  const waitState: ObjState   = applicationSealed
+    ? interviewInvited || accepted ? 'complete' : 'active'
+    : 'pending';
+  const inviteState: ObjState = interviewInvited || accepted ? 'complete' : applicationSealed ? 'active' : 'pending';
+  const trialState: ObjState  = accepted ? 'complete' : interviewInvited ? 'active' : 'pending';
+  const acceptState: ObjState = accepted ? 'complete' : 'pending';
+
+  return (
+    <section
+      aria-label="The Rite of Enrollment — Act IV mission"
+      style={{
+        padding: '14px 16px',
+        background: 'rgba(120,80,212,0.07)',
+        border: '1px solid rgba(120,80,212,0.22)',
+        borderRadius: 4,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <span style={{ fontSize: 14, color: 'rgba(160,120,240,0.88)' }} aria-hidden>◈</span>
+        <h3 style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(160,120,240,0.88)' }}>
+          The Rite of Enrollment
+        </h3>
+        <div style={{ flex: 1, height: 1, background: 'rgba(160,120,240,0.18)' }} aria-hidden />
+        <span style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(160,120,240,0.75)', flexShrink: 0 }}>
+          Main · Act IV
+        </span>
+      </div>
+
+      <p style={{ margin: '0 0 12px', fontSize: 11, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>
+        You have chosen your True Path. Now prove yourself worthy of the hall.
+      </p>
+
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <ObjectiveLine
+          state={runeState}
+          label={applicationSealed ? 'Complete the Enrollment Rune — sealed!' : 'Complete the Enrollment Rune (Scroll → Documents)'}
+        />
+        <ObjectiveLine
+          state={waitState}
+          label="Await the Guild Manager's review"
+          sub={!applicationSealed ? 'Unlocks after your application is sealed' : undefined}
+        />
+        <ObjectiveLine
+          state={inviteState}
+          label="Receive your Trial of Tongues summons"
+          sub={!applicationSealed ? 'Unlocks after your application is sealed' : undefined}
+        />
+        <ObjectiveLine
+          state={trialState}
+          label="Pass the Trial of Tongues (interview practice)"
+          sub={!interviewInvited && !accepted ? 'Unlocks after summons received' : undefined}
+        />
+        <ObjectiveLine
+          state={acceptState}
+          label={accepted ? 'Guild acceptance received — journey complete!' : 'Receive guild acceptance'}
+          sub={!accepted && !interviewInvited ? 'Unlocks after the trial' : undefined}
+        />
+      </ul>
+    </section>
+  );
+}
+
 function QuestCard({
   q,
   onMarkQuestTurnedIn,
@@ -254,6 +328,7 @@ export function QuestLogShell({
   guildPathBreatherNote,
   currentRequiredNextAction,
   act3GuildProgress,
+  act4GuildProgress,
   onOpenTruePathPicker,
 }: Props) {
   const groups = useMemo(() => groupQuestsForQuestLog(quests), [quests]);
@@ -297,6 +372,9 @@ export function QuestLogShell({
 
         {/* Act III dynamic mission block — shown when player has reached guild exploration */}
         {act3GuildProgress ? <Act3GuildMission progress={act3GuildProgress} /> : null}
+
+        {/* Act IV dynamic mission block — shown when Guild Manager has been met */}
+        {act4GuildProgress ? <Act4GuildMission progress={act4GuildProgress} /> : null}
 
         {sectionOrder.map((key) => {
           const list = groups[key];

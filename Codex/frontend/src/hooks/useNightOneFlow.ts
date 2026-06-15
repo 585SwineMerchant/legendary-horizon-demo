@@ -599,6 +599,8 @@ export function useNightOneFlow() {
   // Ref set when the Scribe fires the mq311_bridge branch. Picker opens after dialogue is dismissed.
   const truePathPickerPendingRef = useRef(false);
   const [truePathPickerOpen, setTruePathPickerOpen] = useState(false);
+  // Ref set when the Guild Manager first-encounter dialogue fires. Module opens after dialogue dismissed.
+  const guildManagerModulePendingRef = useRef<string | null>(null);
   const [oracleProphecyOpen, setOracleProphecyOpen] = useState(false);
   const [oracleCinematicOpen, setOracleCinematicOpen] = useState(false);
   const [preRevealCheckpointOpen, setPreRevealCheckpointOpen] = useState(false);
@@ -1323,6 +1325,17 @@ export function useNightOneFlow() {
         console.log('[LH_ACT_FLOW_DEBUG] Scribe dialogue dismissed — opening True Path picker');
       }
     }
+    // Act IV: if Guild Manager first-encounter dialogue just fired, open the Enrollment Rune after dismiss.
+    const pendingGmModule = guildManagerModulePendingRef.current;
+    if (pendingGmModule) {
+      guildManagerModulePendingRef.current = null;
+      setPauseOpen(false);
+      setActiveModuleId(pendingGmModule);
+      setModuleHostOpen(true);
+      if (typeof console !== 'undefined') {
+        console.log('[LH_ACT_FLOW_DEBUG] Guild Manager dialogue dismissed — opening module:', pendingGmModule);
+      }
+    }
   }, [npcDialogue]);
 
   // MQ-103 completion: Phaser fires this after all 4 tutorial echoes are defeated.
@@ -1898,11 +1911,8 @@ export function useNightOneFlow() {
           revealAtlasForThisHq();
           setSaveFeedback({
             tone: 'success',
-            text: 'The Guild Manager places the application before you again. Complete the Enrollment Rune while your charter is aligned with this hall.',
+            text: 'Your Enrollment Rune is still open. Complete it when you are ready and return it to this desk.',
           });
-          setPauseOpen(false);
-          setActiveModuleId('mod_gt101_enrollment_rune');
-          setModuleHostOpen(true);
           markDeskVisited();
           return;
         }
@@ -1914,6 +1924,18 @@ export function useNightOneFlow() {
         if (mq403 && (mq403.status === 'available' || mq403.status === 'active')) {
           completeQuestWithXp('mq-403');
         }
+        // Unlock GT-101 and advance player directives.
+        setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'gt-101')));
+        setPlayer((p) =>
+          p
+            ? {
+                ...p,
+                active_main_quest_id: 'gt-101',
+                active_main_quest_title: 'Complete the Rite of Enrollment',
+                required_next_action: 'Complete the Enrollment Rune application at your Guild HQ.',
+              }
+            : p,
+        );
 
         setExploration((e) =>
           mergeGuildHqAtlasRevealed(
@@ -1924,13 +1946,23 @@ export function useNightOneFlow() {
             triggerRealm,
           ),
         );
-        setSaveFeedback({
-          tone: 'success',
-          text: 'Welcome, traveler. The Guild Manager opens the Enrollment Rune and hands you the application for this hall.',
-        });
+
+        // Show mentor dialogue card instead of a generic toast.
+        // Enrollment Rune opens after the player dismisses this dialogue (guildManagerModulePendingRef).
         setPauseOpen(false);
-        setActiveModuleId('mod_gt101_enrollment_rune');
-        setModuleHostOpen(true);
+        setNpcDialogue({
+          npcId: 'guild_manager_hq_npc',
+          title: 'Guild Manager',
+          speakerLabel: 'Guild Manager',
+          body:
+            'Traveler. We have heard of your research. You have compared the guild roads and you have chosen ours.\n\n' +
+            'That is not a small thing.\n\n' +
+            'I cannot offer you a seat in this hall on reputation alone. Every Traveler who enters through these doors completes an Enrollment Rune first. It tells us who you are, what you bring, and why you belong here.\n\n' +
+            'Complete it honestly. There is no wrong answer — only an unfinished one.',
+          portraitUrl: undefined,
+          narrationSequenceId: 'guild_manager_first_meeting',
+        });
+        guildManagerModulePendingRef.current = 'mod_gt101_enrollment_rune';
         markDeskVisited();
         return;
       }

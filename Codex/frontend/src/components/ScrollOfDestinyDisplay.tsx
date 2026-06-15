@@ -55,6 +55,7 @@ type Props = {
   onReviewProphecy?: () => void;
   onOpenQuestOfFateWorksheet?: () => void;
   onOpenComparisonLedger?: () => void;
+  onOpenEnrollmentRune?: () => void;
 };
 
 // ── Scroll Layout Config ───────────────────────────────────────────────────
@@ -593,6 +594,7 @@ function buildWorkFiles(
   player: PlayerSave | null,
   quests: readonly QuestDefinition[],
   realmProgress?: RealmProgressMap,
+  exploration?: ExplorationLoopState | null,
 ): WorkFileEntry[] {
   const hasSave    = player !== null;
   const hasStarted = hasSave && (player.xp_total > 0 || player.current_act > 1);
@@ -671,9 +673,23 @@ function buildWorkFiles(
       fantasyTitle: 'Enrollment Rune',
       realTitle: 'Job Application',
       loreDesc: 'Guild application draft — your formal career pathway application.',
-      status: 'locked',
-      lockLabel: 'Locked — Act IV',
-      btnLabel: 'Coming Soon',
+      status: (() => {
+        const ge = exploration?.guild_endgame_v1;
+        if (ge?.application_unlocked && !ge?.application_sealed) return 'in_progress' as WorkFileStatus;
+        if (ge?.application_sealed) return 'available' as WorkFileStatus;
+        return 'locked' as WorkFileStatus;
+      })(),
+      lockLabel: (() => {
+        const ge = exploration?.guild_endgame_v1;
+        if (ge?.application_unlocked || ge?.application_sealed) return null;
+        return 'Locked — Act IV';
+      })(),
+      btnLabel: (() => {
+        const ge = exploration?.guild_endgame_v1;
+        if (ge?.application_unlocked && !ge?.application_sealed) return 'Open';
+        if (ge?.application_sealed) return 'View';
+        return 'Coming Soon';
+      })(),
     },
     {
       id: 'trial_of_tongues',
@@ -703,6 +719,7 @@ function WorkFilesTab({
   realmProgress,
   onOpenQuestOfFateWorksheet,
   onOpenComparisonLedger,
+  onOpenEnrollmentRune,
 }: {
   player: PlayerSave | null;
   quests: readonly QuestDefinition[];
@@ -710,8 +727,9 @@ function WorkFilesTab({
   realmProgress?: RealmProgressMap;
   onOpenQuestOfFateWorksheet?: () => void;
   onOpenComparisonLedger?: () => void;
+  onOpenEnrollmentRune?: () => void;
 }) {
-  const files = buildWorkFiles(player, quests, realmProgress);
+  const files = buildWorkFiles(player, quests, realmProgress, exploration);
 
   function handleFileOpen(file: WorkFileEntry) {
     if (file.status === 'locked') return;
@@ -723,6 +741,9 @@ function WorkFilesTab({
     }
     if (file.id === 'comparison_ledger') {
       onOpenComparisonLedger?.();
+    }
+    if (file.id === 'enrollment_rune') {
+      onOpenEnrollmentRune?.();
     }
   }
 
@@ -1090,6 +1111,7 @@ function JournalShell({
   player, quests, allRealms, exploration, realmProgress,
   onOpenQuestOfFateWorksheet,
   onOpenComparisonLedger,
+  onOpenEnrollmentRune,
   onBackToScroll,
 }: Props & { onBackToScroll: () => void }) {
   const [activeTab, setActiveTab] = useState<FieldJournalTab>('work_files');
@@ -1138,6 +1160,7 @@ function JournalShell({
             realmProgress={realmProgress}
             onOpenQuestOfFateWorksheet={onOpenQuestOfFateWorksheet}
             onOpenComparisonLedger={onOpenComparisonLedger}
+            onOpenEnrollmentRune={onOpenEnrollmentRune}
           />
         ) : null}
         {activeTab === 'journey_review'     ? <JourneyReviewTab player={player} exploration={exploration} /> : null}
