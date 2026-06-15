@@ -1,4 +1,6 @@
 import guildHqWorkbookImageMapJson from '@samples/guild_hq_workbook_image_map.json';
+import { getGuildHeroManifestEntry } from '../domain/lhMediaManifest';
+import { resolveLhAssetUrl } from '../lib/lhMediaBase';
 
 export type GuildHqWorkbookImageEntry = {
   realm_id: string;
@@ -36,23 +38,37 @@ export type GuildHqWorkbookHeroDisplay = {
 };
 
 /**
- * Browser-facing Guild Info hero URLs derived from the workbook map.
+ * Browser-facing Guild Info hero URLs — local static asset first, Drive URLs as last-resort fallback.
  *
- * The xlsx “New URL for project” column uses `uc?export=view`, which often fails as `<img src>` in
- * the same contexts where the legacy atlas used **`drive.google.com/thumbnail?id=…&sz=w2500`**
- * (see `Fog of the unknown.html`). We prefer the thumbnail form when `drive_file_id` is known.
+ * Resolution order (onError chain in GuildRealmInfoOverlay):
+ *   1. Local static WebP from lhMediaManifest (public/assets/guilds/{slug}.webp) — same-origin, school-safe.
+ *   2. Drive thumbnail (drive.google.com/thumbnail?id=…&sz=w2500) — may be blocked on school networks.
+ *   3. Drive uc?export=view URL — legacy fallback, blocked on most school networks.
+ *   4. Text-card fallback rendered by GuildRealmInfoOverlay when all image URLs fail.
+ *
+ * ARCHITECTURE NOTE: Google Drive is NOT the primary media delivery mechanism.
+ * Drive IDs are retained here only so the waterfall has a last resort when local files are
+ * not yet deployed. Remove Drive URLs from this list once all images are in public/assets/guilds/.
  */
 export function getGuildHqWorkbookHeroDisplay(realmId: string): GuildHqWorkbookHeroDisplay | undefined {
   const id = String(realmId ?? '').trim();
   if (!id) return undefined;
-  const row = byRealmId.get(id);
-  if (!row) return undefined;
-  const fileId = String(row.drive_file_id ?? '').trim();
-  const uc = String(row.hero_image_url ?? '').trim();
+
   const try_urls: string[] = [];
+
+  // 1. Local static asset (primary — same-origin, no firewall risk).
+  const manifestEntry = getGuildHeroManifestEntry(id);
+  if (manifestEntry) {
+    try_urls.push(resolveLhAssetUrl(manifestEntry.local_path));
+  }
+
+  // 2–3. Drive fallbacks (last resort — blocked on many school networks).
+  const row = byRealmId.get(id);
+  const fileId = String(row?.drive_file_id ?? '').trim();
+  const uc = String(row?.hero_image_url ?? '').trim();
   if (fileId) try_urls.push(driveThumbnailUrl(fileId));
   if (uc && !try_urls.includes(uc)) try_urls.push(uc);
-  if (!try_urls.length && uc) try_urls.push(uc);
+
   if (!try_urls.length) return undefined;
   return { try_urls, drive_file_id: fileId || null, workbook_uc_url: uc || null };
 }

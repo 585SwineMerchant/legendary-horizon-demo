@@ -1,6 +1,9 @@
 import { getAtlasPinPlacement } from './atlasMapLayout';
 
 /**
+ * ARCHITECTURE NOTE (2026-06-15): Google-hosted fallbacks retained below only until the local
+ * WebP is confirmed deployed. Target: public/assets/maps/realm-atlas-world.webp (primary).
+ *
  * Direct image host for the same Drive file as `Fog of the unknown.html` (thumbnail redirects here with `200 image/png`).
  * The `drive.google.com/thumbnail?…` hop sends `Vary: Sec-Fetch-Dest` and often fails when used as a CSS `background-image`
  * from the app origin — use this URL (or `<img>`) instead.
@@ -25,14 +28,25 @@ function dedupeUrls(urls: readonly string[]): string[] {
 
 /**
  * Ordered candidates for `<img src>` (first loadable wins via `onError` chain in the overlay).
- * 1. Env override · 2. Local `public/assets/maps/realm-atlas-world.png` · 3. Googleusercontent · 4. Drive thumbnail last resort
+ * 1. Env override
+ * 2. Local WebP (public/assets/maps/realm-atlas-world.webp) — same-origin, school-safe, primary target
+ * 3. Local PNG  (public/assets/maps/realm-atlas-world.png)  — legacy fallback if WebP not yet deployed
+ * 4. Googleusercontent direct link — remote, blocked on some school networks
+ * 5. Drive thumbnail — last resort, frequently blocked on school networks
  */
 export function buildRealmAtlasImageSrcCandidates(): readonly string[] {
   const env = import.meta.env.VITE_LH_REALM_ATLAS_IMAGE_URL?.trim();
   const base = import.meta.env.BASE_URL ?? '/';
   const withSlash = base.endsWith('/') ? base : `${base}/`;
-  const local = `${withSlash}assets/maps/realm-atlas-world.png`;
-  return dedupeUrls([...(env ? [env] : []), local, DEFAULT_REALM_ATLAS_IMAGE_URL, DRIVE_THUMBNAIL_FALLBACK]);
+  const localWebp = `${withSlash}assets/maps/realm-atlas-world.webp`;
+  const localPng = `${withSlash}assets/maps/realm-atlas-world.png`;
+  return dedupeUrls([
+    ...(env ? [env] : []),
+    localWebp,
+    localPng,
+    DEFAULT_REALM_ATLAS_IMAGE_URL,
+    DRIVE_THUMBNAIL_FALLBACK,
+  ]);
 }
 
 /** @deprecated Prefer `buildRealmAtlasImageSrcCandidates` + `<img>`; kept for callers that need a single string. */
