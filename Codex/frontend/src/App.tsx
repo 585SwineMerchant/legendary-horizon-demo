@@ -15,7 +15,7 @@ import { InventoryOverlay } from './components/InventoryOverlay';
 import { SatchelOverlay } from './components/SatchelOverlay';
 import { RestedReadinessModal } from './components/RestedReadinessModal';
 import { computeRestedReadinessTier } from './services/restedReadiness';
-import { QuestLogShell } from './components/QuestLogShell';
+import { QuestLogShell, type Act3GuildProgress } from './components/QuestLogShell';
 import { SystemToastOverlay } from './components/SystemToastOverlay';
 import { ModuleHostOverlay } from './components/ModuleHostOverlay';
 import { useLhAccessibilityPrefs } from './hooks/useLhAccessibilityPrefs';
@@ -324,6 +324,35 @@ export function App() {
     [realmProgress],
   );
 
+  // Act III Quest Log progress — shown when player has reached guild exploration.
+  // Uses the same signpostsVisited/guildsResearched from comparisonLedgerGateStatus
+  // so counts are always identical to the ledger turn-in gate.
+  const act3GuildProgress = useMemo((): Act3GuildProgress | null => {
+    const inAct3 =
+      (player?.current_act ?? 0) >= 3 ||
+      (exploration.foretold_signpost_realm_ids?.length ?? 0) > 0 ||
+      comparisonLedgerGateStatus.guildsResearched > 0;
+    if (!inAct3) return null;
+
+    const reflections = exploration.realm_reflections ?? {};
+    const hasLedgerNotes = Object.values(reflections).some(
+      (r) => r && Object.values(r).some((v) => typeof v === 'string' && v.trim().length > 0),
+    );
+
+    return {
+      signpostsVisited: comparisonLedgerGateStatus.signpostsVisited,
+      guildsResearched: comparisonLedgerGateStatus.guildsResearched,
+      hasLedgerNotes,
+      ledgerSubmitted: exploration.comparison_ledger_sync_status === 'synced',
+    };
+  }, [
+    player?.current_act,
+    exploration.foretold_signpost_realm_ids,
+    exploration.realm_reflections,
+    exploration.comparison_ledger_sync_status,
+    comparisonLedgerGateStatus,
+  ]);
+
   // Resolve the oracle prophecy from the player's foretold signpost realm IDs.
   // Used to pass the correct prophecyId / title to OracleProphecyReveal.
   const oracleProphecyDef = useMemo(
@@ -589,6 +618,7 @@ export function App() {
         onMarkQuestTurnedIn={markQuestTurnedIn}
         guildPathBreatherNote={guildPathQuestLogNote}
         currentRequiredNextAction={player?.required_next_action ?? null}
+        act3GuildProgress={act3GuildProgress}
       /> : null}
 
       {!teacherDashboardOpen ? <ModuleHostOverlay

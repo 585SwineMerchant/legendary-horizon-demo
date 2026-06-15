@@ -5,6 +5,13 @@ import { groupQuestsForQuestLog, type QuestLogGroupKey } from '../quests/questEn
 import type { QuestDefinition } from '../types';
 import { ScrollSubMenuShell } from './ScrollSubMenuShell';
 
+export type Act3GuildProgress = {
+  signpostsVisited: number;
+  guildsResearched: number;
+  hasLedgerNotes: boolean;
+  ledgerSubmitted: boolean;
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -12,6 +19,7 @@ type Props = {
   onMarkQuestTurnedIn?: (questId: string) => void;
   guildPathBreatherNote?: string | null;
   currentRequiredNextAction?: string | null;
+  act3GuildProgress?: Act3GuildProgress | null;
 };
 
 const GROUP_LABEL: Record<QuestLogGroupKey, string> = {
@@ -37,6 +45,112 @@ const STATUS_COLOR: Record<string, string> = {
   turned_in: '#4ade80',
   locked: 'rgba(255,255,255,0.40)',
 };
+
+// ── Act III "Chart the Guild Roads" mission block ─────────────────────────
+
+type ObjState = 'complete' | 'active' | 'pending';
+
+function ObjectiveLine({
+  state,
+  label,
+  sub,
+}: {
+  state: ObjState;
+  label: string;
+  sub?: string;
+}) {
+  const icon  = state === 'complete' ? '✓' : state === 'active' ? '◆' : '○';
+  const color = state === 'complete'
+    ? '#4ade80'
+    : state === 'active'
+    ? '#f59e0b'
+    : 'rgba(255,255,255,0.38)';
+
+  return (
+    <li style={{ display: 'flex', gap: 10, alignItems: 'flex-start', opacity: state === 'pending' ? 0.55 : 1 }}>
+      <span style={{ color, fontSize: 11, marginTop: 2, flexShrink: 0, minWidth: 12, textAlign: 'center' }}>{icon}</span>
+      <div>
+        <span style={{ fontSize: 13, color: state === 'complete' ? 'rgba(74,222,128,0.80)' : '#f0dfa0', lineHeight: 1.4 }}>
+          {label}
+        </span>
+        {sub && (
+          <p style={{ margin: '1px 0 0', fontSize: 11, color: 'rgba(255,255,255,0.50)', lineHeight: 1.4 }}>{sub}</p>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function Act3GuildMission({ progress }: { progress: Act3GuildProgress }) {
+  const { signpostsVisited, guildsResearched, hasLedgerNotes, ledgerSubmitted } = progress;
+
+  const spState: ObjState   = signpostsVisited >= 3  ? 'complete' : signpostsVisited > 0  ? 'active' : 'active';
+  const grState: ObjState   = guildsResearched >= 5  ? 'complete' : guildsResearched > 0  ? 'active' : 'active';
+  const notesState: ObjState = hasLedgerNotes        ? 'complete' : 'active';
+  const gateOk              = signpostsVisited >= 3 && guildsResearched >= 5;
+  const submitState: ObjState = ledgerSubmitted      ? 'complete' : gateOk ? 'active' : 'pending';
+
+  const submitLabel = ledgerSubmitted
+    ? 'Turn in your Comparison Ledger — complete!'
+    : gateOk
+    ? 'Turn in your Comparison Ledger from Scroll → Documents'
+    : 'Turn in your Comparison Ledger';
+
+  const submitSub = !ledgerSubmitted && !gateOk
+    ? `Unlocks after all 3 Foretold Signposts and 5 Guilds are researched`
+    : undefined;
+
+  return (
+    <section
+      aria-label="Chart the Guild Roads — Act III mission"
+      style={{
+        padding: '14px 16px',
+        background: 'rgba(212,160,23,0.07)',
+        border: '1px solid rgba(212,160,23,0.22)',
+        borderRadius: 4,
+      }}
+    >
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <span style={{ fontSize: 14, color: 'rgba(212,160,23,0.88)' }} aria-hidden>◈</span>
+        <h3 style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.88)' }}>
+          Chart the Guild Roads
+        </h3>
+        <div style={{ flex: 1, height: 1, background: 'rgba(212,160,23,0.18)' }} aria-hidden />
+        <span style={{ fontSize: 10, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(212,160,23,0.75)', flexShrink: 0 }}>
+          Main · Act III
+        </span>
+      </div>
+
+      {/* Lore helper */}
+      <p style={{ margin: '0 0 12px', fontSize: 11, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>
+        Your Foretold Signposts are the three Guilds revealed on your Scroll.
+        Research them, then compare them with other Guilds before turning in your ledger.
+      </p>
+
+      {/* Objective lines */}
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <ObjectiveLine
+          state={spState}
+          label={`Visit your Foretold Signposts: ${signpostsVisited}/3`}
+        />
+        <ObjectiveLine
+          state={grState}
+          label={`Research Guilds for your Comparison Ledger: ${guildsResearched}/5`}
+        />
+        <ObjectiveLine
+          state={notesState}
+          label="Fill in your Comparison Ledger research notes"
+        />
+        <ObjectiveLine
+          state={submitState}
+          label={submitLabel}
+          sub={submitSub}
+        />
+      </ul>
+    </section>
+  );
+}
 
 function QuestCard({
   q,
@@ -115,6 +229,7 @@ export function QuestLogShell({
   onMarkQuestTurnedIn,
   guildPathBreatherNote,
   currentRequiredNextAction,
+  act3GuildProgress,
 }: Props) {
   const groups = useMemo(() => groupQuestsForQuestLog(quests), [quests]);
   const lockedCount = useMemo(() => quests.filter((q) => q.status === 'locked').length, [quests]);
@@ -154,6 +269,10 @@ export function QuestLogShell({
       {/* Quest sections */}
       <div style={{ padding: '0 24px 24px', maxWidth: 720, margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: 28 }}>
         <div style={{ height: 16 }} aria-hidden />
+
+        {/* Act III dynamic mission block — shown when player has reached guild exploration */}
+        {act3GuildProgress ? <Act3GuildMission progress={act3GuildProgress} /> : null}
+
         {sectionOrder.map((key) => {
           const list = groups[key];
           if (!list.length) return null;
