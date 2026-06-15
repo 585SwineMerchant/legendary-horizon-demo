@@ -4824,10 +4824,13 @@ html[data-lh-motion='reduce'] *::after {
 
 /* ─── Comparison Ledger Panel ─────────────────────────────────────────────── */
 
-/* Override the default row-flex of lh-guild-info-overlay to a column layout */
+/* Override the default row-flex of lh-guild-info-overlay to a column layout.
+   z-index 9100 layers above the Scroll of Destiny hub (8500) and its submenus (9000)
+   so the ledger is visible whether opened from the Atlas or from the Scroll documents tab. */
 .lh-ledger-panel {
   flex-direction: column !important;
   align-items: stretch !important;
+  z-index: 9100 !important;
 }
 
 .lh-ledger-panel__chrome {
