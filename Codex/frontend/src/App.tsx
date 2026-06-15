@@ -16,6 +16,7 @@ import { SatchelOverlay } from './components/SatchelOverlay';
 import { RestedReadinessModal } from './components/RestedReadinessModal';
 import { computeRestedReadinessTier } from './services/restedReadiness';
 import { QuestLogShell, type Act3GuildProgress } from './components/QuestLogShell';
+import { TruePathPickerModal } from './components/TruePathPickerModal';
 import { SystemToastOverlay } from './components/SystemToastOverlay';
 import { ModuleHostOverlay } from './components/ModuleHostOverlay';
 import { useLhAccessibilityPrefs } from './hooks/useLhAccessibilityPrefs';
@@ -124,6 +125,10 @@ export function App() {
     activeModuleId,
     scrollRevealOpen,
     dismissScrollReveal,
+    truePathPickerOpen,
+    openTruePathPicker,
+    closeTruePathPicker,
+    selectTruePath,
     oracleCinematicOpen,
     dismissOracleCinematic,
     oracleProphecyOpen,
@@ -352,6 +357,14 @@ export function App() {
     exploration.comparison_ledger_sync_status,
     comparisonLedgerGateStatus,
   ]);
+
+  // True Path picker candidate list: prefer foretold signpost IDs; fall back to researched guilds.
+  const truePathCandidateRealmIds = useMemo((): readonly string[] => {
+    const signposts = exploration.foretold_signpost_realm_ids ?? [];
+    if (signposts.length >= 3) return signposts;
+    // Fallback: any revealed guild HQ realm
+    return scrollLedgerResearchedRealmIds;
+  }, [exploration.foretold_signpost_realm_ids, scrollLedgerResearchedRealmIds]);
 
   // Resolve the oracle prophecy from the player's foretold signpost realm IDs.
   // Used to pass the correct prophecyId / title to OracleProphecyReveal.
@@ -619,7 +632,16 @@ export function App() {
         guildPathBreatherNote={guildPathQuestLogNote}
         currentRequiredNextAction={player?.required_next_action ?? null}
         act3GuildProgress={act3GuildProgress}
+        onOpenTruePathPicker={openTruePathPicker}
       /> : null}
+
+      <TruePathPickerModal
+        open={truePathPickerOpen}
+        onClose={closeTruePathPicker}
+        candidateRealmIds={truePathCandidateRealmIds}
+        allRealms={allRealms}
+        onSelectTruePath={selectTruePath}
+      />
 
       {!teacherDashboardOpen ? <ModuleHostOverlay
         open={moduleHostOpen}

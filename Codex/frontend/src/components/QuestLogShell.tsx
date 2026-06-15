@@ -20,6 +20,7 @@ type Props = {
   guildPathBreatherNote?: string | null;
   currentRequiredNextAction?: string | null;
   act3GuildProgress?: Act3GuildProgress | null;
+  onOpenTruePathPicker?: () => void;
 };
 
 const GROUP_LABEL: Record<QuestLogGroupKey, string> = {
@@ -155,9 +156,11 @@ function Act3GuildMission({ progress }: { progress: Act3GuildProgress }) {
 function QuestCard({
   q,
   onMarkQuestTurnedIn,
+  onOpenTruePathPicker,
 }: {
   q: QuestDefinition;
   onMarkQuestTurnedIn?: (id: string) => void;
+  onOpenTruePathPicker?: () => void;
 }) {
   const terminal = q.status === 'completed' || q.status === 'turned_in';
   const statusColor = STATUS_COLOR[q.status] ?? 'rgba(255,255,255,0.4)';
@@ -218,6 +221,27 @@ function QuestCard({
           Mark turned in to facilitator
         </button>
       ) : null}
+      {q.quest_id === 'mq-401' && (q.status === 'active' || q.status === 'available') && onOpenTruePathPicker ? (
+        <button
+          type="button"
+          style={{
+            marginTop: 8,
+            padding: '6px 16px',
+            fontSize: 12,
+            background: 'rgba(212,160,23,0.12)',
+            border: '1px solid rgba(212,160,23,0.35)',
+            borderRadius: 3,
+            color: '#d4a017',
+            cursor: 'pointer',
+            fontFamily: 'var(--lh-guild-display, "Cinzel", serif)',
+            fontWeight: 700,
+            letterSpacing: '0.03em',
+          }}
+          onClick={onOpenTruePathPicker}
+        >
+          Choose True Path →
+        </button>
+      ) : null}
     </li>
   );
 }
@@ -230,6 +254,7 @@ export function QuestLogShell({
   guildPathBreatherNote,
   currentRequiredNextAction,
   act3GuildProgress,
+  onOpenTruePathPicker,
 }: Props) {
   const groups = useMemo(() => groupQuestsForQuestLog(quests), [quests]);
   const lockedCount = useMemo(() => quests.filter((q) => q.status === 'locked').length, [quests]);
@@ -291,7 +316,7 @@ export function QuestLogShell({
               {list.length ? (
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {list.map((q) => (
-                    <QuestCard key={q.quest_id} q={q} onMarkQuestTurnedIn={onMarkQuestTurnedIn} />
+                    <QuestCard key={q.quest_id} q={q} onMarkQuestTurnedIn={onMarkQuestTurnedIn} onOpenTruePathPicker={onOpenTruePathPicker} />
                   ))}
                 </ul>
               ) : (

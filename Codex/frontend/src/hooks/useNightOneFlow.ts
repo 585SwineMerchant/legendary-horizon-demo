@@ -285,7 +285,17 @@ type QuestAwareDialogue = {
   narrationSequenceId: string;
 };
 
-function resolveAct1MasterScribeDialogue(quests: readonly QuestDefinition[]): QuestAwareDialogue {
+type ScribeCtx = {
+  comparison_ledger_sync_status?: string | null;
+  true_path_realm_id?: string | null;
+  true_path_phase?: string | null;
+  allRealms: readonly { realm_id: string; display_name: string }[];
+};
+
+function resolveAct1MasterScribeDialogue(
+  quests: readonly QuestDefinition[],
+  ctx: ScribeCtx,
+): QuestAwareDialogue & { branch: string } {
   const isActive = (id: string) => {
     const q = quests.find((q) => q.quest_id === id);
     return q ? (q.status === 'active' || q.status === 'available') : false;
@@ -363,7 +373,23 @@ function resolveAct1MasterScribeDialogue(quests: readonly QuestDefinition[]): Qu
       ' But today — its pages are blank. As they should be.' +
       '\n\nBefore the Scroll can guide you, you must first discover who you are.' +
       ' Beyond these fields stands the Mirror of Maia. Seek it. Learn what it reveals. Then return to me.';
-  // Fallback: post-Act II
+  // Act III → Act IV: True Path already chosen — remind player to travel to their HQ.
+  // Must come BEFORE the ledger-submitted branch since both synced + true_path can be true simultaneously.
+  } else if (ctx.true_path_realm_id && ctx.true_path_phase === 'true_path_chosen') {
+    branch = 'post_mq401';
+    const chosenRealm = ctx.allRealms.find((r) => r.realm_id === ctx.true_path_realm_id);
+    const realmName = chosenRealm?.display_name ?? 'your chosen Guild';
+    line =
+      `You have chosen your path. Now you must walk it.\n\nTravel to the ${realmName} Guild Headquarters and seek the Guild Manager.\n\nThe roads are marked on your Atlas.`;
+  // Act III → Act IV: Comparison Ledger submitted, no True Path chosen yet — prompt selection.
+  } else if (ctx.comparison_ledger_sync_status === 'synced' && !ctx.true_path_realm_id) {
+    branch = 'mq311_bridge';
+    line =
+      'Your Comparison Ledger has reached the Guild Records Hall. The evidence is sealed.\n\n' +
+      'Now the true work begins — choosing one path to study deeply.\n\n' +
+      'This is not forever, Traveler. It is the path you will walk next.\n\n' +
+      'Let us write your True Path onto the Scroll.';
+  // Fallback: post-Act II, mid-Act III (ledger not yet submitted)
   } else {
     line = 'The guild roads are open, Traveler. Follow the Scroll of Destiny and gather evidence before choosing your path.';
   }
@@ -380,7 +406,8 @@ function resolveAct1MasterScribeDialogue(quests: readonly QuestDefinition[]): Qu
   return {
     body: line!,
     narrationSequenceId:
-      branch === 'fallback' ? 'master_scribe_fallback' : `master_scribe_${branch.replace('-', '_')}`,
+      branch === 'fallback' ? 'master_scribe_fallback' : `master_scribe_${branch.replace(/-/g, '_')}`,
+    branch,
   };
 }
 
@@ -504,6 +531,39 @@ export function useNightOneFlow() {
     [],
   );
 
+  /**
+   * Called when the student confirms their True Path choice in TruePathPickerModal.
+   * Writes guild_endgame_v1, advances player to mq-402, and closes the picker.
+   */
+  const selectTruePath = useCallback(
+    (chosenRealmId: string) => {
+      setExploration((e) =>
+        mergeGuildEndgameIntoExploration(e, {
+          true_path_realm_id: chosenRealmId,
+          phase: 'true_path_chosen',
+        }),
+      );
+      setPlayer((p) =>
+        p
+          ? {
+              ...p,
+              current_realm_id: chosenRealmId,
+              active_main_quest_id: 'mq-402',
+              active_main_quest_title: 'Travel to the Chosen Guild HQ',
+              required_next_action: 'Travel to your True Path Guild Headquarters.',
+            }
+          : p,
+      );
+      completeQuestWithXp('mq-401');
+      setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'mq-402')));
+      setTruePathPickerOpen(false);
+      if (typeof console !== 'undefined') {
+        console.log('[LH_ACT_FLOW_DEBUG] True Path selected:', chosenRealmId);
+      }
+    },
+    [completeQuestWithXp],
+  );
+
   /** Pause → World Atlas entry: optional guild sheet first + fog lift after close (guild HQ research trigger). */
   const [realmAtlasEntryIntent, setRealmAtlasEntryIntent] = useState<{
     initialGuildRealmId: string | null;
@@ -536,6 +596,9 @@ export function useNightOneFlow() {
   // deferred until the player dismisses the RPG dialogue box, so the cinematic
   // starts AFTER the Scribe's final line — not simultaneously with it.
   const scrollRevealPendingRef = useRef(false);
+  // Ref set when the Scribe fires the mq311_bridge branch. Picker opens after dialogue is dismissed.
+  const truePathPickerPendingRef = useRef(false);
+  const [truePathPickerOpen, setTruePathPickerOpen] = useState(false);
   const [oracleProphecyOpen, setOracleProphecyOpen] = useState(false);
   const [oracleCinematicOpen, setOracleCinematicOpen] = useState(false);
   const [preRevealCheckpointOpen, setPreRevealCheckpointOpen] = useState(false);
@@ -1252,6 +1315,14 @@ export function useNightOneFlow() {
         console.log('[LH_ACT_FLOW_DEBUG] Scribe dialogue dismissed — opening Scroll reveal cinematic');
       }
     }
+    // Act III → Act IV: if Scribe fired the mq311_bridge branch, open True Path picker after dialogue.
+    if (truePathPickerPendingRef.current) {
+      truePathPickerPendingRef.current = false;
+      setTruePathPickerOpen(true);
+      if (typeof console !== 'undefined') {
+        console.log('[LH_ACT_FLOW_DEBUG] Scribe dialogue dismissed — opening True Path picker');
+      }
+    }
   }, [npcDialogue]);
 
   // MQ-103 completion: Phaser fires this after all 4 tutorial echoes are defeated.
@@ -1624,6 +1695,22 @@ export function useNightOneFlow() {
             setActiveLedgerRealmId(triggerRealm);
             setRealmAtlasEntryIntent({ initialGuildRealmId: triggerRealm, fogRevealRealmId: null });
             phaserGuildResearchExitWhenAtlasClosedRef.current = interactableId;
+            // MQ-402 "Travel to Chosen Guild HQ": entering the physical True Path HQ completes it.
+            const mq402re = quests.find((q) => q.quest_id === 'mq-402');
+            if (mq402re && (mq402re.status === 'active' || mq402re.status === 'available')) {
+              completeQuestWithXp('mq-402');
+              setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'mq-403')));
+              setPlayer((p) =>
+                p
+                  ? {
+                      ...p,
+                      active_main_quest_id: 'mq-403',
+                      active_main_quest_title: 'Meet the Guild Manager',
+                      required_next_action: 'Speak with the Guild Manager at this Guild HQ.',
+                    }
+                  : p,
+              );
+            }
             playLhSfx('door_open');
             setPauseOpen(false);
             setRealmAtlasOpen(true);
@@ -1752,7 +1839,10 @@ export function useNightOneFlow() {
         if (!ge.true_path_realm_id) {
           setSaveFeedback({
             tone: 'error',
-            text: 'The Guild Manager waits for a chosen path. Open the world map and set your active guild headquarters to the guild you intend to walk.',
+            text:
+              exploration.comparison_ledger_sync_status === 'synced'
+                ? 'Your Comparison Ledger is submitted. Return to the Master Scribe to choose your True Path before visiting a Guild Manager.'
+                : 'The Guild Manager waits for a chosen path. Open the world map and set your active guild headquarters to the guild you intend to walk.',
           });
           return;
         }
@@ -1919,7 +2009,12 @@ export function useNightOneFlow() {
 
         // Scribe and Oracle use static quest-aware dialogue; all others use the catalog.
         const staticDialogue = isMasterScribe
-          ? resolveAct1MasterScribeDialogue(result.nextQuests ?? quests)
+          ? resolveAct1MasterScribeDialogue(result.nextQuests ?? quests, {
+              comparison_ledger_sync_status: exploration.comparison_ledger_sync_status ?? null,
+              true_path_realm_id: exploration.guild_endgame_v1?.true_path_realm_id ?? null,
+              true_path_phase: exploration.guild_endgame_v1?.phase ?? null,
+              allRealms,
+            })
           : isOracle
             ? resolveAct1OracleDialogue(result.nextQuests ?? quests)
             : null;
@@ -1993,26 +2088,51 @@ export function useNightOneFlow() {
         // Advance quests whose progression is gated on NPC dialogue firing.
         // Dialogue body already resolved above → advance takes effect on the NEXT interaction.
         if (isMasterScribe) {
-          // mq-101 (opening) and mq-109 (Act I finale) complete when player first speaks to Scribe.
-          // mq-202 (Runes Become Legible) completes after Oracle visit when Scribe reads signposts.
-          for (const id of ['mq-101', 'mq-109', 'mq-202'] as const) {
-            const q = quests.find((q) => q.quest_id === id);
-            if (q && (q.status === 'active' || q.status === 'available')) {
+          const scribeBranch = (staticDialogue as (QuestAwareDialogue & { branch: string }) | null)?.branch;
+
+          if (scribeBranch === 'mq311_bridge') {
+            // Act III → Act IV transition: Ledger submitted. Complete mq-311 and unlock mq-401.
+            const mq311 = quests.find((q) => q.quest_id === 'mq-311');
+            if (mq311 && (mq311.status === 'active' || mq311.status === 'available')) {
               if (typeof console !== 'undefined') {
-                console.log(`[LH_ACT_FLOW_DEBUG] Scribe dialogue — completing ${id}`);
+                console.log('[LH_ACT_FLOW_DEBUG] Scribe mq311_bridge — completing mq-311, unlocking mq-401');
               }
-              completeQuestWithXp(id);
-              // mq-109 finale: mark the Scroll reveal as pending.
-              // It opens only after the player dismisses the RPG dialogue box
-              // (see dismissNpcDialogue below), so the cinematic starts AFTER
-              // the Scribe's final spoken line — not simultaneously with it.
-              if (id === 'mq-109') {
-                scrollRevealPendingRef.current = true;
+              completeQuestWithXp('mq-311');
+            }
+            setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'mq-401')));
+            setPlayer((p) =>
+              p
+                ? {
+                    ...p,
+                    active_main_quest_id: 'mq-401',
+                    active_main_quest_title: 'Choose the True Path',
+                    required_next_action: 'Open your Quest Log to choose your True Path.',
+                  }
+                : p,
+            );
+            // Open the True Path picker after the player dismisses the dialogue box.
+            truePathPickerPendingRef.current = true;
+          } else {
+            // Act I/II: mq-101 (opening), mq-109 (Act I finale), mq-202 (Runes Become Legible).
+            for (const id of ['mq-101', 'mq-109', 'mq-202'] as const) {
+              const q = quests.find((q) => q.quest_id === id);
+              if (q && (q.status === 'active' || q.status === 'available')) {
                 if (typeof console !== 'undefined') {
-                  console.log('[LH_ACT_FLOW_DEBUG] mq-109 complete — Scroll reveal pending until Scribe dialogue dismissed');
+                  console.log(`[LH_ACT_FLOW_DEBUG] Scribe dialogue — completing ${id}`);
                 }
+                completeQuestWithXp(id);
+                // mq-109 finale: mark the Scroll reveal as pending.
+                // It opens only after the player dismisses the RPG dialogue box
+                // (see dismissNpcDialogue below), so the cinematic starts AFTER
+                // the Scribe's final spoken line — not simultaneously with it.
+                if (id === 'mq-109') {
+                  scrollRevealPendingRef.current = true;
+                  if (typeof console !== 'undefined') {
+                    console.log('[LH_ACT_FLOW_DEBUG] mq-109 complete — Scroll reveal pending until Scribe dialogue dismissed');
+                  }
+                }
+                break;
               }
-              break;
             }
           }
         }
@@ -2347,12 +2467,23 @@ export function useNightOneFlow() {
       }
 
       // --- Act 4 quest bridge ---
-      // MQ-402 "Travel to Chosen Guild HQ": complete when arriving at the True Path realm.
+      // MQ-402 "Travel to Chosen Guild HQ": complete when selecting the True Path realm from the atlas.
       const ge = exploration.guild_endgame_v1;
       if (ge?.true_path_realm_id && ge.true_path_realm_id === realmId) {
         const mq402 = quests.find((q) => q.quest_id === 'mq-402');
         if (mq402 && (mq402.status === 'available' || mq402.status === 'active')) {
           completeQuestWithXp('mq-402');
+          setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'mq-403')));
+          setPlayer((p) =>
+            p
+              ? {
+                  ...p,
+                  active_main_quest_id: 'mq-403',
+                  active_main_quest_title: 'Meet the Guild Manager',
+                  required_next_action: 'Speak with the Guild Manager at this Guild HQ.',
+                }
+              : p,
+          );
         }
       }
 
@@ -3388,6 +3519,10 @@ export function useNightOneFlow() {
     moduleHostOpen,
     activeModuleId,
     scrollRevealOpen,
+    truePathPickerOpen,
+    openTruePathPicker: () => setTruePathPickerOpen(true),
+    closeTruePathPicker: () => setTruePathPickerOpen(false),
+    selectTruePath,
     dismissScrollReveal: (committedSignpostIds: readonly string[]) => {
       setScrollRevealOpen(false);
       // Restore exploration music after the scroll reveal ceremony ends.

@@ -404,6 +404,20 @@ function ScrollHubView({
             <p style={{ margin: 0, fontSize: '0.78em', fontWeight: 700, color: '#b45309' }}>🔥 {streak}</p>
           </div>
         ) : null}
+        {exploration?.guild_endgame_v1?.true_path_realm_id ? (() => {
+          const tpRealm = allRealms.find((r) => r.realm_id === exploration.guild_endgame_v1!.true_path_realm_id);
+          return (
+            <>
+              <div style={{ height: 1, background: 'rgba(28,15,0,0.10)', margin: '3px 0' }} />
+              <p style={{ margin: '0 0 1px', fontSize: '0.61em', textTransform: 'uppercase', letterSpacing: '0.13em', color: INK_LABEL }}>
+                True Path
+              </p>
+              <p style={{ margin: 0, fontSize: '0.73em', fontWeight: 700, color: GOLD_INK, lineHeight: 1.25 }}>
+                {tpRealm?.display_name ?? exploration.guild_endgame_v1!.true_path_realm_id}
+              </p>
+            </>
+          );
+        })() : null}
       </div>
 
       {/* ── ORACLE'S PROPHECY — label row (center) + burned-in sigil (right) ── */}
