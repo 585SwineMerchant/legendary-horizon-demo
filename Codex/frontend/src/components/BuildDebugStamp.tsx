@@ -18,6 +18,11 @@ import { resolveLhAssetUrl } from '../lib/lhMediaBase';
 
 const WEBAPP_URL = import.meta.env.VITE_LH_APPS_SCRIPT_WEBAPP_URL;
 
+// Mirror the same resolution logic as OracleCinematicPlayer so the stamp is always in sync.
+const ORACLE_VIDEO_SRC_STAMP: string =
+  (import.meta.env.VITE_LH_ORACLE_VIDEO_URL as string | undefined)?.trim() ||
+  '/assets/video/oracle_cutscene_v1.mp4';
+
 function saveMode(): string {
   if (!WEBAPP_URL) return 'simulated (no Apps Script URL)';
   if (import.meta.env.VITE_LH_FORCE_SIMULATED_SAVE === 'true') return 'force-simulated';
@@ -62,6 +67,7 @@ function buildProbeList(): Omit<AssetProbe, 'status'>[] {
     { label: 'nav-journal', url: NAV_BTN_ASSETS.fieldJournal },
     { label: 'sigil',       url: sigilUrl },
     { label: 'phaser-map',  url: resolveLhAssetUrl('assets/maps/Legendary_Horizon_Map.json') },
+    { label: 'oracle-mp4',  url: ORACLE_VIDEO_SRC_STAMP },
   ].filter(p => !!p.url);
 }
 
@@ -107,6 +113,7 @@ export function BuildDebugStamp({ tileMapUrl, mapVariant }: Props) {
     { label: 'baseURI',    value: document.baseURI },
     { label: 'save mode',  value: saveMode() },
     { label: 'backend',    value: backendMode() },
+    { label: 'oracle src', value: ORACLE_VIDEO_SRC_STAMP },
     { label: 'map url',    value: tileMapUrl ?? '—' },
     { label: 'map variant',value: mapVariant ?? '—' },
   ];
