@@ -6,6 +6,7 @@ import { publicAssetUrl } from '../lib/publicAssetUrl';
  *
  * VIDEO ASSET
  *   Local dev:  public/assets/video/oracle_cutscene_v1.mp4  (served at /assets/video/…)
+ *               (NOTE: do not point this at /assets/intro/ — that path has no oracle MP4 on disk)
  *   Prod CDN:   Set VITE_LH_ORACLE_VIDEO_URL to the hosted MP4 URL before building.
  *               e.g. https://cdn.example.com/oracle_cutscene_v1.mp4
  *
@@ -23,8 +24,23 @@ import { publicAssetUrl } from '../lib/publicAssetUrl';
 // Resolved video URL: env-var override → local public path.
 const ORACLE_VIDEO_SRC: string = (() => {
   const override = (import.meta.env.VITE_LH_ORACLE_VIDEO_URL as string | undefined)?.trim();
-  return override || '/assets/intro/oracle_cutscene_v1.mp4';
+  return override || '/assets/video/oracle_cutscene_v1.mp4';
 })();
+
+if (import.meta.env.DEV) {
+  console.info('[OracleCinematicPlayer] Resolved cinematic asset URL:', ORACLE_VIDEO_SRC);
+}
+
+/** Human-readable label for the standard HTMLMediaElement.error.code values (dev logging only). */
+function mediaErrorCodeToString(code: number): string {
+  switch (code) {
+    case 1: return 'MEDIA_ERR_ABORTED';
+    case 2: return 'MEDIA_ERR_NETWORK';
+    case 3: return 'MEDIA_ERR_DECODE';
+    case 4: return 'MEDIA_ERR_SRC_NOT_SUPPORTED';
+    default: return `UNKNOWN(${code})`;
+  }
+}
 
 const VIDEO_BED_VOLUME = 0.42;
 const VIDEO_DUCKED_VOLUME = 0.16;
@@ -167,6 +183,9 @@ export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) 
 
   // Text-card fallback: shown when the video asset is unavailable (school network, missing file).
   if (videoFailed) {
+    if (import.meta.env.DEV) {
+      console.info('[OracleCinematicPlayer] Rendering variant: fallback (text-card)', ORACLE_VIDEO_SRC);
+    }
     return (
       <section
         className="lh-screen lh-screen--oracle-cinematic"
@@ -177,8 +196,18 @@ export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) 
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       >
-        <div style={{ maxWidth: 560, padding: '40px 48px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <p style={{ margin: 0, fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(180,120,240,0.65)' }}>
+        {/* Altar-glow accent: warm amber light rising from beneath the prophecy, as if cast by shrine flame. */}
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute', left: '50%', bottom: '18%', width: 520, height: 320,
+            transform: 'translateX(-50%)',
+            background: 'radial-gradient(ellipse at 50% 100%, rgba(212,160,23,0.22) 0%, rgba(212,160,23,0.08) 45%, rgba(212,160,23,0) 75%)',
+            pointerEvents: 'none',
+          }}
+        />
+        <div style={{ position: 'relative', maxWidth: 560, padding: '40px 48px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <p style={{ margin: 0, fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', color: '#d4a017', textShadow: '0 0 18px rgba(212,160,23,0.45)' }}>
             The Oracle Speaks
           </p>
           <p style={{ margin: 0, fontSize: 22, fontFamily: 'var(--lh-guild-display, "Cinzel", serif)', fontWeight: 700, color: '#e8d8ff', lineHeight: 1.35 }}>
@@ -189,7 +218,7 @@ export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) 
             It is an invitation.<br />
             What lies beyond it was written for you — and only you.
           </p>
-          <p style={{ margin: 0, fontSize: 13, color: 'rgba(180,120,240,0.55)', fontStyle: 'italic', lineHeight: 1.6 }}>
+          <p style={{ margin: 0, fontSize: 13, color: 'rgba(212,160,23,0.75)', fontStyle: 'italic', lineHeight: 1.6 }}>
             "Step forward. Your Scroll of Destiny awaits its first true inscription."
           </p>
           <button
@@ -199,9 +228,10 @@ export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) 
               marginTop: 8, alignSelf: 'center',
               padding: '12px 32px', fontSize: 14,
               fontFamily: 'var(--lh-guild-display, "Cinzel", serif)', fontWeight: 700,
-              background: 'rgba(120,60,200,0.18)',
-              border: '1px solid rgba(180,120,240,0.40)',
-              borderRadius: 4, color: '#d4b8ff', cursor: 'pointer', letterSpacing: '0.06em',
+              background: 'rgba(212,160,23,0.16)',
+              border: '1px solid rgba(212,160,23,0.45)',
+              boxShadow: '0 0 22px rgba(212,160,23,0.18)',
+              borderRadius: 4, color: '#f0c75e', cursor: 'pointer', letterSpacing: '0.06em',
             }}
           >
             Receive the Prophecy →
@@ -209,6 +239,10 @@ export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) 
         </div>
       </section>
     );
+  }
+
+  if (import.meta.env.DEV) {
+    console.info('[OracleCinematicPlayer] Rendering variant: video', ORACLE_VIDEO_SRC);
   }
 
   return (
@@ -226,12 +260,25 @@ export function OracleCinematicPlayer({ onComplete, allowSkip = false }: Props) 
         onTimeUpdate={handleTimeUpdate}
         onSeeking={handleSeeking}
         onEnded={handleFinished}
-        onError={() => {
+        onLoadedData={() => {
+          if (import.meta.env.DEV) {
+            console.info('[OracleCinematicPlayer] Video loaded successfully.', ORACLE_VIDEO_SRC);
+          }
+        }}
+        onError={(event) => {
           // Video unavailable (missing asset or school network block).
           // Show a text-card fallback so the player sees the Oracle narrative
           // before the prophecy reveal — do NOT auto-skip.
           if (import.meta.env.DEV) {
-            console.warn('[OracleCinematicPlayer] Video failed to load — showing text fallback.', ORACLE_VIDEO_SRC);
+            const mediaError = event.currentTarget.error;
+            const reason = mediaError
+              ? `code=${mediaError.code} (${mediaErrorCodeToString(mediaError.code)}) message=${mediaError.message || 'n/a'}`
+              : 'unknown (no MediaError available)';
+            console.warn(
+              '[OracleCinematicPlayer] Video failed to load — showing text fallback.',
+              ORACLE_VIDEO_SRC,
+              'reason:', reason,
+            );
           }
           setVideoFailed(true);
         }}
