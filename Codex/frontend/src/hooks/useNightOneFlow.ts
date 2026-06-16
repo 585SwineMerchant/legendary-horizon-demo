@@ -1860,6 +1860,23 @@ export function useNightOneFlow() {
         const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
         const triggerRealm = String(triggerMeta.target_realm_id ?? '').trim() || 'realm_aethelwood';
 
+        if (typeof console !== 'undefined') {
+          console.info('[LhLedgerProgress]', 'Aethelwood/Guild Manager readiness gate check', {
+            triggerRealm,
+            true_path_realm_id: ge.true_path_realm_id,
+            true_path_phase: ge.phase,
+            comparison_ledger_sync_status: exploration.comparison_ledger_sync_status ?? null,
+            current_realm_id: player.current_realm_id,
+            gate_result: !ge.true_path_realm_id
+              ? 'blocked_no_true_path'
+              : ge.true_path_realm_id !== triggerRealm
+                ? 'blocked_wrong_realm'
+                : player.current_realm_id !== ge.true_path_realm_id
+                  ? 'blocked_player_not_at_realm'
+                  : 'open',
+          });
+        }
+
         if (!ge.true_path_realm_id) {
           setSaveFeedback({
             tone: 'error',
@@ -2655,12 +2672,64 @@ export function useNightOneFlow() {
     if (result.ok) {
       setExploration((e) => ({ ...e, comparison_ledger_sync_status: 'synced' as const }));
       setSaveFeedback({ tone: 'success', text: result.message });
+
+      // ── Act III → Act IV quest-state bridge ──────────────────────────────
+      // The gated "Turn In Comparison Ledger" button (RealmComparisonPanel) is the
+      // canonical production completion gesture for Act III research (it already
+      // enforces the 3-signposts + 5-guilds design requirement above). It must
+      // mark the mq-30x ledger/compare chain complete so the Scribe's mq311_bridge
+      // dialogue branch fires and the Aethelwood/Guild Manager readiness gate
+      // (which keys off quest + guild_endgame_v1 state, not the raw ledger rows)
+      // can open. Without this, document-append succeeds but canonical quest
+      // progression never advances — see [LhLedgerProgress] log below.
+      const LEDGER_CHAIN_QUEST_IDS = [
+        'mq-302', 'mq-303', 'mq-304',
+        'mq-305', 'mq-306', 'mq-307',
+        'mq-308', 'mq-309', 'mq-310',
+        'mq-311',
+      ] as const;
+
+      setQuests((q) => {
+        let next = q;
+        const completedNow: string[] = [];
+        for (const qid of LEDGER_CHAIN_QUEST_IDS) {
+          const before = next.find((x) => x.quest_id === qid);
+          if (before && !isTerminalQuestStatus(before.status)) {
+            const xp = getQuestXpReward(next, qid);
+            if (xp > 0) setPlayer((p) => (p ? { ...p, xp_total: p.xp_total + xp } : p));
+            next = markQuestCompleted(next, qid);
+            completedNow.push(qid);
+          }
+        }
+        next = reconcileQuestPrerequisites(next);
+
+        const mq401After = next.find((x) => x.quest_id === 'mq-401');
+        const currentAct = player?.active_main_quest_id ?? null;
+
+        if (typeof console !== 'undefined') {
+          console.info('[LhLedgerProgress]', 'Comparison Ledger submitted — advancing Act III quest chain', {
+            player_id: pid,
+            realm_entries_submitted: rows.length,
+            quests_marked_complete: completedNow,
+            mq401_status_after: mq401After?.status ?? '?',
+            current_act_quest_before: currentAct,
+          });
+        }
+
+        return next;
+      });
     } else {
       setExploration((e) => ({ ...e, comparison_ledger_sync_status: 'error' as const }));
       setSaveFeedback({
         tone: 'error',
         text: `Ledger sealed locally — teacher sync failed: ${result.message}`,
       });
+      if (typeof console !== 'undefined') {
+        console.info('[LhLedgerProgress]', 'Comparison Ledger submission failed — quest state unchanged', {
+          player_id: pid,
+          message: result.message,
+        });
+      }
     }
   }, [player, realmProgress, exploration.realm_reflections]);
 
