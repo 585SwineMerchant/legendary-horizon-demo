@@ -106,12 +106,131 @@ function lhSave_parseJson_(raw, fallback) {
 }
 
 /**
+ * Demo/classroom bootstrap gate — decides whether a missing `LhPlayerSave` row may be
+ * auto-created instead of rejected with `player_not_found`.
+ *
+ * Controlled ONLY by Script Properties (Apps Script → Project Settings → Script Properties),
+ * never by request payload, so production validation cannot be weakened by a client.
+ *
+ *  - `LH_DEMO_BOOTSTRAP_PLAYER_IDS` — comma-separated exact allowlist, e.g.
+ *      `stu_0417_kevin_demo,stu_other_demo`
+ *  - `LH_ALLOW_DEMO_BOOTSTRAP` — set to the string `'true'` to allow ANY player_id that
+ *      matches the demo pattern below (broader opt-in, useful for whole-classroom demo days).
+ *
+ * Demo pattern (must match BOTH to qualify under the broad opt-in):
+ *  - starts with `stu_` (the demo/classroom player_id prefix used by the SPA), AND
+ *  - contains `_demo` anywhere in the id (e.g. `stu_0417_kevin_demo`).
+ * This matches the confirmed real-world id `stu_0417_kevin_demo` while still excluding
+ * ordinary roster-issued ids like `stu_0417_kevin` that lack the `_demo` marker.
+ *
+ * If neither script property is set, this always returns false — unchanged production behavior.
+ *
+ * @param {string} playerId
+ * @returns {boolean}
+ */
+function LhSave_isDemoBootstrapEligible_(playerId) {
+  var pid = String(playerId || '');
+  if (!pid) return false;
+  var props = PropertiesService.getScriptProperties();
+  var allowlistRaw = props.getProperty('LH_DEMO_BOOTSTRAP_PLAYER_IDS') || '';
+  var allowlist = allowlistRaw
+    .split(',')
+    .map(function (s) { return s.trim(); })
+    .filter(function (s) { return !!s; });
+  if (allowlist.indexOf(pid) !== -1) {
+    Logger.log('LhSave_isDemoBootstrapEligible_: ' + pid + ' matched LH_DEMO_BOOTSTRAP_PLAYER_IDS allowlist.');
+    return true;
+  }
+  var broadFlag = props.getProperty('LH_ALLOW_DEMO_BOOTSTRAP') === 'true';
+  if (broadFlag && pid.indexOf('stu_') === 0 && pid.indexOf('_demo') !== -1) {
+    Logger.log('LhSave_isDemoBootstrapEligible_: ' + pid + ' matched broad demo pattern under LH_ALLOW_DEMO_BOOTSTRAP=true.');
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Appends a brand-new `LhPlayerSave` row seeded from an incoming `player_snapshot`, but ONLY
+ * when the caller has already confirmed bootstrap eligibility via `LhSave_isDemoBootstrapEligible_`.
+ * Reuses the same header-aware write path as normal saves (`lhSave_writePlayerSnapshot_`) so the
+ * new row's shape always matches `LH_PLAYER_SAVE_HEADERS`.
+ *
+ * @param {string} spreadsheetId
+ * @param {string | null} tabNameOverride
+ * @param {object} playerSnapshot — `envelope.player_snapshot` shape (see `LhSave_validatePlayerSnapshot_`)
+ * @returns {{ ok: boolean, row_written?: number, error?: string }}
+ */
+function LhSave_ensurePlayerRow_(spreadsheetId, tabNameOverride, playerSnapshot) {
+  try {
+    var pid = playerSnapshot && playerSnapshot.player_id;
+    if (!pid) {
+      return { ok: false, error: 'player_id_required' };
+    }
+    var tab = tabNameOverride || LH_SCHEMA.PLAYER_SAVE_TAB;
+    var sheet = lhSheetGetOrThrow_(spreadsheetId, tab);
+    var headerMap = lhSheetReadHeaderMap_(sheet);
+    // Re-check immediately before append in case another request created the row concurrently.
+    var rows = lhSheetReadTable_(sheet);
+    var idCol = headerMap[LH_PLAYER_SAVE_HEADERS.player_id];
+    if (idCol === undefined) {
+      return { ok: false, error: 'player_id_column_missing' };
+    }
+    var existingIndex = lhSheetFindRowIndex_(rows, idCol, pid);
+    if (existingIndex !== -1) {
+      Logger.log('LhSave_ensurePlayerRow_: row for ' + pid + ' appeared concurrently at row ' + (existingIndex + 1) + '; skipping append.');
+      return { ok: true, row_written: existingIndex + 1 };
+    }
+    var lastCol = sheet.getLastColumn();
+    var blankRow = new Array(lastCol).fill('');
+    sheet.appendRow(blankRow);
+    var targetRow = sheet.getLastRow();
+    // Seed the bare minimum so the row is identifiable even if writePlayerSnapshot_ below
+    // skips a field (defensive — keeps the row from being orphaned/un-findable).
+    lhSave_writeFieldIfPresent_(sheet, headerMap, targetRow, LH_PLAYER_SAVE_HEADERS.player_id, pid);
+    var seedSnapshot = {
+      display_name: playerSnapshot.display_name || pid,
+      roster_email_hint: playerSnapshot.roster_email_hint || '',
+      email_hash: playerSnapshot.email_hash || '',
+      current_act: Number(playerSnapshot.current_act) || 1,
+      current_realm_id: playerSnapshot.current_realm_id || '',
+      required_next_action: playerSnapshot.required_next_action || '',
+      active_main_quest_id: playerSnapshot.active_main_quest_id || '',
+      active_main_quest_title: playerSnapshot.active_main_quest_title || '',
+      last_completed_event_id: playerSnapshot.last_completed_event_id || '',
+      last_completed_summary: playerSnapshot.last_completed_summary || '',
+      xp_total: Number(playerSnapshot.xp_total) || 0,
+      level_cached: Number(playerSnapshot.level_cached) || 1,
+      inventory_summary: playerSnapshot.inventory_summary || { coins: 0, items: [] },
+      revision_token: playerSnapshot.revision_token || '',
+      last_manual_save_iso: '',
+    };
+    lhSave_writePlayerSnapshot_(sheet, headerMap, targetRow, seedSnapshot, {});
+    SpreadsheetApp.flush();
+    Logger.log('LhSave_ensurePlayerRow_: bootstrapped new LhPlayerSave row for ' + pid + ' at row ' + targetRow + ' in tab "' + tab + '".');
+    return { ok: true, row_written: targetRow };
+  } catch (err) {
+    Logger.log('LhSave_ensurePlayerRow_ failure: ' + err);
+    return { ok: false, error: String(err) };
+  }
+}
+
+/**
  * Normalized load for gameplay + services.
  * @returns {{ ok: boolean, player?: object, quests?: object[], raw_record?: object, error?: string }}
  */
 function LhSave_loadPlayerState(spreadsheetId, tabNameOverride, playerId) {
   var read = LhSave_readPlayerSave(spreadsheetId, tabNameOverride, playerId);
+  if (!read.ok && read.error === 'player_not_found' && LhSave_isDemoBootstrapEligible_(playerId)) {
+    Logger.log('LhSave_loadPlayerState: ' + playerId + ' not found but bootstrap-eligible; creating row before load.');
+    var bootstrap = LhSave_ensurePlayerRow_(spreadsheetId, tabNameOverride, { player_id: playerId });
+    if (!bootstrap.ok) {
+      Logger.log('LhSave_loadPlayerState: bootstrap failed for ' + playerId + ': ' + bootstrap.error);
+      return read;
+    }
+    read = LhSave_readPlayerSave(spreadsheetId, tabNameOverride, playerId);
+  }
   if (!read.ok) {
+    Logger.log('LhSave_loadPlayerState: rejecting ' + playerId + ' — ' + read.error);
     return read;
   }
   var rec = read.record;
@@ -208,16 +327,38 @@ function LhSave_manualSaveProgress(spreadsheetId, tabNameOverride, envelope) {
     return v;
   }
   var tab = tabNameOverride || LH_SCHEMA.PLAYER_SAVE_TAB;
+  var pid = envelope.player_snapshot.player_id;
+  Logger.log('LhSave_manualSaveProgress: incoming save for player_id=' + pid + ', searching tab "' + tab + '".');
   var sheet = lhSheetGetOrThrow_(spreadsheetId, tab);
   var headerMap = lhSheetReadHeaderMap_(sheet);
   var rows = lhSheetReadTable_(sheet);
   var idCol = headerMap[LH_PLAYER_SAVE_HEADERS.player_id];
-  var pid = envelope.player_snapshot.player_id;
   var rowIndex = lhSheetFindRowIndex_(rows, idCol, pid);
   if (rowIndex === -1) {
-    return { ok: false, error: 'player_not_found' };
+    Logger.log('LhSave_manualSaveProgress: player_id=' + pid + ' not found in tab "' + tab + '".');
+    if (LhSave_isDemoBootstrapEligible_(pid)) {
+      Logger.log('LhSave_manualSaveProgress: player_id=' + pid + ' is bootstrap-eligible; creating row.');
+      var bootstrap = LhSave_ensurePlayerRow_(spreadsheetId, tabNameOverride, envelope.player_snapshot);
+      if (!bootstrap.ok) {
+        Logger.log('LhSave_manualSaveProgress: bootstrap failed for ' + pid + ' — ' + bootstrap.error);
+        return { ok: false, error: 'player_not_found' };
+      }
+      Logger.log('LhSave_manualSaveProgress: bootstrap succeeded for ' + pid + ' at row ' + bootstrap.row_written + '; re-reading table.');
+      rows = lhSheetReadTable_(sheet);
+      rowIndex = lhSheetFindRowIndex_(rows, idCol, pid);
+      if (rowIndex === -1) {
+        Logger.log('LhSave_manualSaveProgress: row for ' + pid + ' still missing after bootstrap — aborting.');
+        return { ok: false, error: 'player_not_found' };
+      }
+    } else {
+      Logger.log('LhSave_manualSaveProgress: rejecting ' + pid + ' — player_not_found (not bootstrap-eligible).');
+      return { ok: false, error: 'player_not_found' };
+    }
+  } else {
+    Logger.log('LhSave_manualSaveProgress: player_id=' + pid + ' found at row ' + (rowIndex + 1) + '.');
   }
   var targetRow = rowIndex + 1;
+  Logger.log('LhSave_manualSaveProgress: writing save for ' + pid + ' to row ' + targetRow + '.');
   var prior = LhSave_loadPlayerState(spreadsheetId, tabNameOverride, pid);
   if (prior.ok && envelope.save_kind !== 'auto') {
     var backup = {
@@ -504,6 +645,7 @@ function lhSave_writeEnvelopeExtensionColumns_(sheet, headerMap, targetRow, enve
 function LhSave_readPlayerSave(spreadsheetId, tabNameOverride, playerId) {
   try {
     var tab = tabNameOverride || LH_SCHEMA.PLAYER_SAVE_TAB;
+    Logger.log('LhSave_readPlayerSave: searching tab "' + tab + '" for player_id=' + playerId);
     var sheet = lhSheetGetOrThrow_(spreadsheetId, tab);
     var headerMap = lhSheetReadHeaderMap_(sheet);
     var rows = lhSheetReadTable_(sheet);
@@ -513,8 +655,10 @@ function LhSave_readPlayerSave(spreadsheetId, tabNameOverride, playerId) {
     }
     var rowIndex = lhSheetFindRowIndex_(rows, colIndex, playerId);
     if (rowIndex === -1) {
+      Logger.log('LhSave_readPlayerSave: player_id=' + playerId + ' NOT FOUND in tab "' + tab + '".');
       return { ok: false, error: 'player_not_found' };
     }
+    Logger.log('LhSave_readPlayerSave: player_id=' + playerId + ' found at row ' + (rowIndex + 1) + ' in tab "' + tab + '".');
 
     var record = {};
     Object.keys(LH_PLAYER_SAVE_HEADERS).forEach(function (logicalKey) {
