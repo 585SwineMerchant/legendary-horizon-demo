@@ -16,6 +16,10 @@ export const LH_TRIGGER_KINDS = [
   'oracle_altar_zone',
   'guild_hq_research',
   'guild_manager_hq',
+  // Animated NPC standing outside the player's chosen (True Path) Guild HQ —
+  // the Act IV manager encounter. Door re-entry no longer triggers the manager;
+  // this outside NPC is the sole entry point. See useNightOneFlow.ts handler.
+  'guild_manager_outside',
   'guild_interview_invite',
   'maia_portal',
 ] as const;

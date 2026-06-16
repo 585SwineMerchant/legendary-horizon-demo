@@ -402,6 +402,41 @@ export function buildDemoGuidanceMap(parsedMap: ParsedLhMap): ParsedLhMap {
     });
   }
 
+  // ── Guild Manager outside HQ (Act IV) ───────────────────────────────────
+  // One animated NPC per guild_hq_research door, standing just outside it.
+  // This is the ONLY Act IV manager trigger — door re-entry stays locked
+  // (see useNightOneFlow.ts guild_hq_research handler). Existence is static
+  // (computed once with the map); runtime gating (Act IV active, True Path
+  // match, application not yet started) happens in the interaction handler.
+  const guildManagerOutsideRealmIds = new Set(
+    effectiveMap.triggers
+      .filter((t) => t.kind === 'guild_manager_outside')
+      .map((t) => String(t.target_realm_id ?? '').trim())
+      .filter(Boolean),
+  );
+  const guildHqResearchTriggers = effectiveMap.triggers.filter((t) => t.kind === 'guild_hq_research');
+  guildHqResearchTriggers.forEach((hqTrigger, idx) => {
+    const realmId = String(hqTrigger.target_realm_id ?? '').trim();
+    if (!realmId || guildManagerOutsideRealmIds.has(realmId)) return;
+    synthetic.push({
+      tiled_object_id: 9100 + idx,
+      tiled_name: `demo_guild_manager_outside_${realmId}`,
+      layer_name: 'demo_synthetic_guidance',
+      kind: 'guild_manager_outside',
+      activation_mode: 'interaction',
+      npc_id: 'guild_manager_outside_npc',
+      target_realm_id: realmId,
+      bounds: {
+        x: hqTrigger.bounds.x,
+        y: hqTrigger.bounds.y + hqTrigger.bounds.height + 18,
+        width: 44,
+        height: 58,
+      },
+      interaction_label_active: 'Speak with the Guild Manager',
+      interaction_label_complete: 'Speak with the Guild Manager',
+    });
+  });
+
   if (!synthetic.length) return effectiveMap;
   return {
     ...effectiveMap,

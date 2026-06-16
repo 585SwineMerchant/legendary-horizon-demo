@@ -19,6 +19,7 @@ import { QuestLogShell, type Act3GuildProgress, type Act4GuildProgress } from '.
 import { TruePathPickerModal } from './components/TruePathPickerModal';
 import { SystemToastOverlay } from './components/SystemToastOverlay';
 import { ModuleHostOverlay } from './components/ModuleHostOverlay';
+import { GuildBrochureModal } from './components/GuildBrochureModal';
 import { useLhAccessibilityPrefs } from './hooks/useLhAccessibilityPrefs';
 import { useNightOneFlow } from './hooks/useNightOneFlow';
 import { CampfireSaveScreen } from './screens/CampfireSaveScreen';
@@ -123,6 +124,9 @@ export function App() {
     handleUseConsumable,
     moduleHostOpen,
     activeModuleId,
+    guildBrochureOpen,
+    closeGuildBrochure,
+    beginGuildApplicationFromBrochure,
     scrollRevealOpen,
     dismissScrollReveal,
     truePathPickerOpen,
@@ -682,6 +686,14 @@ export function App() {
           navigate.closeModule();
         }}
       /> : null}
+      {!teacherDashboardOpen ? (
+        <GuildBrochureModal
+          open={Boolean(guildBrochureOpen)}
+          realmId={guildBrochureOpen?.realmId ?? null}
+          onClose={closeGuildBrochure}
+          onBeginApplication={beginGuildApplicationFromBrochure}
+        />
+      ) : null}
       {!teacherDashboardOpen && scrollRevealOpen ? (
         <ScrollRevealSequence
           foretoldSignpostRealmIds={exploration.foretold_signpost_realm_ids ?? []}

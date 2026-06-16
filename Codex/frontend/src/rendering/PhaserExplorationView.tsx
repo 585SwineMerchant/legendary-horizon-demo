@@ -520,6 +520,10 @@ const LOST_ECHO_IDLE_KEY = 'lh_lost_echo_idle';
 const MASTER_SCRIBE_IDLE_ANIM_KEY = 'lh_master_scribe_idle_anim';
 const MASTER_SCRIBE_TALK_ANIM_KEY = 'lh_master_scribe_talk_anim';
 const LOST_ECHO_IDLE_ANIM_KEY = 'lh_lost_echo_idle_anim';
+/** Act IV Guild Manager outside HQ — base villager idle sprite (per-guild clothing overlays are a future art pass). */
+const GUILD_MANAGER_OUTSIDE_KEY = 'lh_villager_m_idle';
+const GUILD_MANAGER_OUTSIDE_ANIM_KEY = 'lh_guild_manager_outside_idle_anim';
+const GUILD_MANAGER_OUTSIDE_FRAME = { width: 160, height: 160, count: 10 };
 const MASTER_SCRIBE_FRAME = { width: 160, height: 160, count: 10 };
 /** 5×5 grid in `old_wizard-idle2.png` — last four cells (indices 21–24) are empty padding; do not include in the anim. */
 const MASTER_SCRIBE_TALK_FRAME = { width: 160, height: 160, count: 21 };
@@ -1266,6 +1270,7 @@ export function PhaserExplorationView({
         private triggerBodies: Array<{ rect: Phaser.GameObjects.Rectangle; meta: TriggerRect }> = [];
         private portalSprites = new Map<string, Phaser.GameObjects.Sprite>();
         private masterScribeSprites = new Map<string, Phaser.GameObjects.Sprite>();
+        private guildManagerOutsideSprites = new Map<string, Phaser.GameObjects.Sprite>();
         /** True while React dialogue for Master Scribe is open — used to defer talk anim until after dismiss. */
         private masterScribeDialogueWasOpen = false;
         private lostEchoSprites = new Map<string, Phaser.GameObjects.Sprite>();
@@ -2808,6 +2813,27 @@ export function PhaserExplorationView({
           }
         }
 
+        /** Act IV Guild Manager — animated NPC standing outside the player's chosen Guild HQ. */
+        private addGuildManagerOutsideVisual(hit: TriggerRect) {
+          if (!this.textures.exists(GUILD_MANAGER_OUTSIDE_KEY)) {
+            return;
+          }
+          const sprite = this.add.sprite(hit.x + hit.w / 2, hit.y + hit.h, GUILD_MANAGER_OUTSIDE_KEY);
+          sprite.setOrigin(0.5, 1);
+          sprite.setScale(0.62);
+          sprite.setDepth(sprite.y);
+          if (this.anims.exists(GUILD_MANAGER_OUTSIDE_ANIM_KEY)) {
+            sprite.play(GUILD_MANAGER_OUTSIDE_ANIM_KEY);
+          }
+          this.guildManagerOutsideSprites.set(hit.interactable_id, sprite);
+          if (import.meta.env.DEV) {
+            console.info('[LhScene] Guild Manager (outside HQ) visual sprite created', {
+              interactable_id: hit.interactable_id,
+              bounds: { x: hit.x, y: hit.y, w: hit.w, h: hit.h },
+            });
+          }
+        }
+
         private addLostEchoVisual(hit: TriggerRect) {
           const source = this.triggerVisualSource(hit);
           if (!this.textures.exists(LOST_ECHO_IDLE_KEY) || this.lostEchoIdleLoadFailed) {
@@ -4060,6 +4086,17 @@ export function PhaserExplorationView({
             });
           }
           registerLostEchoAnimsIfNeeded(this);
+          if (this.textures.exists(GUILD_MANAGER_OUTSIDE_KEY) && !this.anims.exists(GUILD_MANAGER_OUTSIDE_ANIM_KEY)) {
+            this.anims.create({
+              key: GUILD_MANAGER_OUTSIDE_ANIM_KEY,
+              frames: this.anims.generateFrameNumbers(GUILD_MANAGER_OUTSIDE_KEY, {
+                start: 0,
+                end: GUILD_MANAGER_OUTSIDE_FRAME.count - 1,
+              }),
+              frameRate: 6,
+              repeat: -1,
+            });
+          }
 
           // ── Campfire fire loop animation ──────────────────────────────────
           if (this.textures.exists('lh_campfire_fire') && !this.anims.exists('lh_campfire_fire_loop')) {
@@ -4108,6 +4145,10 @@ export function PhaserExplorationView({
 
             if (tr.kind === 'combat_encounter' && tr.tiled_name === LOST_ECHO_TRIGGER_NAME) {
               this.addLostEchoVisual(tr);
+            }
+
+            if (tr.kind === 'guild_manager_outside') {
+              this.addGuildManagerOutsideVisual(tr);
             }
 
             // Oracle visual paths (one per trigger kind — only one should fire per map):

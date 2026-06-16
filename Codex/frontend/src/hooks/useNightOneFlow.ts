@@ -608,6 +608,9 @@ export function useNightOneFlow() {
   const [truePathPickerOpen, setTruePathPickerOpen] = useState(false);
   // Ref set when the Guild Manager first-encounter dialogue fires. Module opens after dialogue dismissed.
   const guildManagerModulePendingRef = useRef<string | null>(null);
+  // Ref set when the Guild Manager outside-HQ dialogue fires. Brochure opens after dialogue dismissed.
+  const guildManagerBrochurePendingRef = useRef<string | null>(null);
+  const [guildBrochureOpen, setGuildBrochureOpen] = useState<{ realmId: string } | null>(null);
   const [oracleProphecyOpen, setOracleProphecyOpen] = useState(false);
   const [oracleCinematicOpen, setOracleCinematicOpen] = useState(false);
   const [preRevealCheckpointOpen, setPreRevealCheckpointOpen] = useState(false);
@@ -1343,6 +1346,16 @@ export function useNightOneFlow() {
         console.log('[LH_ACT_FLOW_DEBUG] Guild Manager dialogue dismissed — opening module:', pendingGmModule);
       }
     }
+    // Act IV: if the outside-HQ Guild Manager first-encounter dialogue just fired, open the Brochure after dismiss.
+    const pendingGmBrochureRealm = guildManagerBrochurePendingRef.current;
+    if (pendingGmBrochureRealm) {
+      guildManagerBrochurePendingRef.current = null;
+      setPauseOpen(false);
+      setGuildBrochureOpen({ realmId: pendingGmBrochureRealm });
+      if (typeof console !== 'undefined') {
+        console.log('[LH_ACT_FLOW_DEBUG] Guild Manager dialogue dismissed — opening Brochure for:', pendingGmBrochureRealm);
+      }
+    }
   }, [npcDialogue]);
 
   // MQ-103 completion: Phaser fires this after all 4 tutorial echoes are defeated.
@@ -1725,108 +1738,19 @@ export function useNightOneFlow() {
 
         if (revealed.has(triggerRealm)) {
           // ── Guild already visited (Act III research complete) ──────────────────────
-          // Rule: door is locked after first visit.
-          // Act IV exception: only the True Path guild door reopens, and only once the
-          // player has been directed there via mq-402.
-
-          if (truePathRealm && truePathRealm === triggerRealm) {
-            const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
-
-            // If the GM meeting already happened, show a phase-appropriate status message.
-            if (ge.application_unlocked) {
-              if (!ge.application_sealed) {
-                setSaveFeedback({ tone: 'success', text: 'Your Enrollment Rune is still open. Complete it when you are ready.' });
-                return;
-              }
-              const phaseMsg =
-                ge.phase === 'guild_accepted_v1'
-                  ? 'You have been accepted into this guild. Your journey continues.'
-                  : ge.phase === 'interview_invited'
-                  ? 'You have been invited to an interview. Speak with the Guild Manager to proceed.'
-                  : 'Your Enrollment Rune has been submitted. The Guild Manager will be in touch.';
-              setSaveFeedback({ tone: 'success', text: phaseMsg });
-              return;
-            }
-
-            // GM meeting not yet happened — only fire it when the player has been
-            // directed here by mq-402 ("Travel to Chosen Guild HQ").
-            const mq402re = quests.find((q) => q.quest_id === 'mq-402');
-            const directedHere = mq402re && (mq402re.status === 'active' || mq402re.status === 'available');
-            if (!directedHere) {
-              // True Path chosen in Act III but Act IV hasn't begun — door stays locked.
-              playLhSfx('action_blocked');
-              setSaveFeedback({
-                tone: 'error',
-                text: 'You have pledged your path to this guild. Return when you receive your summons.',
-              });
-              window.dispatchEvent(
-                new CustomEvent(LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT, { detail: { interactableId, mode: 'blocked' } }),
-              );
-              return;
-            }
-
-            // Act IV: first True Path HQ entry — complete mq-402, fire Guild Manager.
-            completeQuestWithXp('mq-402');
-            setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'mq-403')));
-            setPlayer((p) =>
-              p
-                ? {
-                    ...p,
-                    active_main_quest_id: 'mq-403',
-                    active_main_quest_title: 'Meet the Guild Manager',
-                    required_next_action: 'Speak with the Guild Manager at this Guild HQ.',
-                  }
-                : p,
-            );
-            const mq403ge = quests.find((q) => q.quest_id === 'mq-403');
-            if (mq403ge && (mq403ge.status === 'available' || mq403ge.status === 'active')) {
-              completeQuestWithXp('mq-403');
-            }
-            setQuests((q) => reconcileQuestPrerequisites(forceUnlockQuest(q, 'gt-101')));
-            setPlayer((p) =>
-              p
-                ? {
-                    ...p,
-                    active_main_quest_id: 'gt-101',
-                    active_main_quest_title: 'Complete the Rite of Enrollment',
-                    required_next_action: 'Complete the Enrollment Rune application at your Guild HQ.',
-                  }
-                : p,
-            );
-            setExploration((e) =>
-              mergeGuildHqAtlasRevealed(
-                mergeGuildEndgameIntoExploration(e, {
-                  application_unlocked: true,
-                  phase: 'application_available',
-                }),
-                triggerRealm,
-              ),
-            );
-            playLhSfx('door_open');
-            setPauseOpen(false);
-            setNpcDialogue({
-              npcId: 'guild_manager_hq_npc',
-              title: 'Guild Manager',
-              speakerLabel: 'Guild Manager',
-              body:
-                'Traveler. We have heard of your research. You have compared the guild roads and you have chosen ours.\n\n' +
-                'That is not a small thing.\n\n' +
-                'I cannot offer you a seat in this hall on reputation alone. Every Traveler who enters through these doors completes an Enrollment Rune first. It tells us who you are, what you bring, and why you belong here.\n\n' +
-                'Complete it honestly. There is no wrong answer — only an unfinished one.',
-              portraitUrl: GUILD_MANAGER_PORTRAIT_URL,
-              narrationSequenceId: 'guild_manager_first_meeting',
-            });
-            guildManagerModulePendingRef.current = 'mod_gt101_enrollment_rune';
-            return;
-          }
-
-          // Not the True Path guild (or no True Path chosen yet) — door stays locked.
+          // Rule: door is locked after first visit, unconditionally — even for the True
+          // Path realm. The Act IV Guild Manager is met OUTSIDE the building via the
+          // guild_manager_outside NPC trigger, never through door re-entry. Build true
+          // interiors before reopening doors for any reason.
           playLhSfx('action_blocked');
           setSaveFeedback({
             tone: 'error',
-            text: truePathRealm
-              ? 'The guild hall doors are closed. Only your chosen True Path headquarters will receive you in-world.'
-              : 'The guild hall doors are closed. Choose your True Path on the World Atlas, then return to your guild headquarters.',
+            text:
+              truePathRealm && truePathRealm === triggerRealm
+                ? 'You have already explored this guild hall. Your Guild Manager awaits outside, near the entrance.'
+                : truePathRealm
+                  ? 'The guild hall doors are closed. Only your chosen True Path headquarters concerns you now.'
+                  : 'The guild hall doors are closed. Choose your True Path on the World Atlas, then return to your guild headquarters.',
           });
           window.dispatchEvent(
             new CustomEvent(LH_WINDOW_PHASER_GUILD_RESEARCH_ABORT, { detail: { interactableId, mode: 'blocked' } }),
@@ -1925,7 +1849,14 @@ export function useNightOneFlow() {
         return;
       }
 
-      if (kind === 'guild_manager_hq') {
+      // ── Guild Manager outside HQ (Act IV) ───────────────────────────────────────
+      // The sole Act IV manager encounter — an animated NPC standing outside the
+      // player's chosen (True Path) Guild HQ, never the door itself (see
+      // guild_hq_research above, which keeps the door locked after first visit).
+      // 'guild_manager_hq' is kept as an alias for any legacy desk-kind Tiled
+      // objects still on disk, but the only object the current map should place
+      // is 'guild_manager_outside'.
+      if (kind === 'guild_manager_hq' || kind === 'guild_manager_outside') {
         const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
         const triggerRealm = String(triggerMeta.target_realm_id ?? '').trim() || 'realm_aethelwood';
 
@@ -1942,7 +1873,7 @@ export function useNightOneFlow() {
         if (ge.true_path_realm_id !== triggerRealm) {
           setSaveFeedback({
             tone: 'error',
-            text: 'This desk belongs to another guild. Travel to your chosen guild headquarters on the map.',
+            text: 'This Guild Manager has no business with you — this is not your chosen path.',
           });
           return;
         }
@@ -1989,15 +1920,26 @@ export function useNightOneFlow() {
         }
         if (ge.application_unlocked) {
           revealAtlasForThisHq();
-          setSaveFeedback({
-            tone: 'success',
-            text: 'Your Enrollment Rune is still open. Complete it when you are ready and return it to this desk.',
-          });
           markDeskVisited();
+          setGuildBrochureOpen({ realmId: triggerRealm });
           return;
         }
 
         if (visitedInteractableIds.includes(interactableId)) return;
+
+        // First meeting only fires once Act IV has actually directed the player here.
+        const mq402gm = quests.find((q) => q.quest_id === 'mq-402');
+        const directedHereGm = mq402gm && (mq402gm.status === 'active' || mq402gm.status === 'available');
+        if (!directedHereGm) {
+          setSaveFeedback({
+            tone: 'error',
+            text: 'The Guild Manager is not yet expecting you. Return when you receive your summons.',
+          });
+          return;
+        }
+        if (mq402gm && mq402gm.status !== 'completed') {
+          completeQuestWithXp('mq-402');
+        }
 
         // MQ-403 "Meet the Guild Manager": complete on first guild_manager_hq encounter.
         const mq403 = quests.find((q) => q.quest_id === 'mq-403');
@@ -2028,21 +1970,20 @@ export function useNightOneFlow() {
         );
 
         // Show mentor dialogue card instead of a generic toast.
-        // Enrollment Rune opens after the player dismisses this dialogue (guildManagerModulePendingRef).
+        // The Brochure opens after the player dismisses this dialogue (guildManagerBrochurePendingRef).
         setPauseOpen(false);
         setNpcDialogue({
-          npcId: 'guild_manager_hq_npc',
+          npcId: 'guild_manager_outside_npc',
           title: 'Guild Manager',
           speakerLabel: 'Guild Manager',
           body:
             'Traveler. We have heard of your research. You have compared the guild roads and you have chosen ours.\n\n' +
             'That is not a small thing.\n\n' +
-            'I cannot offer you a seat in this hall on reputation alone. Every Traveler who enters through these doors completes an Enrollment Rune first. It tells us who you are, what you bring, and why you belong here.\n\n' +
-            'Complete it honestly. There is no wrong answer — only an unfinished one.',
+            "Every apprentice begins with an Enrollment Rune. Read our guild's call carefully. If this path still speaks to you, complete the application on the back and submit it to the Council.",
           portraitUrl: GUILD_MANAGER_PORTRAIT_URL,
           narrationSequenceId: 'guild_manager_first_meeting',
         });
-        guildManagerModulePendingRef.current = 'mod_gt101_enrollment_rune';
+        guildManagerBrochurePendingRef.current = triggerRealm;
         markDeskVisited();
         return;
       }
@@ -2274,6 +2215,7 @@ export function useNightOneFlow() {
         hit.kind === 'combat_encounter' ||
         hit.kind === 'vocab_battle' ||
         hit.kind === 'guild_manager_hq' ||
+        hit.kind === 'guild_manager_outside' ||
         hit.kind === 'guild_hq_research' ||
         hit.kind === 'guild_interview_invite' ||
         hit.kind === 'maia_portal',
@@ -3647,6 +3589,13 @@ export function useNightOneFlow() {
     handleUseConsumable,
     moduleHostOpen,
     activeModuleId,
+    guildBrochureOpen,
+    closeGuildBrochure: () => setGuildBrochureOpen(null),
+    beginGuildApplicationFromBrochure: () => {
+      setGuildBrochureOpen(null);
+      setActiveModuleId('mod_gt101_enrollment_rune');
+      setModuleHostOpen(true);
+    },
     scrollRevealOpen,
     truePathPickerOpen,
     openTruePathPicker: () => setTruePathPickerOpen(true),

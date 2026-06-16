@@ -34,6 +34,7 @@ const STUB_KINDS = new Set<string>([
   'external_link',
   'guild_hq_research',
   'guild_manager_hq',
+  'guild_manager_outside',
   'guild_interview_invite',
 ]);
 
