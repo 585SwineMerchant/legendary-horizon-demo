@@ -113,6 +113,7 @@ export function BuildDebugStamp({ tileMapUrl, mapVariant }: Props) {
     { label: 'baseURI',    value: document.baseURI },
     { label: 'save mode',  value: saveMode() },
     { label: 'backend',    value: backendMode() },
+    { label: 'sheet id',   value: import.meta.env.VITE_LH_SPREADSHEET_ID ? 'configured' : 'missing' },
     { label: 'oracle src', value: ORACLE_VIDEO_SRC_STAMP },
     { label: 'map url',    value: tileMapUrl ?? '—' },
     { label: 'map variant',value: mapVariant ?? '—' },
