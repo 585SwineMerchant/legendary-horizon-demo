@@ -1,0 +1,858 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trial of Tongues - Google Sites Embed</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0f14;
+      --panel: #111821;
+      --panel-2: #172331;
+      --line: rgba(255, 255, 255, 0.14);
+      --text: #eef4f8;
+      --muted: #a9b7c5;
+      --amber: #f2a33a;
+      --teal: #54d3c2;
+      --red: #ef6b73;
+      --green: #73d78a;
+      --shadow: rgba(0, 0, 0, 0.35);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: transparent;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    .tot-shell {
+      width: min(100%, 960px);
+      min-height: 680px;
+      margin: 0 auto;
+      background:
+        radial-gradient(circle at top left, rgba(84, 211, 194, 0.12), transparent 34rem),
+        linear-gradient(135deg, #0b0f14 0%, #101722 58%, #16130f 100%);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 24px 70px var(--shadow);
+    }
+
+    .tot-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(8, 12, 17, 0.62);
+    }
+
+    .tot-title-block {
+      min-width: 0;
+    }
+
+    .tot-kicker {
+      margin: 0 0 4px;
+      color: var(--amber);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .tot-title {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .tot-subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .tot-meter {
+      width: min(260px, 38vw);
+      min-width: 180px;
+      align-self: center;
+    }
+
+    .tot-meter-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .tot-meter-track {
+      height: 12px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.13);
+    }
+
+    .tot-meter-fill {
+      height: 100%;
+      width: 50%;
+      background: linear-gradient(90deg, var(--red), var(--amber) 52%, var(--green));
+      transition: width 180ms ease;
+    }
+
+    .tot-layout {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 0;
+      min-height: 570px;
+    }
+
+    .tot-main {
+      padding: 18px;
+      min-width: 0;
+    }
+
+    .tot-sidebar {
+      padding: 18px;
+      border-left: 1px solid var(--line);
+      background: rgba(7, 10, 14, 0.35);
+    }
+
+    .tot-npc {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .tot-avatar {
+      display: grid;
+      place-items: center;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(84, 211, 194, 0.12);
+      border: 1px solid rgba(84, 211, 194, 0.5);
+      color: var(--teal);
+      font-weight: 900;
+    }
+
+    .tot-npc-name {
+      margin: 0;
+      font-weight: 900;
+    }
+
+    .tot-npc-title {
+      margin: 3px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .tot-transcript {
+      height: 360px;
+      padding: 12px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(8, 12, 17, 0.48);
+    }
+
+    .tot-empty {
+      display: grid;
+      place-items: center;
+      height: 100%;
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .tot-message {
+      display: flex;
+      margin: 10px 0;
+    }
+
+    .tot-message.is-user {
+      justify-content: flex-end;
+    }
+
+    .tot-bubble {
+      max-width: 86%;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+
+    .tot-message.is-user .tot-bubble {
+      background: #223247;
+      border-color: rgba(84, 211, 194, 0.24);
+    }
+
+    .tot-message.is-action .tot-bubble {
+      width: 100%;
+      max-width: 100%;
+      background: rgba(242, 163, 58, 0.08);
+      border-color: rgba(242, 163, 58, 0.28);
+      color: #f8dfb7;
+    }
+
+    .tot-speaker {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .tot-form {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .tot-input {
+      width: 100%;
+      min-height: 48px;
+      resize: vertical;
+      padding: 12px;
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 8px;
+      outline: none;
+    }
+
+    .tot-input:focus {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(84, 211, 194, 0.16);
+    }
+
+    .tot-button {
+      min-height: 44px;
+      padding: 0 14px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 8px;
+      color: var(--text);
+      background: var(--panel-2);
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .tot-button:hover:not(:disabled),
+    .tot-button:focus-visible:not(:disabled) {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(84, 211, 194, 0.16);
+      outline: none;
+    }
+
+    .tot-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    .tot-button-primary {
+      color: #15100a;
+      background: var(--amber);
+      border-color: rgba(242, 163, 58, 0.75);
+    }
+
+    .tot-check {
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px solid rgba(242, 163, 58, 0.3);
+      border-radius: 8px;
+      background: rgba(242, 163, 58, 0.08);
+    }
+
+    .tot-check-title,
+    .tot-side-title {
+      margin: 0 0 8px;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .tot-check-text,
+    .tot-side-text {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .tot-options {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .tot-option {
+      width: 100%;
+      min-height: 42px;
+      text-align: left;
+      white-space: normal;
+    }
+
+    .tot-side-section {
+      padding: 13px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .tot-side-section:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .tot-list {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .tot-result {
+      display: none;
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px solid rgba(115, 215, 138, 0.32);
+      border-radius: 8px;
+      background: rgba(115, 215, 138, 0.08);
+    }
+
+    .tot-result.is-fail {
+      border-color: rgba(239, 107, 115, 0.35);
+      background: rgba(239, 107, 115, 0.08);
+    }
+
+    .tot-result-title {
+      margin: 0 0 6px;
+      font-size: 18px;
+    }
+
+    .tot-result-copy {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .tot-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .tot-feedback {
+      min-height: 20px;
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    @media (max-width: 760px) {
+      .tot-header {
+        display: block;
+      }
+
+      .tot-meter {
+        width: 100%;
+        margin-top: 16px;
+      }
+
+      .tot-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .tot-sidebar {
+        border-left: 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .tot-form {
+        grid-template-columns: 1fr;
+      }
+
+      .tot-transcript {
+        height: 330px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="tot-shell" id="trialOfTonguesApp">
+    <header class="tot-header">
+      <div class="tot-title-block">
+        <p class="tot-kicker">GT-102</p>
+        <h1 class="tot-title">The Trial of Tongues</h1>
+        <p class="tot-subtitle">Etheric Nexus interview with Technomancer Zero</p>
+      </div>
+
+      <div class="tot-meter" aria-label="Guild favor meter">
+        <div class="tot-meter-row">
+          <span>Guild Favor</span>
+          <span id="favorLabel">50/100</span>
+        </div>
+        <div class="tot-meter-track">
+          <div class="tot-meter-fill" id="favorFill"></div>
+        </div>
+      </div>
+    </header>
+
+    <div class="tot-layout">
+      <section class="tot-main" aria-label="Interview chamber">
+        <div class="tot-npc">
+          <div class="tot-avatar" aria-hidden="true">IT</div>
+          <div>
+            <p class="tot-npc-name">Technomancer Zero</p>
+            <p class="tot-npc-title">Core Overseer of the Etheric Nexus</p>
+          </div>
+        </div>
+
+        <div class="tot-transcript" id="transcript" aria-live="polite">
+          <div class="tot-empty" id="emptyState">
+            <p>Your interview record is empty. Begin when you are ready.</p>
+          </div>
+        </div>
+
+        <form class="tot-form" id="answerForm">
+          <textarea
+            class="tot-input"
+            id="answerInput"
+            rows="2"
+            maxlength="700"
+            placeholder="Type your professional response..."
+            disabled
+          ></textarea>
+          <button class="tot-button tot-button-primary" id="sendButton" type="submit" disabled>Send</button>
+        </form>
+
+        <section class="tot-check" id="softCheck" style="display: none;" aria-label="Charisma check">
+          <h2 class="tot-check-title">Charisma Check</h2>
+          <p class="tot-check-text" id="softCheckScenario"></p>
+          <div class="tot-options" id="softCheckOptions"></div>
+        </section>
+
+        <section class="tot-result" id="resultPanel" aria-live="polite">
+          <h2 class="tot-result-title" id="resultTitle"></h2>
+          <p class="tot-result-copy" id="resultCopy"></p>
+          <div class="tot-actions">
+            <button class="tot-button tot-button-primary" id="copyTranscriptButton" type="button">Copy Transcript</button>
+            <button class="tot-button" id="restartButton" type="button">Restart Trial</button>
+          </div>
+          <p class="tot-feedback" id="copyFeedback"></p>
+        </section>
+      </section>
+
+      <aside class="tot-sidebar" aria-label="Trial record">
+        <section class="tot-side-section">
+          <h2 class="tot-side-title">Standing</h2>
+          <p class="tot-side-text" id="standingText">Awaiting trial start.</p>
+        </section>
+
+        <section class="tot-side-section">
+          <h2 class="tot-side-title">Interview Turns</h2>
+          <p class="tot-side-text"><span id="turnCount">0</span> of 3 answers recorded</p>
+        </section>
+
+        <section class="tot-side-section">
+          <h2 class="tot-side-title">Professionalism Signals</h2>
+          <ul class="tot-list">
+            <li>Complete, specific answers raise favor.</li>
+            <li>Capitalization and closing punctuation matter.</li>
+            <li>Slang or dismissive wording lowers favor.</li>
+            <li>Charisma choices affect final standing.</li>
+          </ul>
+        </section>
+
+        <section class="tot-side-section">
+          <button class="tot-button tot-button-primary" id="startButton" type="button">Begin Trial</button>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const PASS_THRESHOLD = 70;
+
+      const questions = [
+        "Why do you seek to serve the Etheric Nexus?",
+        "Tell me about a time you solved a problem using your unique skills. What did you do, and what was the outcome?",
+        "How do you handle disputes with fellow Travelers when emotions run high?"
+      ];
+
+      const softSkills = [
+        {
+          scenario: "The Guild Manager pauses, leaving a long, uncomfortable silence to test your nerve. What is your physical response?",
+          options: [
+            { text: "Maintain steady, pleasant eye contact and wait patiently.", score: 10, feedback: "You showed professional composure." },
+            { text: "Pull out your glowing crystal to pass the time.", score: -15, feedback: "You appeared distracted and disrespectful." },
+            { text: "Nervously start rambling to fill the silence.", score: -5, feedback: "You showed a lack of confidence." }
+          ]
+        },
+        {
+          scenario: "The Manager mentions a complex Guild regulation that you do not fully understand.",
+          options: [
+            { text: "Nod and pretend you know exactly what they mean.", score: -10, feedback: "You lacked integrity by pretending." },
+            { text: "Politely ask them to clarify the regulation.", score: 10, feedback: "You showed active listening and honesty." },
+            { text: "Change the subject back to how great your skills are.", score: -5, feedback: "You avoided the topic entirely." }
+          ]
+        },
+        {
+          scenario: "The Manager finishes speaking and formally stands up from their desk.",
+          options: [
+            { text: "Stand up, give a firm handshake or Realm equivalent, and thank them.", score: 10, feedback: "Excellent professional closing." },
+            { text: "Say 'Peace out' and walk away immediately.", score: -15, feedback: "Far too casual for a formal Guild Master." },
+            { text: "Wait awkwardly in your seat for them to tell you to leave.", score: -5, feedback: "You lacked initiative and awareness." }
+          ]
+        }
+      ];
+
+      const state = {
+        favor: 50,
+        active: false,
+        finished: false,
+        questionIndex: 0,
+        pendingSoftCheckIndex: null,
+        transcript: []
+      };
+
+      const els = {
+        transcript: document.getElementById("transcript"),
+        emptyState: document.getElementById("emptyState"),
+        favorLabel: document.getElementById("favorLabel"),
+        favorFill: document.getElementById("favorFill"),
+        standingText: document.getElementById("standingText"),
+        turnCount: document.getElementById("turnCount"),
+        startButton: document.getElementById("startButton"),
+        answerForm: document.getElementById("answerForm"),
+        answerInput: document.getElementById("answerInput"),
+        sendButton: document.getElementById("sendButton"),
+        softCheck: document.getElementById("softCheck"),
+        softCheckScenario: document.getElementById("softCheckScenario"),
+        softCheckOptions: document.getElementById("softCheckOptions"),
+        resultPanel: document.getElementById("resultPanel"),
+        resultTitle: document.getElementById("resultTitle"),
+        resultCopy: document.getElementById("resultCopy"),
+        copyTranscriptButton: document.getElementById("copyTranscriptButton"),
+        restartButton: document.getElementById("restartButton"),
+        copyFeedback: document.getElementById("copyFeedback")
+      };
+
+      function clampFavor(value) {
+        return Math.max(0, Math.min(100, value));
+      }
+
+      function setFavor(nextFavor) {
+        state.favor = clampFavor(nextFavor);
+        els.favorLabel.textContent = state.favor + "/100";
+        els.favorFill.style.width = state.favor + "%";
+
+        if (state.finished) {
+          els.standingText.textContent = state.favor >= PASS_THRESHOLD
+            ? "Passed. The Council accepts your professional standing."
+            : "Retry needed. The Council asks for a stronger interview.";
+          return;
+        }
+
+        if (!state.active) {
+          els.standingText.textContent = "Awaiting trial start.";
+        } else if (state.favor >= PASS_THRESHOLD) {
+          els.standingText.textContent = "Strong standing. Keep your answers specific and composed.";
+        } else if (state.favor >= 50) {
+          els.standingText.textContent = "Developing standing. Professional details will help.";
+        } else {
+          els.standingText.textContent = "Fragile standing. Slow down and answer with care.";
+        }
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
+      function addTranscript(role, speaker, text) {
+        state.transcript.push({
+          role,
+          speaker,
+          text,
+          at: new Date().toLocaleString()
+        });
+        renderTranscript();
+      }
+
+      function renderTranscript() {
+        els.emptyState.style.display = state.transcript.length ? "none" : "grid";
+        const rows = state.transcript.map(function (entry) {
+          const className = entry.role === "user"
+            ? "tot-message is-user"
+            : entry.role === "action"
+              ? "tot-message is-action"
+              : "tot-message";
+          return (
+            '<div class="' + className + '">' +
+              '<div class="tot-bubble">' +
+                '<span class="tot-speaker">' + escapeHtml(entry.speaker) + '</span>' +
+                escapeHtml(entry.text) +
+              '</div>' +
+            '</div>'
+          );
+        }).join("");
+        els.transcript.innerHTML = rows || els.emptyState.outerHTML;
+        els.transcript.scrollTop = els.transcript.scrollHeight;
+        els.turnCount.textContent = String(state.transcript.filter(function (entry) {
+          return entry.role === "user";
+        }).length);
+      }
+
+      function evaluateProfessionalism(text) {
+        const trimmed = text.trim();
+        let delta = 0;
+        const notes = [];
+
+        if (trimmed.length >= 25) {
+          delta += 5;
+          notes.push("complete answer");
+        } else if (trimmed.length < 12) {
+          delta -= 8;
+          notes.push("too brief");
+        }
+
+        if (trimmed[0] && trimmed[0] === trimmed[0].toUpperCase()) {
+          delta += 2;
+          notes.push("capitalized opening");
+        } else {
+          delta -= 3;
+          notes.push("uncapitalized opening");
+        }
+
+        if (/[.!?]$/.test(trimmed)) {
+          delta += 2;
+          notes.push("professional closing punctuation");
+        } else {
+          delta -= 2;
+          notes.push("missing closing punctuation");
+        }
+
+        if (/\b(because|example|for instance|when|learned|outcome|resolved|listen|understand|team|respect|communicate|responsibility)\b/i.test(trimmed)) {
+          delta += 4;
+          notes.push("specific professional detail");
+        }
+
+        if (/\b(idk|lol|gonna|wanna|bruh|nah|whatever)\b/i.test(trimmed)) {
+          delta -= 15;
+          notes.push("casual or dismissive wording");
+        }
+
+        if (/\b(stupid|dumb|hate|shut up|not my problem)\b/i.test(trimmed)) {
+          delta -= 12;
+          notes.push("unprofessional tone");
+        }
+
+        return { delta, notes };
+      }
+
+      function npcReplyFor(nextQuestionIndex) {
+        if (nextQuestionIndex === 1) {
+          return "So noted. " + questions[1];
+        }
+        if (nextQuestionIndex === 2) {
+          return "Accepted. " + questions[2];
+        }
+        return "The interview is concluded. I will now weigh your merits.";
+      }
+
+      function setInputEnabled(enabled) {
+        els.answerInput.disabled = !enabled;
+        els.sendButton.disabled = !enabled;
+        if (enabled) els.answerInput.focus();
+      }
+
+      function beginTrial() {
+        if (state.active) return;
+        state.active = true;
+        state.finished = false;
+        state.questionIndex = 0;
+        els.startButton.disabled = true;
+        els.resultPanel.style.display = "none";
+        addTranscript(
+          "npc",
+          "Technomancer Zero",
+          "I am Technomancer Zero, Core Overseer of the Etheric Nexus. Answer with clarity, Traveler. " + questions[0]
+        );
+        setInputEnabled(true);
+        setFavor(state.favor);
+      }
+
+      function submitAnswer(event) {
+        event.preventDefault();
+        if (!state.active || state.finished || state.pendingSoftCheckIndex !== null) return;
+
+        const text = els.answerInput.value.trim();
+        if (!text) return;
+
+        els.answerInput.value = "";
+        addTranscript("user", "Traveler", text);
+
+        const evaluation = evaluateProfessionalism(text);
+        setFavor(state.favor + evaluation.delta);
+        addTranscript(
+          "action",
+          "Professionalism",
+          "Response check: " + (evaluation.delta >= 0 ? "+" : "") + evaluation.delta + " favor (" + evaluation.notes.join(", ") + ")."
+        );
+
+        const nextQuestionIndex = state.questionIndex + 1;
+        addTranscript("npc", "Technomancer Zero", npcReplyFor(nextQuestionIndex));
+        state.questionIndex = nextQuestionIndex;
+
+        const check = softSkills[nextQuestionIndex - 1];
+        if (check) {
+          state.pendingSoftCheckIndex = nextQuestionIndex - 1;
+          setInputEnabled(false);
+          renderSoftCheck(check);
+        } else {
+          finishTrial();
+        }
+      }
+
+      function renderSoftCheck(check) {
+        els.softCheck.style.display = "block";
+        els.softCheckScenario.textContent = check.scenario;
+        els.softCheckOptions.innerHTML = check.options.map(function (option, index) {
+          return '<button class="tot-button tot-option" type="button" data-option-index="' + index + '">' + escapeHtml(option.text) + '</button>';
+        }).join("");
+      }
+
+      function chooseSoftCheck(event) {
+        const button = event.target.closest("[data-option-index]");
+        if (!button || state.pendingSoftCheckIndex === null) return;
+
+        const check = softSkills[state.pendingSoftCheckIndex];
+        const option = check.options[Number(button.getAttribute("data-option-index"))];
+        setFavor(state.favor + option.score);
+        addTranscript(
+          "action",
+          "Charisma Check",
+          option.feedback + " (" + (option.score >= 0 ? "+" : "") + option.score + " favor)"
+        );
+
+        state.pendingSoftCheckIndex = null;
+        els.softCheck.style.display = "none";
+        els.softCheckOptions.innerHTML = "";
+
+        if (state.questionIndex >= questions.length) {
+          finishTrial();
+        } else {
+          setInputEnabled(true);
+        }
+      }
+
+      function finishTrial() {
+        state.finished = true;
+        state.active = false;
+        setInputEnabled(false);
+        els.resultPanel.style.display = "block";
+        els.resultPanel.classList.toggle("is-fail", state.favor < PASS_THRESHOLD);
+
+        if (state.favor >= PASS_THRESHOLD) {
+          els.resultTitle.textContent = "Passed";
+          els.resultCopy.textContent = "The Council accepts your standing. Your answers and choices showed enough professionalism to pass the Trial of Tongues.";
+        } else {
+          els.resultTitle.textContent = "Retry Needed";
+          els.resultCopy.textContent = "The Council does not seal this attempt. Try again with fuller answers, calmer choices, and a more professional tone.";
+        }
+        setFavor(state.favor);
+      }
+
+      function transcriptText() {
+        return [
+          "Trial of Tongues - Etheric Nexus",
+          "Final favor: " + state.favor + "/100",
+          "Result: " + (state.favor >= PASS_THRESHOLD ? "Passed" : "Retry Needed"),
+          "",
+          state.transcript.map(function (entry) {
+            return "[" + entry.at + "] " + entry.speaker + ": " + entry.text;
+          }).join("\n")
+        ].join("\n");
+      }
+
+      async function copyTranscript() {
+        const text = transcriptText();
+        try {
+          await navigator.clipboard.writeText(text);
+          els.copyFeedback.textContent = "Transcript copied.";
+        } catch (error) {
+          els.copyFeedback.textContent = "Copy failed. Select the transcript text manually from the frame.";
+        }
+      }
+
+      function restartTrial() {
+        state.favor = 50;
+        state.active = false;
+        state.finished = false;
+        state.questionIndex = 0;
+        state.pendingSoftCheckIndex = null;
+        state.transcript = [];
+
+        els.transcript.innerHTML = '<div class="tot-empty" id="emptyState"><p>Your interview record is empty. Begin when you are ready.</p></div>';
+        els.emptyState = document.getElementById("emptyState");
+        els.startButton.disabled = false;
+        els.answerInput.value = "";
+        els.softCheck.style.display = "none";
+        els.resultPanel.style.display = "none";
+        els.copyFeedback.textContent = "";
+        els.turnCount.textContent = "0";
+        setInputEnabled(false);
+        setFavor(50);
+      }
+
+      els.startButton.addEventListener("click", beginTrial);
+      els.answerForm.addEventListener("submit", submitAnswer);
+      els.softCheckOptions.addEventListener("click", chooseSoftCheck);
+      els.copyTranscriptButton.addEventListener("click", copyTranscript);
+      els.restartButton.addEventListener("click", restartTrial);
+
+      setFavor(50);
+    })();
+  </script>
+</body>
+</html>

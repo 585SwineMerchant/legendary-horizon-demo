@@ -18,6 +18,7 @@ async function postToLhWebApp(url: string, body: Record<string, unknown>): Promi
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(merged),
+      redirect: 'error',
     });
     const text = await res.text();
     let payload: Record<string, unknown> = {};

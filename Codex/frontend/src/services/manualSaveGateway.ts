@@ -412,6 +412,18 @@ export async function persistManualSaveEnvelope(envelope: ManualSaveEnvelopeV1):
     };
   }
 
+  // A real manual_save response always includes `row_written >= 2`.
+  // A doGet health-check redirect returns { ok: true } without row_written —
+  // treating that as success would show a false "saved" confirmation with no
+  // actual row written to the sheet.
+  const rowWritten = parsed.row_written;
+  if (typeof rowWritten !== 'number' || rowWritten < 2) {
+    return {
+      ok: false,
+      message: 'Server acknowledged request but did not confirm a sheet row write. Save may not have persisted.',
+    };
+  }
+
   cacheFullStateAfterSave(envelope);
   // POST confirmed successful — discard the pending save buffer.
   clearPendingSave();
