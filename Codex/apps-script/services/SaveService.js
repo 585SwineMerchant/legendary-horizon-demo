@@ -177,13 +177,30 @@ function LhSave_ensurePlayerRow_(spreadsheetId, tabNameOverride, playerSnapshot)
     }
     var existingIndex = lhSheetFindRowIndex_(rows, idCol, pid);
     if (existingIndex !== -1) {
-      Logger.log('LhSave_ensurePlayerRow_: row for ' + pid + ' appeared concurrently at row ' + (existingIndex + 1) + '; skipping append.');
-      return { ok: true, row_written: existingIndex + 1 };
+      var existingSheetRow = existingIndex + 1;
+      Logger.log('LhSave_ensurePlayerRow_: row for ' + pid + ' appeared concurrently at sheet row ' + existingSheetRow + ' (array index ' + existingIndex + '); skipping append.');
+      if (existingSheetRow < 2) {
+        Logger.log('LhSave_ensurePlayerRow_: HEADER PROTECTION — concurrent row resolves to sheet row ' + existingSheetRow + ' for player_id=' + pid + '; aborting to protect headers.');
+        return { ok: false, error: 'invalid_save_row_header_protection' };
+      }
+      return { ok: true, row_written: existingSheetRow };
+    }
+    // Use rows.length (already read above, includes header row at index 0) to compute the
+    // sheet row the appended row will occupy. rows.length == total existing rows, so the
+    // newly appended row lands at sheet row (rows.length + 1).
+    // Do NOT use sheet.getLastRow() here — it can return a stale cached value right after
+    // appendRow(), which would be 1 when the sheet has only the header row, causing the
+    // write to target and destroy the header row.
+    var rowCountBeforeAppend = rows.length;
+    var targetRow = rowCountBeforeAppend + 1;
+    if (targetRow < 2) {
+      Logger.log('LhSave_ensurePlayerRow_: HEADER PROTECTION — computed targetRow=' + targetRow + ' for player_id=' + pid + ' in tab "' + tab + '"; sheet appears to have no header row. Aborting.');
+      return { ok: false, error: 'invalid_save_row_header_protection' };
     }
     var lastCol = sheet.getLastColumn();
     var blankRow = new Array(lastCol).fill('');
     sheet.appendRow(blankRow);
-    var targetRow = sheet.getLastRow();
+    Logger.log('LhSave_ensurePlayerRow_: appended blank row; computed targetRow=' + targetRow + ' (rowCountBeforeAppend=' + rowCountBeforeAppend + ') for player_id=' + pid + ' in tab "' + tab + '".');
     // Seed the bare minimum so the row is identifiable even if writePlayerSnapshot_ below
     // skips a field (defensive — keeps the row from being orphaned/un-findable).
     lhSave_writeFieldIfPresent_(sheet, headerMap, targetRow, LH_PLAYER_SAVE_HEADERS.player_id, pid);
@@ -358,7 +375,11 @@ function LhSave_manualSaveProgress(spreadsheetId, tabNameOverride, envelope) {
     Logger.log('LhSave_manualSaveProgress: player_id=' + pid + ' found at row ' + (rowIndex + 1) + '.');
   }
   var targetRow = rowIndex + 1;
-  Logger.log('LhSave_manualSaveProgress: writing save for ' + pid + ' to row ' + targetRow + '.');
+  if (targetRow < 2) {
+    Logger.log('LhSave_manualSaveProgress: HEADER PROTECTION — targetRow=' + targetRow + ' (rowIndex=' + rowIndex + ') for player_id=' + pid + ' in tab "' + tab + '". Aborting.');
+    return { ok: false, error: 'invalid_save_row_header_protection' };
+  }
+  Logger.log('LhSave_manualSaveProgress: player_id=' + pid + ' at table rowIndex=' + rowIndex + ' → sheet row=' + targetRow + ' in tab "' + tab + '".');
   var prior = LhSave_loadPlayerState(spreadsheetId, tabNameOverride, pid);
   if (prior.ok && envelope.save_kind !== 'auto') {
     var backup = {
@@ -478,6 +499,10 @@ function lhSave_isoForSheet_(iso) {
  * @param {object} opts { questsJson?, lastManualIso?, revisionToken?, autoIso?, exitState? }
  */
 function lhSave_writePlayerSnapshot_(sheet, headerMap, targetRow, ps, opts) {
+  if (targetRow < 2) {
+    Logger.log('lhSave_writePlayerSnapshot_: HEADER PROTECTION — targetRow=' + targetRow + ' for player_id=' + (ps && ps.player_id) + '. Refusing to write (would overwrite header row).');
+    return;
+  }
   opts = opts || {};
   function w(headerKey, val) {
     lhSave_writeFieldIfPresent_(sheet, headerMap, targetRow, headerKey, val);
@@ -844,6 +869,10 @@ function LhSave_applyManualSaveEnvelope(spreadsheetId, tabNameOverride, envelope
     }
 
     var targetRow = rowIndex + 1;
+    if (targetRow < 2) {
+      throw new Error('HEADER PROTECTION: targetRow=' + targetRow + ' (rowIndex=' + rowIndex + ') for player_id=' + playerId + ' in tab "' + tab + '". Aborting to protect header row.');
+    }
+    Logger.log('LhSave_applyManualSaveEnvelope: player_id=' + playerId + ' found at table rowIndex=' + rowIndex + ' → sheet row=' + targetRow + ' in tab "' + tab + '".');
     var ps = envelope.player_snapshot;
     var revisionToken = ps.revision_token || Utilities.getUuid();
 
