@@ -3094,6 +3094,7 @@ export function useNightOneFlow() {
     explorationInit = syncGuildTruePathFromPlayerIfUnset(
       ensureAcademicTasksSeeded(BLUEPRINT.academic_worksheet_tasks, explorationInit),
       remote.player.current_realm_id,
+      remote.player.current_act,
     );
     setPlayer(remote.player);
     setQuests((q) =>

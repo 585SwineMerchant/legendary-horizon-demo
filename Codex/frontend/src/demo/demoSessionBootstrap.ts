@@ -193,7 +193,7 @@ export function finalizeDemoBootstrapExploration(args: FinalizeDemoBootstrapArgs
   let exploration: ExplorationLoopState = { ...args.explorationAfterCoerce };
 
   exploration = ensureAcademicTasksSeeded([...args.academicTaskDefs], exploration);
-  exploration = syncGuildTruePathFromPlayerIfUnset(exploration, args.nextPlayer.current_realm_id);
+  exploration = syncGuildTruePathFromPlayerIfUnset(exploration, args.nextPlayer.current_realm_id, args.nextPlayer.current_act);
   // Do not pre-reveal guild HQ from `realm_progress.entered` — only the first physical HQ visit should chart the atlas.
 
   return { exploration, realmProgress, nextPlayer: args.nextPlayer };

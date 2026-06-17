@@ -15,11 +15,21 @@ export function createDefaultGuildEndgameV1(): GuildEndgameV1 {
   };
 }
 
-/** Seed true-path from save `current_realm_id` when unset (bootstrap / legacy saves). */
+/**
+ * Backfill `true_path_realm_id` from `current_realm_id` for legacy saves where the player
+ * completed the True Path ceremony before the field existed.
+ *
+ * GUARD: only runs for Act IV+ players (`playerCurrentAct >= 4`). Act I–III players have
+ * not yet reached the True Path selection ceremony, so their current realm must never be
+ * promoted to a True Path — doing so would corrupt `guild_endgame_v1` and write a bogus
+ * `true_path_selected` value to the spreadsheet on the next save.
+ */
 export function syncGuildTruePathFromPlayerIfUnset(
   exploration: ExplorationLoopState,
   currentRealmId: string | undefined,
+  playerCurrentAct: number,
 ): ExplorationLoopState {
+  if (playerCurrentAct < 4) return exploration;
   const rid = String(currentRealmId ?? '').trim();
   if (!rid) return exploration;
   const ge = exploration.guild_endgame_v1 ?? createDefaultGuildEndgameV1();
