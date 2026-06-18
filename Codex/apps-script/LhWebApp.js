@@ -306,6 +306,14 @@ function doPost(e) {
       return lhWebJsonOutput_(out);
     }
 
+    if (action === 'ping') {
+      out.ok = true;
+      out.pong = true;
+      out.backend = 'game';
+      out.ts = new Date().toISOString();
+      return lhWebJsonOutput_(out);
+    }
+
     out.error = 'unknown_action';
     return lhWebJsonOutput_(out);
   } catch (err) {
